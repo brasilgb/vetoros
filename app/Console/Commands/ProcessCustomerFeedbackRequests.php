@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\App\Order;
-use App\Models\App\OrderLog;
 use App\Models\App\Other;
 use App\Services\OrderNotificationService;
 use App\Support\OrderStatus;
@@ -57,17 +56,6 @@ class ProcessCustomerFeedbackRequests extends Command
             if ($expirationDueAt?->lte(now())) {
                 if (! $dryRun) {
                     $order->update(['customer_feedback_request_expired_at' => now()]);
-
-                    OrderLog::create([
-                        'order_id' => $order->id,
-                        'user_id' => null,
-                        'action' => 'customer_feedback_request_expired',
-                        'data' => [
-                            'days_since_delivery' => $daysSinceDelivery,
-                            'trigger' => 'automatic',
-                        ],
-                        'created_at' => now(),
-                    ]);
                 }
 
                 $expired++;
@@ -93,19 +81,6 @@ class ProcessCustomerFeedbackRequests extends Command
                 try {
                     $this->orderNotificationService->sendFeedbackReminder($order);
                     $order->update(['customer_feedback_reminder_sent_at' => now()]);
-
-                    OrderLog::create([
-                        'order_id' => $order->id,
-                        'user_id' => null,
-                        'action' => 'customer_feedback_reminder_sent',
-                        'data' => [
-                            'channel' => 'email',
-                            'recipient' => $customerEmail,
-                            'days_since_delivery' => $daysSinceDelivery,
-                            'trigger' => 'automatic',
-                        ],
-                        'created_at' => now(),
-                    ]);
                 } catch (\Throwable $e) {
                     report($e);
                     $skipped++;

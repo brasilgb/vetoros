@@ -4,7 +4,6 @@ namespace App\Listeners;
 
 use App\Events\OrderPaymentRemoved;
 use App\Models\App\Order;
-use App\Models\App\OrderLog;
 use App\Services\OperationalAuditService;
 
 class RecordOrderPaymentRemovedLifecycle
@@ -18,14 +17,6 @@ class RecordOrderPaymentRemovedLifecycle
         if (! $order) {
             return;
         }
-
-        OrderLog::create([
-            'order_id' => $order->id,
-            'user_id' => $event->actorId,
-            'action' => 'payment_removed',
-            'data' => $event->data,
-            'created_at' => now(),
-        ]);
 
         $this->operationalAuditService->record(
             'order_payment_removed',

@@ -55,8 +55,6 @@ class OsController extends Controller
         $order = $this->publicOrderByToken($token)
             ->with('equipment')
             ->with('customer')
-            ->with('statusHistory')
-            ->with('logs')
             ->with('images:id,order_id,filename')
             ->with('orderPayments:id,order_id,amount,paid_at,payment_method')
             ->with('warrantySourceOrder:id,order_number,warranty_expires_at')

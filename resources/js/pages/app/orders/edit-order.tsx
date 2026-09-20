@@ -5,7 +5,6 @@ import FormFieldHelp from '@/components/form-field-help';
 import { Icon } from '@/components/icon';
 import InputError from '@/components/input-error';
 import InvoiceModal from '@/components/Modals/InvoiceModal';
-import { OrderTimeline } from '@/components/order-timeline';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -933,13 +932,6 @@ export default function EditOrder({
                                                     Nenhum atendimento anterior encontrado para este equipamento/modelo.
                                                 </p>
                                             )}
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardTitle className="border-b px-4 py-3">Linha do tempo da ordem</CardTitle>
-                                        <CardContent className="pt-6">
-                                            <OrderTimeline statusHistory={order.status_history} logs={order.logs} />
                                         </CardContent>
                                     </Card>
                                 </div>

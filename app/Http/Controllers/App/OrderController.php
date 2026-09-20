@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\App;
 
 use App\Events\OrderCreated;
-use App\Exceptions\WhatsAppException;
 use App\Events\OrderLifecycleCreated;
 use App\Events\OrderLifecycleStatusChanged;
 use App\Events\OrderPaymentRegistered;
 use App\Events\OrderPaymentRemoved;
 use App\Events\OrderStatusUpdated;
+use App\Exceptions\WhatsAppException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
 use App\Models\App\Customer;
@@ -24,14 +24,14 @@ use App\Models\App\Schedule;
 use App\Models\App\WhatsappMessage;
 use App\Models\User;
 use App\Services\FinancialReceivableService;
-use App\Services\TechnicianCommissionService;
 use App\Services\FiscalDocumentService;
 use App\Services\OperationalAuditService;
-use App\Services\OrderItemSyncService;
 use App\Services\OrderCommunicationContextService;
+use App\Services\OrderItemSyncService;
 use App\Services\OrderNotificationService;
 use App\Services\OrderPaymentService;
 use App\Services\OrderStatusService;
+use App\Services\TechnicianCommissionService;
 use App\Services\WhatsAppService;
 use App\Support\Ean13;
 use App\Support\OrderSignature;
@@ -41,6 +41,7 @@ use App\Support\TenantSequence;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -482,7 +483,7 @@ class OrderController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Order>  $orders
+     * @param  Collection<int, Order>  $orders
      */
     private function withSignatureStatus($orders)
     {
@@ -809,8 +810,6 @@ class OrderController extends Controller
             'orderParts',
             'orderItems',
             'orderPayments',
-            'statusHistory.user:id,name',
-            'logs.user:id,name',
         ]);
 
         $equipments = Equipment::get();
@@ -1001,14 +1000,6 @@ class OrderController extends Controller
             }
         });
 
-        if ($partsSyncResult && $currentPartsSnapshot !== $partsSyncResult['snapshot']) {
-            $this->logOrderAction($order, 'parts_synced', [
-                'items_count' => count($partsSyncResult['snapshot']),
-                'total_quantity' => array_sum($partsSyncResult['snapshot']),
-                'movements' => $partsSyncResult['movements'],
-            ]);
-        }
-
         if ($data['service_status'] != $oldStatus) {
             $currentStatus = (int) $data['service_status'];
             $statusLabel = OrderStatus::label($currentStatus);
@@ -1038,10 +1029,6 @@ class OrderController extends Controller
                 report($exception);
                 $successMessage = 'Ordem atualizada com sucesso, mas houve falha ao enviar o e-mail de status ao cliente.';
             }
-        } elseif ($changes !== []) {
-            $this->logOrderAction($order, 'updated', [
-                'changes' => $changes,
-            ]);
         }
 
         $order = $order->fresh(['orderPayments']);
@@ -1145,13 +1132,6 @@ class OrderController extends Controller
         $order = $order->fresh(['orderPayments']);
         $this->orderItemSyncService->sync($order);
         $this->financialReceivableService->syncOrder($order);
-
-        $this->logOrderAction($order, 'part_removed', [
-            'part_id' => (int) $part->id,
-            'part_name' => $part->name,
-            'quantity_removed' => $removedQuantity,
-            'removed_total' => $removedTotal,
-        ]);
 
         return redirect()->route('app.orders.show', $order)->with('success', 'Peça removida e estoque devolvido com sucesso.');
     }
@@ -1273,12 +1253,6 @@ class OrderController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        $this->logOrderAction($order, 'fiscal_registered', [
-            'fiscal_document_number' => $document->number,
-            'fiscal_document_url' => $document->pdf_url,
-            'fiscal_issued_at' => $document->issued_at?->toDateTimeString(),
-        ]);
-
         return back()->with('success', 'Comprovante fiscal da ordem registrado com sucesso.');
     }
 
@@ -1389,10 +1363,6 @@ class OrderController extends Controller
             'customer_update_note_at' => now(),
         ]);
 
-        $this->logOrderAction($order, 'customer_update_sent', [
-            'note' => $note,
-        ]);
-
         if (! $this->shouldSendCustomerMailer($order, $customerEmail)) {
             return back()->with('success', 'Atualização salva e visível no acompanhamento público da ordem. E-mail não enviado: cliente sem e-mail válido ou SMTP não configurado.');
         }
@@ -1429,12 +1399,6 @@ class OrderController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        $this->logOrderAction($order, 'whatsapp_sent', [
-            'channel' => 'whatsapp',
-            'recipient' => $phone,
-            'trigger' => 'manual',
-        ]);
-
         return back()->with('success', 'Mensagem enviada pelo WhatsApp com sucesso.');
     }
 
@@ -1461,10 +1425,6 @@ class OrderController extends Controller
         }
 
         $order->update(['feedback' => 1]);
-        $this->logOrderAction($order, 'feedback_marked', [
-            'feedback' => 1,
-            'delivery_date' => Carbon::parse($order->delivery_date)->toDateTimeString(),
-        ]);
 
         return back()->with('success', 'Feedback marcado como realizado.');
     }

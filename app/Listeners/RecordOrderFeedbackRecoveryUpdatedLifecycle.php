@@ -4,7 +4,6 @@ namespace App\Listeners;
 
 use App\Events\OrderFeedbackRecoveryUpdated;
 use App\Models\App\Order;
-use App\Models\App\OrderLog;
 use App\Services\OperationalAuditService;
 
 class RecordOrderFeedbackRecoveryUpdatedLifecycle
@@ -18,14 +17,6 @@ class RecordOrderFeedbackRecoveryUpdatedLifecycle
         if (! $order) {
             return;
         }
-
-        OrderLog::create([
-            'order_id' => $order->id,
-            'user_id' => $event->actorId,
-            'action' => 'customer_feedback_recovery_updated',
-            'data' => $event->data,
-            'created_at' => now(),
-        ]);
 
         $this->operationalAuditService->record(
             'order_feedback_recovery_updated',

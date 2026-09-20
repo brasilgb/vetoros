@@ -1,5 +1,4 @@
 import { toastSuccess, toastWarning } from '@/components/app-toast-messages';
-import { OrderTimeline } from '@/components/order-timeline';
 import { StatusBadge } from '@/components/StatusBadge';
 import Timeline from '@/components/timeline';
 import {
@@ -80,8 +79,6 @@ interface Order {
     customer_feedback_submitted_at?: string;
     customer_update_note?: string;
     customer_update_note_at?: string;
-    status_history?: any[];
-    logs?: any[];
     images?: OrderImage[];
     order_payments?: OrderPayment[];
     warranty_source_order?: { order_number: number; warranty_expires_at?: string };
@@ -1067,15 +1064,6 @@ function ServiceOrders({ order }: { order: Order }) {
                         </div>
                     </div>
 
-                    <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-lg font-semibold whitespace-nowrap text-slate-900">Andamento da ordem</h2>
-                            <div className="h-px flex-1 bg-slate-200" />
-                        </div>
-                        <div className="mt-4 border-t border-slate-100 pt-4">
-                            <OrderTimeline statusHistory={order.status_history} logs={order.logs} mode="public" />
-                        </div>
-                    </section>
                 </div>
             </div>
 

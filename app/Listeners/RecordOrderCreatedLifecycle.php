@@ -4,7 +4,6 @@ namespace App\Listeners;
 
 use App\Events\OrderLifecycleCreated;
 use App\Models\App\Order;
-use App\Models\App\OrderLog;
 use App\Services\OperationalAuditService;
 
 class RecordOrderCreatedLifecycle
@@ -18,14 +17,6 @@ class RecordOrderCreatedLifecycle
         if (! $order) {
             return;
         }
-
-        OrderLog::create([
-            'order_id' => $order->id,
-            'user_id' => $event->actorId,
-            'action' => 'created',
-            'data' => $event->data,
-            'created_at' => now(),
-        ]);
 
         $this->operationalAuditService->record(
             'order_created',

@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\App\Order;
 use App\Models\App\OrderLog;
 use App\Models\App\Other;
-use App\Services\FollowUpTaskService;
 use App\Models\User;
+use App\Services\FollowUpTaskService;
 use App\Support\OrderStatus;
+use App\Support\Pagination;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -381,28 +382,28 @@ class FollowUpController extends Controller
                         ->contains(fn (OrderLog $log) => $log->created_at?->isToday());
                 })
                 ->map(function (Order $order) use ($label, $scope, $columns) {
-                $priority = $order->next_action['priority'] ?? 'normal';
+                    $priority = $order->next_action['priority'] ?? 'normal';
 
-                return [
-                    'id' => $order->id,
-                    'scope' => $scope,
-                    'order_number' => $order->order_number,
-                    'customer' => $order->customer?->name,
-                    'technician' => $order->user?->name ?? 'Não definido',
-                    'assigned_to' => match ($scope) {
-                        'budget' => $order->budgetFollowUpAssignee?->name,
-                        'payment' => $order->paymentFollowUpAssignee?->name,
-                    },
-                    'assigned_to_id' => match ($scope) {
-                        'budget' => $order->budget_follow_up_assigned_to,
-                        'payment' => $order->payment_follow_up_assigned_to,
-                    },
-                    'type' => $label,
-                    'days_pending' => (int) ($order->communication_days_pending ?? 0),
-                    'next_action' => $order->next_action,
-                    'priority' => $priority,
-                    'snoozed_until' => optional($order->{$columns['snoozed_until']})->toIso8601String(),
-                ];
+                    return [
+                        'id' => $order->id,
+                        'scope' => $scope,
+                        'order_number' => $order->order_number,
+                        'customer' => $order->customer?->name,
+                        'technician' => $order->user?->name ?? 'Não definido',
+                        'assigned_to' => match ($scope) {
+                            'budget' => $order->budgetFollowUpAssignee?->name,
+                            'payment' => $order->paymentFollowUpAssignee?->name,
+                        },
+                        'assigned_to_id' => match ($scope) {
+                            'budget' => $order->budget_follow_up_assigned_to,
+                            'payment' => $order->payment_follow_up_assigned_to,
+                        },
+                        'type' => $label,
+                        'days_pending' => (int) ($order->communication_days_pending ?? 0),
+                        'next_action' => $order->next_action,
+                        'priority' => $priority,
+                        'snoozed_until' => optional($order->{$columns['snoozed_until']})->toIso8601String(),
+                    ];
                 });
         };
 
@@ -809,14 +810,14 @@ class FollowUpController extends Controller
         $budgetOrders = $type === 'payment'
             ? null
             : $budgetQuery
-                ->paginate(\App\Support\Pagination::perPage(), ['*'], 'budget_page')
+                ->paginate(Pagination::perPage(), ['*'], 'budget_page')
                 ->withQueryString()
                 ->through(fn (Order $order) => $this->appendFollowUpData($order));
 
         $paymentOrders = $type === 'budget'
             ? null
             : $paymentQuery
-                ->paginate(\App\Support\Pagination::perPage(), ['*'], 'payment_page')
+                ->paginate(Pagination::perPage(), ['*'], 'payment_page')
                 ->withQueryString()
                 ->through(fn (Order $order) => $this->appendFollowUpData($order));
 
@@ -1044,23 +1045,10 @@ class FollowUpController extends Controller
         if ($validated['scope'] === 'feedback') {
             $this->followUpTaskService->pause($order, 'feedback', trim((string) $validated['reason']), $this->currentUser()?->id);
 
-            $this->logOrderAction($order, 'customer_feedback_recovery_completed', [
-                'scope' => 'feedback',
-                'reason' => trim((string) $validated['reason']),
-                'assigned_to' => $order->customerFeedbackRecoveryAssignee?->name,
-            ]);
-
             return back()->with('success', 'Tarefa marcada como concluída.');
         }
 
-        $columns = $this->scopeColumns($validated['scope']);
-
         $this->followUpTaskService->pause($order, $validated['scope'], trim((string) $validated['reason']), $this->currentUser()?->id);
-
-        $this->logOrderAction($order, $columns['log_pause'], [
-            'scope' => $validated['scope'],
-            'reason' => trim((string) $validated['reason']),
-        ]);
 
         return back()->with('success', 'Automação pausada para esta ordem.');
     }
@@ -1074,13 +1062,7 @@ class FollowUpController extends Controller
             'scope' => 'required|in:budget,payment',
         ]);
 
-        $columns = $this->scopeColumns($validated['scope']);
-
         $this->followUpTaskService->resume($order, $validated['scope']);
-
-        $this->logOrderAction($order, $columns['log_resume'], [
-            'scope' => $validated['scope'],
-        ]);
 
         return back()->with('success', 'Automação reativada para esta ordem.');
     }
@@ -1095,16 +1077,9 @@ class FollowUpController extends Controller
             'status' => 'required|in:responded,no_interest,waiting_piece,promised_payment',
         ]);
 
-        $columns = $this->scopeColumns($validated['scope']);
         $label = $this->responseLabel($validated['status']);
 
         $this->followUpTaskService->respond($order, $validated['scope'], $validated['status'], $label ?? $validated['status'], $this->currentUser()?->id);
-
-        $this->logOrderAction($order, $columns['log_response'], [
-            'scope' => $validated['scope'],
-            'status' => $validated['status'],
-            'label' => $label,
-        ]);
 
         return back()->with('success', 'Retorno do cliente registrado com sucesso.');
     }
@@ -1145,14 +1120,7 @@ class FollowUpController extends Controller
             'days' => 'required|integer|min:1|max:30',
         ]);
 
-        $columns = $this->scopeColumns($validated['scope']);
-        $snoozedUntil = $this->followUpTaskService->snoozeTask($order, $validated['scope'], (int) $validated['days']);
-
-        $this->logOrderAction($order, $columns['log_task_snoozed'], [
-            'scope' => $validated['scope'],
-            'days' => (int) $validated['days'],
-            'snoozed_until' => $snoozedUntil->toIso8601String(),
-        ]);
+        $this->followUpTaskService->snoozeTask($order, $validated['scope'], (int) $validated['days']);
 
         return back()->with('success', 'Tarefa adiada com sucesso.');
     }
@@ -1180,24 +1148,10 @@ class FollowUpController extends Controller
         if ($validated['scope'] === 'feedback') {
             $this->followUpTaskService->assignTask($order, 'feedback', $assignee);
 
-            $this->logOrderAction($order, 'customer_feedback_recovery_updated', [
-                'scope' => 'feedback',
-                'status' => $assignee ? 'in_progress' : ($order->customer_feedback_recovery_status ?: 'pending'),
-                'assigned_to' => $assignee?->name,
-                'assigned_to_id' => $assignee?->id,
-            ]);
-
             return back()->with('success', 'Responsável da tarefa atualizado.');
         }
 
-        $columns = $this->scopeColumns($validated['scope']);
-
         $this->followUpTaskService->assignTask($order, $validated['scope'], $assignee);
-
-        $this->logOrderAction($order, $columns['log_task_assigned'], [
-            'scope' => $validated['scope'],
-            'assigned_to' => $assignee?->name,
-        ]);
 
         return back()->with('success', 'Responsável da tarefa atualizado.');
     }
@@ -1240,27 +1194,12 @@ class FollowUpController extends Controller
             if ($task['scope'] === 'feedback') {
                 $this->followUpTaskService->assignTask($order, 'feedback', $assignee);
 
-                $this->logOrderAction($order, 'customer_feedback_recovery_updated', [
-                    'scope' => 'feedback',
-                    'status' => $assignee ? 'in_progress' : ($order->customer_feedback_recovery_status ?: 'pending'),
-                    'assigned_to' => $assignee?->name,
-                    'assigned_to_id' => $assignee?->id,
-                    'bulk' => true,
-                ]);
-
                 $updated++;
+
                 continue;
             }
 
-            $columns = $this->scopeColumns($task['scope']);
-
             $this->followUpTaskService->assignTask($order, $task['scope'], $assignee);
-
-            $this->logOrderAction($order, $columns['log_task_assigned'], [
-                'scope' => $task['scope'],
-                'assigned_to' => $assignee?->name,
-                'bulk' => true,
-            ]);
 
             $updated++;
         }

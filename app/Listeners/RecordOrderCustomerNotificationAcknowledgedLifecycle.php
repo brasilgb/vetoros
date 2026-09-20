@@ -4,7 +4,6 @@ namespace App\Listeners;
 
 use App\Events\OrderCustomerNotificationAcknowledged;
 use App\Models\App\Order;
-use App\Models\App\OrderLog;
 use App\Services\OperationalAuditService;
 
 class RecordOrderCustomerNotificationAcknowledgedLifecycle
@@ -18,14 +17,6 @@ class RecordOrderCustomerNotificationAcknowledgedLifecycle
         if (! $order) {
             return;
         }
-
-        OrderLog::create([
-            'order_id' => $order->id,
-            'user_id' => null,
-            'action' => 'customer_notification_acknowledged',
-            'data' => $event->data,
-            'created_at' => now(),
-        ]);
 
         $this->operationalAuditService->record(
             'order_customer_notification_acknowledged',
