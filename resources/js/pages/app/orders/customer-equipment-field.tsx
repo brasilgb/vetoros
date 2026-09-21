@@ -55,6 +55,7 @@ export default function CustomerEquipmentField({
     const [selected, setSelected] = useState<CustomerEquipmentSelectOption | null>(
         initialDevice ? mapOption(initialDevice) : null,
     );
+    const [reloadToken, setReloadToken] = useState(0);
 
     const createForm = useForm({
         equipment_id: '',
@@ -73,6 +74,7 @@ export default function CustomerEquipmentField({
         const device = flash.customer_equipment_saved;
         setSelected(mapOption(device));
         onChange(String(device.id), device);
+        setReloadToken((token) => token + 1);
     }, [flash?.customer_equipment_saved?.id]);
 
     const isFirstRender = useRef(true);
@@ -103,7 +105,7 @@ export default function CustomerEquipmentField({
     return (
         <div className="flex min-w-0 items-center gap-2">
             <AsyncResourceSelect<CustomerEquipmentSelectOption>
-                key={String(customerId)}
+                key={`${customerId}-${reloadToken}`}
                 inputId="customer_equipment_id"
                 searchUrl={route('app.customer-equipments.search', { customer_id: customerId || 0 })}
                 value={selected}
