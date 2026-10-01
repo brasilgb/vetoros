@@ -5,12 +5,16 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\App\Company;
 use App\Models\Tenant;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Throwable;
 
 class CompanyController extends Controller
 {
@@ -59,39 +63,70 @@ class CompanyController extends Controller
         }
 
         $data = $request->validate([
-            'shortname' => ['nullable', 'string', 'max:255'],
-            'companyname' => ['nullable', 'string', 'max:255'],
+            'shortname' => ['nullable', 'string', 'max:50'],
+            'companyname' => ['nullable', 'string', 'max:50'],
             'cnpj' => ['nullable', 'string', 'max:18'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'zip_code' => ['nullable', 'string', 'max:20'],
             'state' => ['nullable', 'string', 'size:2'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'district' => ['nullable', 'string', 'max:100'],
-            'street' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:50'],
+            'district' => ['nullable', 'string', 'max:50'],
+            'street' => ['nullable', 'string', 'max:50'],
             'number' => ['nullable', 'string', 'max:20'],
-            'complement' => ['nullable', 'string', 'max:255'],
+            'complement' => ['nullable', 'string', 'max:50'],
             'telephone' => ['nullable', 'string', 'max:30'],
             'whatsapp' => ['nullable', 'string', 'max:30'],
-            'site' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'site' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:50'],
         ]);
         $storePath = public_path('storage/logos');
-        if ($request->hasfile('logo')) {
-            $fileName = time().'.'.$request->logo->extension();
-            $request->logo->move($storePath, $fileName);
-            if (file_exists($storePath.DIRECTORY_SEPARATOR.$company->logo && $company->logo)) {
-                unlink($storePath.DIRECTORY_SEPARATOR.$company->logo);
+        $oldLogo = $company->logo;
+        $fileName = null;
+
+        try {
+            if ($request->hasFile('logo')) {
+                $fileName = Str::uuid().'.'.$request->file('logo')->extension();
+                $request->file('logo')->move($storePath, $fileName);
+            }
+            $data['logo'] = $fileName ?? $oldLogo;
+
+            DB::transaction(function () use ($company, $data) {
+                $company->update($data);
+
+                // O cadastro do tenant usa nomes diferentes e não possui logo/site.
+                $tenantData = Arr::only($data, [
+                    'cnpj', 'email', 'whatsapp', 'zip_code', 'state', 'city',
+                    'district', 'street', 'number', 'complement',
+                ]);
+                foreach (['companyname' => 'company', 'telephone' => 'phone'] as $source => $target) {
+                    if (array_key_exists($source, $data)) {
+                        $tenantData[$target] = $data[$source];
+                    }
+                }
+                // Estes campos são obrigatórios no tenant, mas opcionais na empresa.
+                foreach (['cnpj', 'email'] as $required) {
+                    if (($tenantData[$required] ?? null) === null) {
+                        unset($tenantData[$required]);
+                    }
+                }
+                $tenant = Tenant::query()->find($company->tenant_id);
+                $tenant?->update($tenantData);
+            });
+        } catch (Throwable $exception) {
+            if ($fileName && File::isFile($storePath.DIRECTORY_SEPARATOR.$fileName)) {
+                File::delete($storePath.DIRECTORY_SEPARATOR.$fileName);
+            }
+            throw $exception;
+        }
+
+        // Só remove o logo anterior depois de confirmar a gravação no banco.
+        if ($fileName && $oldLogo && File::isFile($storePath.DIRECTORY_SEPARATOR.basename($oldLogo))) {
+            try {
+                File::delete($storePath.DIRECTORY_SEPARATOR.basename($oldLogo));
+            } catch (Throwable $exception) {
+                report($exception);
             }
         }
-        $data['logo'] = $request->hasfile('logo') ? $fileName : $company->logo;
-        Model::reguard();
-        $company->update($data);
-
-        $tenant = Tenant::query()->find($company->tenant_id);
-        if ($tenant) {
-            $tenant->update($data);
-        }
-        Model::unguard();
 
         return redirect()->route('app.company.index')->with('success', 'Dados da filial alterados com sucesso!');
     }

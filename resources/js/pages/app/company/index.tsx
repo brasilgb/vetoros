@@ -1,4 +1,4 @@
-import { toastSuccess, toastWarning } from '@/components/app-toast-messages';
+import { toastWarning } from '@/components/app-toast-messages';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { BreadcrumbItem } from '@/types';
 import { maskCep, maskCnpj, maskPhone, unMask } from '@/Utils/mask';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { Building, Save, UploadCloud } from 'lucide-react';
 import { DragEvent, useEffect, useRef, useState } from 'react';
 
@@ -28,11 +28,11 @@ export default function Company({ company }: any) {
     const [isDraggingLogo, setIsDraggingLogo] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const logoInputRef = useRef<HTMLInputElement>(null);
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData, processing, errors, post, transform } = useForm({
         shortname: company?.shortname,
         companyname: company?.companyname,
         cnpj: company?.cnpj,
-        logo: null,
+        logo: null as File | null,
         zip_code: company?.zip_code,
         state: company?.state,
         city: company?.city,
@@ -50,7 +50,7 @@ export default function Company({ company }: any) {
     const handleLogoFile = (file?: File) => {
         if (!file) return;
 
-        if (!file.type.startsWith('image/')) {
+        if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) {
             toastWarning('Erro', 'Apenas imagens são permitidas para o logotipo.');
             return;
         }
@@ -64,7 +64,7 @@ export default function Company({ company }: any) {
             URL.revokeObjectURL(logoPreview);
         }
 
-        setData('logo', file as any);
+        setData('logo', file);
         setLogoPreview(URL.createObjectURL(file));
     };
 
@@ -88,41 +88,21 @@ export default function Company({ company }: any) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        router.post(
-            route('app.company.update', company.id),
-            {
-                // DADOS (Primeiro Objeto)
-                _method: 'put', // Necessário para simular PUT em formulários com arquivos (logo)
-                shortname: data.shortname,
-                companyname: data.companyname,
-                cnpj: data.cnpj,
-                logo: data.logo,
-                zip_code: data.zip_code,
-                state: data.state,
-                city: data.city,
-                district: data.district,
-                street: data.street,
-                number: data.number,
-                complement: data.complement,
-                telephone: data.telephone,
-                whatsapp: data.whatsapp,
-                site: data.site,
-                email: data.email,
+        if (processing || !canManageCompany) return;
+
+        transform((values) => ({ ...values, _method: 'put' }));
+        post(route('app.company.update', company.id), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                setData('logo', null);
+                setLogoPreview(null);
+                if (logoInputRef.current) logoInputRef.current.value = '';
             },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    toastSuccess('Sucesso', 'Dados da empresa ajustados com sucesso');
-                    if (logoPreview) {
-                        URL.revokeObjectURL(logoPreview);
-                        setLogoPreview(null);
-                    }
-                },
-                onError: (errors: any) => {
-                    toastWarning('Erro ao validar:', errors);
-                },
+            onError: (validationErrors) => {
+                toastWarning('Revise os dados informados', Object.values(validationErrors).join(' '));
             },
-        );
+        });
     };
 
     const getCep = (zip_code: string) => {
@@ -203,14 +183,14 @@ export default function Company({ company }: any) {
                                 <div className="min-w-0">
                                     <UploadCloud className="text-muted-foreground mb-2 h-6 w-6" />
                                     <p className="text-sm font-medium">Arraste o logotipo aqui ou clique para selecionar</p>
-                                    <p className="text-muted-foreground mt-1 text-xs">PNG, JPG, WEBP ou SVG até 2 MB.</p>
+                                    <p className="text-muted-foreground mt-1 text-xs">PNG, JPG, GIF ou WEBP até 2 MB.</p>
                                     {data.logo && <p className="text-muted-foreground mt-2 truncate text-xs">{(data.logo as File).name}</p>}
                                 </div>
                                 <Input
                                     ref={logoInputRef}
                                     type="file"
                                     id="logo"
-                                    accept="image/*"
+                                    accept="image/png,image/jpeg,image/gif,image/webp"
                                     disabled={!canManageCompany}
                                     onChange={(e) => handleLogoFile(e.target.files?.[0])}
                                     className="sr-only"
