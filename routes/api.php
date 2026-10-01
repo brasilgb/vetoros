@@ -12,6 +12,8 @@ use App\Http\Controllers\App\TechnicianPushTokenController;
 use App\Http\Controllers\App\TechnicianScheduleController;
 use App\Http\Controllers\App\UserController;
 use App\Http\Controllers\App\WebhookController;
+use App\Http\Controllers\Integration\RegistrationCheckController;
+use App\Http\Middleware\VerifyCrmIntegrationToken;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,6 +28,9 @@ use Illuminate\Support\Facades\Route;
 */
 // routes/api.php (Lembre-se de excluir essa rota da verificação CSRF no VerifyCsrfToken.php)
 Route::post('/webhooks/mercadopago/{token}', [WebhookController::class, 'handle'])->name('webhook.mercadopago');
+Route::post('/integrations/registration-check', RegistrationCheckController::class)
+    ->middleware(['throttle:60,1', VerifyCrmIntegrationToken::class])
+    ->name('api.integrations.registration-check');
 Route::post('/loginuser', [UserController::class, 'loginuser'])->name('loginuser');
 
 Route::middleware('auth:sanctum')->group(function () {

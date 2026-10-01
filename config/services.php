@@ -39,6 +39,10 @@ return [
         'webhook_token' => env('MP_WEBHOOK_TOKEN'),
     ],
 
+    'crm_abrasil' => [
+        'registration_check_token' => env('CRM_REGISTRATION_CHECK_TOKEN'),
+    ],
+
     'waha' => [
         'base_url' => env('WAHA_BASE_URL'),
         'api_key' => env('WAHA_API_KEY'),
