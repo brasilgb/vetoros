@@ -95,7 +95,13 @@ export function FlashToastMessages() {
         };
 
         const handleException = (event: Event) => {
-            const exception = (event as CustomEvent<{ exception?: { response?: InertiaResponse } }>).detail?.exception;
+            const exception = (event as CustomEvent<{
+                exception?: { response?: InertiaResponse; code?: string; message?: string };
+            }>).detail?.exception;
+            const isNetworkError = exception?.code === 'ERR_NETWORK' || exception?.message === 'Network Error';
+
+            // Exceções de JavaScript também chegam aqui; não são falhas de conexão.
+            if (!exception?.response && !isNetworkError) return;
 
             const message = friendlyErrorForStatus(exception?.response?.status);
             event.preventDefault();

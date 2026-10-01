@@ -6,7 +6,6 @@ use App\Models\Admin\Plan;
 use App\Models\Admin\Setting;
 use App\Models\App\CashSession;
 use App\Models\App\Company;
-use App\Models\App\Customer;
 use App\Models\App\Equipment;
 use App\Models\App\FiscalSetting;
 use App\Models\App\Message;
@@ -279,7 +278,6 @@ class HandleInertiaRequests extends Middleware
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
         $user = $request->user();
-        $tenant = $user?->tenant;
         $hasFlashMessage = collect([
             'success',
             'message',
@@ -295,58 +293,31 @@ class HandleInertiaRequests extends Middleware
         ])->contains(fn (string $key): bool => $request->session()->has($key));
         $flashId = $hasFlashMessage ? (string) Str::uuid() : null;
 
-        $subscription = null;
-
-        if ($user) {
-            if ($user->roles === 1) { // ajuste se root for outro valor
-                $subscription = [
-                    'is_expired' => false,
-                    'days_remaining' => null,
-                    'plan_name' => 'SaaS Root',
-                ];
-            } else {
-                $subscription = [
-                    'is_expired' => $tenant?->expires_at?->isPast() ?? false,
-                    'days_remaining' => $tenant?->grace_days_remaining ?? null,
-                    'plan_name' => $tenant?->plan?->name ?? 'Nenhum',
-                ];
-            }
-        }
-
-        $otherSetting = null;
-        $openCashSession = null;
-        $fiscalSetting = null;
-        if ($user) {
-            $otherSetting = Other::query()->firstOrCreate([
-                'tenant_id' => $user->tenant_id,
-            ], [
-                'enable_finance' => false,
-                'enablesales' => false,
-                'show_follow_ups_menu' => false,
-                'show_tasks_menu' => false,
-                'show_commercial_performance_menu' => false,
-                'show_quality_menu' => false,
-                'print_label_button_after_order_create' => false,
-                'automatic_follow_ups_enabled' => false,
-                'enable_technician_schedule_notifications' => false,
-            ]);
-            $openCashSession = CashSession::query()
-                ->where('status', 'open')
-                ->latest('opened_at')
-                ->first();
-            if ($user->tenant_id) {
-                $fiscalSetting = FiscalSetting::query()->firstOrCreate([
-                    'tenant_id' => $user->tenant_id,
-                ], [
-                    'enabled' => false,
-                    'provider' => 'manual',
-                    'environment' => 'production',
-                    'nfe_enabled' => false,
-                    'nfse_enabled' => false,
-                    'nfse_mode' => 'national',
-                ]);
-            }
-        }
+        // Props com consulta ficam em closures: o Inertia só as resolve quando entram
+        // na resposta, então reloads parciais (ex.: polling de `notifications`) não as executam.
+        $otherSetting = fn () => $user ? Other::query()->firstOrCreate([
+            'tenant_id' => $user->tenant_id,
+        ], [
+            'enable_finance' => false,
+            'enablesales' => false,
+            'show_follow_ups_menu' => false,
+            'show_tasks_menu' => false,
+            'show_commercial_performance_menu' => false,
+            'show_quality_menu' => false,
+            'print_label_button_after_order_create' => false,
+            'automatic_follow_ups_enabled' => false,
+            'enable_technician_schedule_notifications' => false,
+        ]) : null;
+        $fiscalSetting = fn () => $user?->tenant_id ? FiscalSetting::query()->firstOrCreate([
+            'tenant_id' => $user->tenant_id,
+        ], [
+            'enabled' => false,
+            'provider' => 'manual',
+            'environment' => 'production',
+            'nfe_enabled' => false,
+            'nfse_enabled' => false,
+            'nfse_mode' => 'national',
+        ]) : null;
 
         return [
             ...parent::share($request),
@@ -371,63 +342,101 @@ class HandleInertiaRequests extends Middleware
                 'label_print' => fn () => $request->session()->get('label_print'),
                 'contract_print' => fn () => $request->session()->get('contract_print'),
             ],
-            'subscription' => $subscription,
+            'subscription' => function () use ($user) {
+                if (! $user) {
+                    return null;
+                }
 
-            'company' => $user
+                if ($user->roles === 1) { // ajuste se root for outro valor
+                    return [
+                        'is_expired' => false,
+                        'days_remaining' => null,
+                        'plan_name' => 'SaaS Root',
+                    ];
+                }
+
+                $tenant = $user->tenant;
+
+                return [
+                    'is_expired' => $tenant?->expires_at?->isPast() ?? false,
+                    'days_remaining' => $tenant?->grace_days_remaining ?? null,
+                    'plan_name' => $tenant?->plan?->name ?? 'Nenhum',
+                ];
+            },
+
+            'company' => fn () => $user
                 ? Company::query()
                     ->where('tenant_id', $user->tenant_id)
                     ->first(['shortname', 'logo', 'companyname', 'cnpj'])
                 : null,
-            'setting' => $user ? Setting::first(['name', 'logo']) : null,
-            'whatsapp' => $user ? WhatsappMessage::first() : null,
-            'othersetting' => $otherSetting ? [
-                ...$otherSetting->toArray(),
-                'enable_finance' => $otherSetting->enable_finance ?? false,
-                'enablesales' => $otherSetting->enablesales ?? false,
-                'enable_purchases' => $otherSetting->enable_purchases ?? false,
-                'show_follow_ups_menu' => $otherSetting->show_follow_ups_menu ?? false,
-                'show_quality_menu' => $otherSetting->show_quality_menu ?? false,
-                'print_label_button_after_order_create' => $otherSetting->print_label_button_after_order_create ?? false,
-                'enable_technician_schedule_notifications' => $otherSetting->enable_technician_schedule_notifications ?? false,
-            ] : null,
-            'cashier' => $user ? [
-                'isOpen' => (bool) $openCashSession,
-                'openedAt' => $openCashSession?->opened_at?->toIso8601String(),
-            ] : null,
-            'fiscalSetting' => $fiscalSetting ? [
-                'enabled' => (bool) $fiscalSetting->enabled,
-                'provider' => $fiscalSetting->provider,
-                'environment' => $fiscalSetting->environment,
-                'nfe_enabled' => (bool) $fiscalSetting->nfe_enabled,
-                'nfse_enabled' => (bool) $fiscalSetting->nfse_enabled,
-                'nfse_mode' => $fiscalSetting->nfse_mode ?? 'national',
-                'company_tax_regime' => $fiscalSetting->company_tax_regime,
-                'state_registration' => $fiscalSetting->state_registration,
-                'municipal_registration' => $fiscalSetting->municipal_registration,
-                'service_city_code' => $fiscalSetting->service_city_code,
-                'service_list_item' => $fiscalSetting->service_list_item,
-                'default_iss_rate' => $fiscalSetting->default_iss_rate,
-                'default_nfe_series' => $fiscalSetting->default_nfe_series,
-                'default_nfse_series' => $fiscalSetting->default_nfse_series,
-            ] : null,
-            'performanceAlert' => $this->commercialPerformanceAlert($user),
-            'customerFeedbackAlert' => $this->customerFeedbackAlert($user),
-            'tenantFeedbackRequest' => $this->tenantFeedbackRequest($user),
-            'taskIndicator' => $this->personalTaskIndicator($user),
-            'orderStatus' => $user ? Order::where('service_status', OrderStatus::BUDGET_APPROVED)->get() : null,
+            'setting' => fn () => $user ? Setting::first(['name', 'logo']) : null,
+            'whatsapp' => fn () => $user ? WhatsappMessage::first() : null,
+            'othersetting' => function () use ($otherSetting) {
+                $otherSetting = $otherSetting();
 
-            'notifications' => $user
+                return $otherSetting ? [
+                    ...$otherSetting->toArray(),
+                    'enable_finance' => $otherSetting->enable_finance ?? false,
+                    'enablesales' => $otherSetting->enablesales ?? false,
+                    'enable_purchases' => $otherSetting->enable_purchases ?? false,
+                    'show_follow_ups_menu' => $otherSetting->show_follow_ups_menu ?? false,
+                    'show_quality_menu' => $otherSetting->show_quality_menu ?? false,
+                    'print_label_button_after_order_create' => $otherSetting->print_label_button_after_order_create ?? false,
+                    'enable_technician_schedule_notifications' => $otherSetting->enable_technician_schedule_notifications ?? false,
+                ] : null;
+            },
+            'cashier' => function () use ($user) {
+                if (! $user) {
+                    return null;
+                }
+
+                $openCashSession = CashSession::query()
+                    ->where('status', 'open')
+                    ->latest('opened_at')
+                    ->first();
+
+                return [
+                    'isOpen' => (bool) $openCashSession,
+                    'openedAt' => $openCashSession?->opened_at?->toIso8601String(),
+                ];
+            },
+            'fiscalSetting' => function () use ($fiscalSetting) {
+                $fiscalSetting = $fiscalSetting();
+
+                return $fiscalSetting ? [
+                    'enabled' => (bool) $fiscalSetting->enabled,
+                    'provider' => $fiscalSetting->provider,
+                    'environment' => $fiscalSetting->environment,
+                    'nfe_enabled' => (bool) $fiscalSetting->nfe_enabled,
+                    'nfse_enabled' => (bool) $fiscalSetting->nfse_enabled,
+                    'nfse_mode' => $fiscalSetting->nfse_mode ?? 'national',
+                    'company_tax_regime' => $fiscalSetting->company_tax_regime,
+                    'state_registration' => $fiscalSetting->state_registration,
+                    'municipal_registration' => $fiscalSetting->municipal_registration,
+                    'service_city_code' => $fiscalSetting->service_city_code,
+                    'service_list_item' => $fiscalSetting->service_list_item,
+                    'default_iss_rate' => $fiscalSetting->default_iss_rate,
+                    'default_nfe_series' => $fiscalSetting->default_nfe_series,
+                    'default_nfse_series' => $fiscalSetting->default_nfse_series,
+                ] : null;
+            },
+            'performanceAlert' => fn () => $this->commercialPerformanceAlert($user),
+            'customerFeedbackAlert' => fn () => $this->customerFeedbackAlert($user),
+            'tenantFeedbackRequest' => fn () => $this->tenantFeedbackRequest($user),
+            'taskIndicator' => fn () => $this->personalTaskIndicator($user),
+            'orderStatus' => fn () => $user ? Order::where('service_status', OrderStatus::BUDGET_APPROVED)->get() : null,
+
+            'notifications' => fn () => $user
                 ? Message::where('recipient_id', $user->id)->where('status', '0')->count()
                 : 0,
 
-            'equipments' => $user ? Equipment::all() : [],
-            'customers' => $user ? Customer::all() : [],
+            'equipments' => fn () => $user ? Equipment::all() : [],
 
-            'technicals' => $user
+            'technicals' => fn () => $user
                 ? User::whereIn('roles', [1, 3])->where('status', 1)->get()
                 : [],
 
-            'plans' => $tenant ? Plan::all() : [],
+            'plans' => fn () => $user?->tenant ? Plan::all() : [],
 
             'name' => config('app.name'),
 
