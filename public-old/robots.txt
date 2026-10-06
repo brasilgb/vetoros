@@ -1,0 +1,3 @@
+User-agent: *
+Disallow:
+Sitemap: https://vetoros.com.br/sitemap.xml
