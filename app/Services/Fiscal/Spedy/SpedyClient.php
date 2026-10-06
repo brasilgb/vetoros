@@ -34,12 +34,12 @@ class SpedyClient
 
     public static function isConfigured(): bool
     {
-        return filled(config('services.spedy.owner_api_key'));
+        return filled(SpedyPlatformConfig::ownerApiKey());
     }
 
     public static function environment(): string
     {
-        return config('services.spedy.environment') === 'production' ? 'production' : 'sandbox';
+        return SpedyPlatformConfig::environment();
     }
 
     public static function baseUrl(): string
@@ -49,7 +49,7 @@ class SpedyClient
 
     public static function forOwner(): self
     {
-        $key = config('services.spedy.owner_api_key');
+        $key = SpedyPlatformConfig::ownerApiKey();
 
         if (blank($key)) {
             throw new SpedyException('Emissão fiscal nativa indisponível: integração não configurada na plataforma.');
@@ -70,6 +70,40 @@ class SpedyClient
     public static function modelPath(string $model): string
     {
         return self::MODEL_PATHS[$model] ?? throw new \InvalidArgumentException("Modelo fiscal desconhecido: {$model}");
+    }
+
+    /** Diagnóstico sem efeito colateral: lista uma empresa da conta. */
+    public function listCompanies(int $pageSize = 1): array
+    {
+        return $this->handle(fn () => $this->request()->get('companies', ['pageSize' => $pageSize]), 'companies');
+    }
+
+    public function getCompany(string $companyId): array
+    {
+        return $this->send('get', "companies/{$companyId}");
+    }
+
+    public function listCertificates(string $companyId): array
+    {
+        return $this->send('get', "companies/{$companyId}/certificates");
+    }
+
+    public function listWebhooks(): array
+    {
+        return $this->handle(fn () => $this->request()->get('webhooks', ['page' => 1, 'pageSize' => 50]), 'webhooks');
+    }
+
+    public function createWebhook(string $event, string $url): array
+    {
+        return $this->send('post', 'webhooks', ['event' => $event, 'url' => $url]);
+    }
+
+    /** Segredo whsec_ da conta: nunca registrar, exibir ou devolver ao frontend. */
+    public function webhookSecret(): ?string
+    {
+        $secret = $this->send('get', 'webhooks/secret')['secret'] ?? null;
+
+        return is_string($secret) && $secret !== '' ? $secret : null;
     }
 
     public function createCompany(array $payload): array

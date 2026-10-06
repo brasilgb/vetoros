@@ -333,10 +333,10 @@ const mainAdminItems = [
         active: 'admin.reports.*',
     },
     {
-        title: 'Notas SaaS',
-        href: route('admin.fiscal-documents.index'),
+        title: 'Fiscal',
+        href: route('admin.fiscal.integration'),
         icon: ReceiptText,
-        active: 'admin.fiscal-documents.*',
+        active: 'admin.fiscal.*',
     },
     {
         title: 'Usuários',

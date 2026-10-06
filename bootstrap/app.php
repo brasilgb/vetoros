@@ -6,6 +6,7 @@ use App\Http\Middleware\CheckSubscriptionStatus;
 use App\Http\Middleware\Cors;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RootAdminOnly;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -45,6 +46,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->name('app.')
                 ->group(base_path('routes/app.php'));
 
+            // Administração fiscal central (Spedy, emissores, monitoramento, notas do SaaS).
+            Route::middleware(['web', 'auth', 'root.admin'])
+                ->prefix('admin/fiscal')
+                ->name('admin.fiscal.')
+                ->group(base_path('routes/admin-fiscal.php'));
+
             Route::middleware(['web', 'auth', 'admin'])
                 ->prefix('admin')
                 ->name('admin.')
@@ -57,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminAccessMiddleware::class,
             'app' => AppAccessMiddleware::class,
             'check.subscription' => CheckSubscriptionStatus::class,
+            'root.admin' => RootAdminOnly::class,
         ]);
         $middleware->web(append: [
             HandleAppearance::class,

@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Integration;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\AdminFiscalDocument;
+use App\Models\Admin\AdminFiscalSetting;
 use App\Models\App\Company;
 use App\Models\App\FiscalDocument;
 use App\Models\App\FiscalSetting;
 use App\Models\Tenant;
 use App\Services\Fiscal\NativeFiscalService;
+use App\Services\Fiscal\SaasInvoiceService;
+use App\Services\Fiscal\Spedy\SpedyPlatformConfig;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,9 +27,9 @@ class SpedyWebhookController extends Controller
 {
     private const TOLERANCE_SECONDS = 300;
 
-    public function __invoke(Request $request, NativeFiscalService $service): JsonResponse
+    public function __invoke(Request $request, NativeFiscalService $service, SaasInvoiceService $saas): JsonResponse
     {
-        $secret = (string) config('services.spedy.webhook_secret');
+        $secret = (string) SpedyPlatformConfig::webhookSecret();
 
         if ($secret === '' || ! $this->validSignature($request, $secret)) {
             return response()->json(['message' => 'Assinatura inválida.'], 401);
@@ -64,6 +68,25 @@ class SpedyWebhookController extends Controller
         }
 
         if (! $document) {
+            // Nota da própria plataforma (NFS-e do SaaS), guardada em tabela separada.
+            $saasDocument = AdminFiscalDocument::query()
+                ->where('provider', 'spedy')
+                ->where(function ($query) use ($data) {
+                    $query->where('provider_reference', $data['id']);
+
+                    if (filled($data['integrationId'] ?? null)) {
+                        $query->orWhere('integration_id', $data['integrationId']);
+                    }
+                })
+                ->first();
+
+            if ($saasDocument && $this->cnpjMatches($data, AdminFiscalSetting::current()->cnpj)) {
+                $saas->applyInvoice($saasDocument, $data);
+                $this->markProcessed($eventId);
+
+                return response()->json(['processed' => true]);
+            }
+
             Log::info('Spedy webhook: nota desconhecida', ['event_id' => $eventId, 'event' => $event]);
 
             return response()->json(['ignored' => true]);
@@ -76,11 +99,7 @@ class SpedyWebhookController extends Controller
         }
 
         $service->applyInvoice($document, $data);
-
-        DB::table('fiscal_webhook_events')
-            ->where('provider', FiscalSetting::PROVIDER_SPEDY)
-            ->where('event_id', mb_substr($eventId, 0, 64))
-            ->update(['processed_at' => now(), 'updated_at' => now()]);
+        $this->markProcessed($eventId);
 
         return response()->json(['processed' => true]);
     }
@@ -91,16 +110,25 @@ class SpedyWebhookController extends Controller
      */
     private function belongsToDocumentTenant(FiscalDocument $document, array $data): bool
     {
-        $eventCnpj = preg_replace('/\D+/', '', (string) data_get($data, 'company.federalTaxNumber'));
-
-        if ($eventCnpj === '') {
-            return true;
-        }
-
         $company = Company::query()->withoutGlobalScopes()->where('tenant_id', $document->tenant_id)->value('cnpj')
             ?: Tenant::query()->whereKey($document->tenant_id)->value('cnpj');
 
-        return preg_replace('/\D+/', '', (string) $company) === $eventCnpj;
+        return $this->cnpjMatches($data, $company);
+    }
+
+    private function cnpjMatches(array $data, ?string $expected): bool
+    {
+        $eventCnpj = preg_replace('/\D+/', '', (string) data_get($data, 'company.federalTaxNumber'));
+
+        return $eventCnpj === '' || preg_replace('/\D+/', '', (string) $expected) === $eventCnpj;
+    }
+
+    private function markProcessed(string $eventId): void
+    {
+        DB::table('fiscal_webhook_events')
+            ->where('provider', FiscalSetting::PROVIDER_SPEDY)
+            ->where('event_id', mb_substr($eventId, 0, 64))
+            ->update(['processed_at' => now(), 'updated_at' => now()]);
     }
 
     private function validSignature(Request $request, string $secret): bool

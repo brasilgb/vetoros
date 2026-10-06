@@ -20,8 +20,8 @@ class SpedyCompanyService
 
     /**
      * Cria (primeira vez) ou atualiza a empresa emissora e reenvia as
-     * configurações de emissão. Idempotente: pode ser chamada após cada
-     * alteração das configurações fiscais.
+     * configurações de emissão. Usa a chave titular: comandado só pelo
+     * RootAdmin (Admin\\FiscalCompanyController). Idempotente.
      */
     public function sync(FiscalSetting $setting): FiscalSetting
     {
@@ -55,6 +55,22 @@ class SpedyCompanyService
             'registration_error' => null,
             'registered_at' => $setting->registered_at ?? now(),
         ])->save();
+
+        return $setting;
+    }
+
+    /**
+     * Reenvia só as configurações de emissão (série, ambiente, CSC) com a
+     * chave da própria empresa. É o que o tenant pode disparar ao salvar.
+     */
+    public function syncSettings(FiscalSetting $setting): FiscalSetting
+    {
+        if (! $setting->isRegisteredOnSpedy()) {
+            throw new SpedyException('A empresa emissora ainda não foi cadastrada pela administração.');
+        }
+
+        SpedyClient::forCompany($setting->api_token)
+            ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
 
         return $setting;
     }

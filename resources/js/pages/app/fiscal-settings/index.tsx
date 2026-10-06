@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, BadgeCheck, FileKey, Landmark, Save, Upload } from 'lucide-react';
+import { AlertTriangle, FileKey, Landmark, Save, Upload } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 type Model = 'nfe' | 'nfce' | 'nfse';
@@ -40,6 +40,10 @@ type FiscalSettingProps = {
     default_nfse_series?: string | null;
     nfce_csc_id?: string | null;
     nfce_csc_set: boolean;
+    nfe_allowed: boolean;
+    nfce_allowed: boolean;
+    nfse_allowed: boolean;
+    production_released_at?: string | null;
     default_commercial_unit?: string | null;
     default_icms_origin?: string | null;
     default_icms_situation?: string | null;
@@ -141,10 +145,6 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
         });
     };
 
-    const register = () => {
-        router.post(route('app.fiscal-settings.register'), {}, { preserveScroll: true });
-    };
-
     const uploadCertificate = (e: FormEvent) => {
         e.preventDefault();
         if (!certificate) return;
@@ -207,13 +207,10 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
                             </div>
                             {setting.registration_error && <p className="text-destructive mt-2 text-sm">{setting.registration_error}</p>}
                             {!registered && available && (
-                                <Button type="button" size="sm" className="mt-3" onClick={register}>
-                                    <BadgeCheck className="h-4 w-4" />
-                                    Cadastrar empresa emissora
-                                </Button>
+                                <p className="mt-3 text-sm">O cadastro na emissora é feito pela administração depois de validar seus dados.</p>
                             )}
                             <p className="text-muted-foreground mt-2 text-xs">
-                                Confira antes os{' '}
+                                Mantenha atualizados os{' '}
                                 <Link href={route('app.company.index')} className="underline">
                                     dados da empresa
                                 </Link>{' '}
@@ -342,7 +339,10 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="homologation">Homologação (testes, sem validade fiscal)</SelectItem>
-                                    <SelectItem value="production">Produção (notas com validade fiscal)</SelectItem>
+                                    <SelectItem value="production" disabled={!setting.production_released_at}>
+                                        Produção (notas com validade fiscal)
+                                        {setting.production_released_at ? '' : ' — aguarda aprovação da administração'}
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                             <InputError message={errors.emission_environment} />

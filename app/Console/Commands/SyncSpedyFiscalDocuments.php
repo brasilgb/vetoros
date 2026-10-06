@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Admin\AdminFiscalDocument;
 use App\Models\App\FiscalDocument;
 use App\Models\App\FiscalSetting;
 use App\Services\Fiscal\NativeFiscalService;
+use App\Services\Fiscal\SaasInvoiceService;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyException;
 use Illuminate\Console\Command;
@@ -22,7 +24,7 @@ class SyncSpedyFiscalDocuments extends Command
     /** Sem confirmação após este prazo, a nota volta a permitir novo envio (mesmo integrationId). */
     private const UNCONFIRMED_AFTER_MINUTES = 30;
 
-    public function handle(NativeFiscalService $service): int
+    public function handle(NativeFiscalService $service, SaasInvoiceService $saas): int
     {
         if (! SpedyClient::isConfigured()) {
             $this->info('Spedy não configurada; nada a sincronizar.');
@@ -30,20 +32,41 @@ class SyncSpedyFiscalDocuments extends Command
             return self::SUCCESS;
         }
 
-        $documents = FiscalDocument::query()->withoutGlobalScopes()
+        $limit = max(1, (int) $this->option('limit'));
+
+        $clients = FiscalDocument::query()->withoutGlobalScopes()
             ->where('provider', FiscalSetting::PROVIDER_SPEDY)
             ->whereIn('status', FiscalDocument::PENDING_STATUSES)
             ->where('updated_at', '<=', now()->subMinutes(2))
             ->orderBy('updated_at')
-            ->limit(max(1, (int) $this->option('limit')))
+            ->limit($limit)
             ->get();
 
+        // Notas do SaaS (emitente da plataforma), em tabela separada.
+        $platform = AdminFiscalDocument::query()
+            ->where('provider', 'spedy')
+            ->whereIn('status', FiscalDocument::PENDING_STATUSES)
+            ->where('updated_at', '<=', now()->subMinutes(2))
+            ->orderBy('updated_at')
+            ->limit($limit)
+            ->get();
+
+        $updated = $this->reconcile($clients, fn ($document) => $service->refresh($document))
+            + $this->reconcile($platform, fn ($document) => $saas->refresh($document));
+
+        $this->info('Notas verificadas: '.($clients->count() + $platform->count())."; status alterado: {$updated}.");
+
+        return self::SUCCESS;
+    }
+
+    private function reconcile(iterable $documents, callable $refresh): int
+    {
         $updated = 0;
 
         foreach ($documents as $document) {
             try {
                 $before = $document->status;
-                $document = $service->refresh($document);
+                $document = $refresh($document);
 
                 if ($document->status === FiscalDocument::STATUS_PROCESSING
                     && blank($document->provider_reference)
@@ -60,12 +83,10 @@ class SyncSpedyFiscalDocuments extends Command
 
                 $updated += $before !== $document->status ? 1 : 0;
             } catch (SpedyException $exception) {
-                $this->warn("Nota #{$document->id}: {$exception->getMessage()}");
+                $this->warn('Nota '.class_basename($document)." #{$document->id}: {$exception->getMessage()}");
             }
         }
 
-        $this->info("Notas verificadas: {$documents->count()}; status alterado: {$updated}.");
-
-        return self::SUCCESS;
+        return $updated;
     }
 }

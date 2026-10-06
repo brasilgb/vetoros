@@ -36,6 +36,10 @@ class FiscalSetting extends Model
             'nfe_enabled' => 'boolean',
             'nfse_enabled' => 'boolean',
             'nfce_enabled' => 'boolean',
+            'nfe_allowed' => 'boolean',
+            'nfce_allowed' => 'boolean',
+            'nfse_allowed' => 'boolean',
+            'production_released_at' => 'datetime',
             'nfse_simple_option' => 'integer',
             'nfse_special_tax_regime' => 'integer',
             'default_iss_rate' => 'decimal:4',
@@ -82,6 +86,8 @@ class FiscalSetting extends Model
         return match (true) {
             ! SpedyClient::isConfigured() => 'A emissão fiscal automática ainda não está disponível na plataforma.',
             ! $tenantAllowed => 'A emissão fiscal automática não está liberada para esta conta.',
+            ! $this->isModelAllowed($model) => 'Este tipo de nota ainda não foi liberado para esta conta pela administração.',
+            $this->isProductionEnvironment() && $this->production_released_at === null => 'A emissão em produção ainda não foi aprovada pela administração. Use o ambiente de homologação.',
             ! $this->enabled => 'Ative o módulo fiscal nas configurações.',
             ! $this->isRegisteredOnSpedy() => 'Conclua o cadastro da empresa emissora nas configurações fiscais.',
             ! $modelEnabled => 'Este tipo de nota não está habilitado nas configurações fiscais.',
@@ -90,6 +96,17 @@ class FiscalSetting extends Model
             $model === SpedyClient::MODEL_NFSE && blank($this->nfse_taxation_type) => 'Informe o tipo de tributação da NFS-e nas configurações fiscais.',
             $model === SpedyClient::MODEL_NFCE && (blank($this->nfce_csc_id) || blank($this->nfce_csc)) => 'Informe o ID e o CSC da NFC-e nas configurações fiscais.',
             default => null,
+        };
+    }
+
+    /** Liberação do modelo de nota pelo RootAdmin (independe da ativação feita pelo tenant). */
+    public function isModelAllowed(string $model): bool
+    {
+        return (bool) match ($model) {
+            SpedyClient::MODEL_NFE => $this->nfe_allowed,
+            SpedyClient::MODEL_NFCE => $this->nfce_allowed,
+            SpedyClient::MODEL_NFSE => $this->nfse_allowed,
+            default => false,
         };
     }
 

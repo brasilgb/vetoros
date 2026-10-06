@@ -5,7 +5,6 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\App\FiscalSetting;
 use App\Models\Tenant;
-use App\Services\Fiscal\FiscalValidationException;
 use App\Services\Fiscal\NativeFiscalService;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyCompanyService;
@@ -90,6 +89,11 @@ class FiscalSettingController extends Controller
                 'default_cofins_situation' => $setting->default_cofins_situation,
                 'nfse_taxation_type' => $setting->nfse_taxation_type,
                 'tax_settings_confirmed_at' => $setting->tax_settings_confirmed_at?->toIso8601String(),
+                // Liberações do RootAdmin (somente leitura para o tenant).
+                'nfe_allowed' => (bool) $setting->nfe_allowed,
+                'nfce_allowed' => (bool) $setting->nfce_allowed,
+                'nfse_allowed' => (bool) $setting->nfse_allowed,
+                'production_released_at' => $setting->production_released_at?->toIso8601String(),
             ],
             'blockers' => [
                 SpedyClient::MODEL_NFE => $this->emission->blocker($setting->tenant_id, SpedyClient::MODEL_NFE),
@@ -136,10 +140,15 @@ class FiscalSettingController extends Controller
             unset($data['nfce_csc']);
         }
 
+        $setting = $this->setting();
+
+        if ($data['emission_environment'] === FiscalSetting::ENVIRONMENT_PRODUCTION && $setting->production_released_at === null) {
+            return back()->withErrors(['emission_environment' => 'A emissão em produção depende da aprovação da administração após a homologação.']);
+        }
+
         $confirmed = (bool) ($data['tax_settings_confirmed'] ?? false);
         unset($data['tax_settings_confirmed']);
 
-        $setting = $this->setting();
         $setting->fill($data);
 
         // Qualquer mudança tributária exige nova confirmação explícita do tenant.
@@ -163,32 +172,13 @@ class FiscalSettingController extends Controller
         }
 
         try {
-            $this->companies->sync($setting);
-        } catch (FiscalValidationException|SpedyException $exception) {
+            // Só as configurações de emissão; o cadastro da empresa é comandado pelo RootAdmin.
+            $this->companies->syncSettings($setting);
+        } catch (SpedyException $exception) {
             return back()->with('error', 'Configurações salvas, mas não sincronizadas com o emissor: '.$exception->getMessage());
         }
 
         return back()->with('success', 'Configurações fiscais salvas e sincronizadas com o emissor.');
-    }
-
-    public function register(): RedirectResponse
-    {
-        Gate::authorize('other-settings.access');
-
-        $setting = $this->setting();
-        $tenant = Tenant::query()->findOrFail($setting->tenant_id);
-
-        if (! SpedyClient::isConfigured() || ! $tenant->automatic_fiscal_emission_enabled) {
-            return back()->with('error', 'A emissão fiscal automática não está liberada para esta conta.');
-        }
-
-        try {
-            $this->companies->sync($setting);
-        } catch (FiscalValidationException|SpedyException $exception) {
-            return back()->with('error', $exception->getMessage());
-        }
-
-        return back()->with('success', 'Empresa emissora cadastrada. Agora envie o certificado digital A1.');
     }
 
     public function certificate(Request $request): RedirectResponse

@@ -106,7 +106,6 @@ Route::post('fiscal-documents/{fiscalDocument}/cancel', [FiscalEmissionControlle
 Route::get('fiscal-documents/{fiscalDocument}/file/{format}', [FiscalEmissionController::class, 'file'])->name('fiscal-documents.file');
 Route::get('fiscal-settings', [FiscalSettingController::class, 'show'])->name('fiscal-settings.show');
 Route::put('fiscal-settings', [FiscalSettingController::class, 'update'])->name('fiscal-settings.update');
-Route::post('fiscal-settings/register', [FiscalSettingController::class, 'register'])->name('fiscal-settings.register');
 Route::post('fiscal-settings/certificate', [FiscalSettingController::class, 'certificate'])->name('fiscal-settings.certificate');
 Route::get('register-equipments/search', [EquipmentController::class, 'search'])->name('register-equipments.search');
 Route::resource('register-equipments', EquipmentController::class)->parameters(['register-equipments' => 'equipment']);

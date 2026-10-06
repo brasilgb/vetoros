@@ -11,9 +11,9 @@ use App\Models\App\Sale;
 use App\Models\Tenant;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyException;
+use App\Services\Fiscal\Spedy\SpedyInvoiceState;
 use App\Services\Fiscal\Spedy\SpedyPayloadBuilder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -29,19 +29,6 @@ use Illuminate\Support\Str;
  */
 class NativeFiscalService
 {
-    private const STATUS_MAP = [
-        'created' => FiscalDocument::STATUS_PROCESSING,
-        'enqueued' => FiscalDocument::STATUS_PROCESSING,
-        'received' => FiscalDocument::STATUS_PROCESSING,
-        'inContingent' => FiscalDocument::STATUS_CONTINGENCY,
-        'authorized' => FiscalDocument::STATUS_AUTHORIZED,
-        'rejected' => FiscalDocument::STATUS_REJECTED,
-        'denied' => FiscalDocument::STATUS_DENIED,
-        'canceled' => FiscalDocument::STATUS_CANCELLED,
-        'removed' => FiscalDocument::STATUS_FAILED,
-        'disabled' => FiscalDocument::STATUS_FAILED,
-    ];
-
     public function __construct(private readonly SpedyPayloadBuilder $payloads) {}
 
     public function blocker(int $tenantId, string $model): ?string
@@ -175,41 +162,18 @@ class NativeFiscalService
     public function applyInvoice(FiscalDocument $document, array $invoice): FiscalDocument
     {
         $providerStatus = (string) ($invoice['status'] ?? '');
-        $status = self::STATUS_MAP[$providerStatus] ?? null;
+        $status = SpedyInvoiceState::localStatus($providerStatus);
 
-        return DB::transaction(function () use ($document, $invoice, $providerStatus, $status) {
+        return DB::transaction(function () use ($document, $invoice, $status) {
             $document = FiscalDocument::query()->withoutGlobalScopes()->lockForUpdate()->findOrFail($document->id);
 
-            if ($status === null || $this->isRegression($document->status, $status)) {
+            if ($status === null || SpedyInvoiceState::isRegression($document->status, $status)) {
                 return $document;
             }
 
             $previousStatus = $document->status;
 
-            $detail = (array) ($invoice['processingDetail'] ?? []);
-            $authorization = (array) ($invoice['authorization'] ?? []);
-            $number = $invoice['number'] ?? null;
-
-            $document->forceFill([
-                'provider_reference' => $document->provider_reference ?: ($invoice['id'] ?? null),
-                'provider_status' => $providerStatus,
-                'status' => $status,
-                'environment' => $invoice['environmentType'] ?? $document->environment,
-                'number' => filled($number) && (string) $number !== '0' ? (string) $number : $document->number,
-                'series' => isset($invoice['series']) ? (string) $invoice['series'] : ($invoice['rps']['series'] ?? $document->series),
-                'access_key' => $invoice['accessKey'] ?? $document->access_key,
-                'authorization_protocol' => $authorization['protocol'] ?? $document->authorization_protocol,
-                'issued_at' => $status === FiscalDocument::STATUS_AUTHORIZED
-                    ? $this->date($authorization['date'] ?? $invoice['issuedOn'] ?? null) ?? now()
-                    : $document->issued_at,
-                'cancelled_at' => $status === FiscalDocument::STATUS_CANCELLED
-                    ? $this->date($invoice['cancellation']['date'] ?? null) ?? now()
-                    : $document->cancelled_at,
-                'error_message' => in_array($status, [FiscalDocument::STATUS_REJECTED, FiscalDocument::STATUS_DENIED, FiscalDocument::STATUS_FAILED], true)
-                    ? $this->rejectionMessage($detail)
-                    : null,
-                'response_payload' => $this->summary($invoice),
-            ])->save();
+            $document->forceFill(SpedyInvoiceState::attributes($document, $invoice, $status))->save();
 
             $this->syncDocumentable($document);
 
@@ -299,7 +263,7 @@ class NativeFiscalService
             throw $exception;
         }
 
-        $document->forceFill(['request_payload' => $this->redactPayload($payload), 'submitted_at' => now()])->save();
+        $document->forceFill(['request_payload' => SpedyInvoiceState::redactPayload($payload), 'submitted_at' => now()])->save();
 
         try {
             $invoice = SpedyClient::forCompany($setting->api_token)->createInvoice($model, $payload);
@@ -339,26 +303,6 @@ class NativeFiscalService
         }
     }
 
-    private function isRegression(string $current, string $next): bool
-    {
-        $rank = [
-            FiscalDocument::STATUS_FAILED => 0,
-            FiscalDocument::STATUS_PROCESSING => 1,
-            FiscalDocument::STATUS_CONTINGENCY => 2,
-            FiscalDocument::STATUS_REJECTED => 3,
-            FiscalDocument::STATUS_DENIED => 3,
-            FiscalDocument::STATUS_AUTHORIZED => 4,
-            FiscalDocument::STATUS_CANCELLED => 5,
-        ];
-
-        // Rejeitada → processando é um reenvio legítimo, não regressão.
-        if ($current === FiscalDocument::STATUS_REJECTED && $next === FiscalDocument::STATUS_PROCESSING) {
-            return false;
-        }
-
-        return ($rank[$next] ?? 0) < ($rank[$current] ?? 0);
-    }
-
     /** Espelha a nota autorizada nos campos fiscais da venda/OS usados pelas telas e comprovantes. */
     private function syncDocumentable(FiscalDocument $document): void
     {
@@ -390,52 +334,8 @@ class NativeFiscalService
         }
     }
 
-    private function rejectionMessage(array $detail): string
-    {
-        $message = trim((string) ($detail['message'] ?? ''));
-        $code = trim((string) ($detail['code'] ?? ''));
-
-        return mb_substr(trim(($code !== '' ? "[{$code}] " : '').($message ?: 'Nota recusada pela autoridade fiscal.')), 0, 1000);
-    }
-
-    /** Guarda somente o necessário para suporte; nada de dados pessoais completos. */
-    private function summary(array $invoice): array
-    {
-        return array_filter([
-            'id' => $invoice['id'] ?? null,
-            'status' => $invoice['status'] ?? null,
-            'model' => $invoice['model'] ?? null,
-            'environmentType' => $invoice['environmentType'] ?? null,
-            'number' => $invoice['number'] ?? null,
-            'series' => $invoice['series'] ?? null,
-            'accessKey' => $invoice['accessKey'] ?? null,
-            'amount' => $invoice['amount'] ?? null,
-            'authorization' => $invoice['authorization'] ?? null,
-            'processingDetail' => $invoice['processingDetail'] ?? null,
-        ], fn ($value) => $value !== null);
-    }
-
-    private function redactPayload(array $payload): array
-    {
-        if (isset($payload['receiver'])) {
-            $payload['receiver'] = ['name' => $payload['receiver']['name'] ?? null, 'redacted' => true];
-        }
-
-        return $payload;
-    }
-
     private function appendNote(?string $notes, string $line): string
     {
         return trim(trim((string) $notes)."\n".$line);
-    }
-
-    private function date(?string $value): ?Carbon
-    {
-        if (blank($value)) {
-            return null;
-        }
-
-        // Datas da Spedy sem offset estão no horário de São Paulo.
-        return Carbon::parse($value, 'America/Sao_Paulo')->setTimezone(config('app.timezone'));
     }
 }

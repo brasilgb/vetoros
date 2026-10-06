@@ -731,6 +731,10 @@ class NativeFiscalEmissionTest extends TestCase
             'default_commercial_unit' => 'UN',
             'nfse_taxation_type' => 'taxationInMunicipality',
             'tax_settings_confirmed_at' => now(),
+            // Liberações do RootAdmin (FISCAL-SPEDY-04).
+            'nfe_allowed' => true,
+            'nfce_allowed' => true,
+            'nfse_allowed' => true,
             ...$overrides,
         ]);
     }
