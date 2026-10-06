@@ -13,6 +13,7 @@ use App\Http\Controllers\App\TechnicianScheduleController;
 use App\Http\Controllers\App\UserController;
 use App\Http\Controllers\App\WebhookController;
 use App\Http\Controllers\Integration\RegistrationCheckController;
+use App\Http\Controllers\Integration\SpedyWebhookController;
 use App\Http\Middleware\VerifyCrmIntegrationToken;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,9 @@ Route::post('/webhooks/mercadopago/{token}', [WebhookController::class, 'handle'
 Route::post('/integrations/registration-check', RegistrationCheckController::class)
     ->middleware(['throttle:60,1', VerifyCrmIntegrationToken::class])
     ->name('api.integrations.registration-check');
+Route::post('/webhooks/spedy', SpedyWebhookController::class)
+    ->middleware('throttle:600,1')
+    ->name('webhook.spedy');
 Route::post('/loginuser', [UserController::class, 'loginuser'])->name('loginuser');
 
 Route::middleware('auth:sanctum')->group(function () {

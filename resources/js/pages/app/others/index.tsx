@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { maskCpfCnpj } from '@/Utils/mask';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CogIcon, Save } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -334,10 +334,20 @@ export default function Others({ othersettings, company, time_remaining, mailSet
                             </TabsContent>
 
                             <TabsContent value="fiscal" className="w-full space-y-8">
+                                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-5">
+                                    <HeadingSmall
+                                        title="Emissão automática de notas"
+                                        description="Cadastre a empresa emissora, envie o certificado digital e emita NF-e, NFC-e e NFS-e direto pelo sistema."
+                                    />
+                                    <Button type="button" variant="outline" asChild>
+                                        <Link href={route('app.fiscal-settings.show')}>Configurar emissão fiscal</Link>
+                                    </Button>
+                                </div>
+
                                 <div className="space-y-6 rounded-2xl border p-5">
                                     <HeadingSmall
                                         title="Emissão fiscal para clientes"
-                                        description="Habilite o registro manual de NF-e para vendas e NFS-e para serviços prestados nas ordens."
+                                        description="Habilite o módulo fiscal e os tipos de nota. Sem emissão automática, as notas podem ser registradas manualmente."
                                     />
 
                                     <div className="grid gap-4 xl:grid-cols-3">

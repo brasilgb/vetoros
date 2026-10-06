@@ -32,7 +32,10 @@ class CompanyControllerTest extends TestCase
 
     protected function tearDown(): void
     {
-        File::deleteDirectory(public_path());
+        // Se o setUp falhar antes de usePublicPath, public_path() ainda aponta para o public/ real.
+        if (str_starts_with(public_path(), storage_path('framework/testing'))) {
+            File::deleteDirectory(public_path());
+        }
         parent::tearDown();
     }
 

@@ -49,4 +49,23 @@ return [
         'webhook_url' => env('WAHA_WEBHOOK_URL'),
         'webhook_secret' => env('WAHA_WEBHOOK_SECRET'),
     ],
+
+    // Emissão fiscal nativa. A conta Spedy é da plataforma: a chave da empresa
+    // titular cadastra cada tenant como empresa emissora e nunca é exibida a ele.
+    'spedy' => [
+        'environment' => env('SPEDY_ENVIRONMENT', 'sandbox'),
+        'base_urls' => [
+            'sandbox' => 'https://sandbox-api.spedy.com.br/v1',
+            'production' => 'https://api.spedy.com.br/v1',
+        ],
+        'owner_api_key' => env('SPEDY_OWNER_API_KEY'),
+        'webhook_secret' => env('SPEDY_WEBHOOK_SECRET'),
+        'timeout' => (int) env('SPEDY_TIMEOUT', 30),
+        'technical_responsible' => [
+            'federal_tax_number' => env('SPEDY_TECH_RESPONSIBLE_CNPJ'),
+            'contact_name' => env('SPEDY_TECH_RESPONSIBLE_NAME'),
+            'email' => env('SPEDY_TECH_RESPONSIBLE_EMAIL'),
+            'phone' => env('SPEDY_TECH_RESPONSIBLE_PHONE'),
+        ],
+    ],
 ];

@@ -31,3 +31,7 @@ Schedule::command('vetoros:send-tenant-feedback-requests')
 Schedule::command('vetoros:process-customer-feedback-requests')
     ->dailyAt('11:30')
     ->withoutOverlapping();
+
+Schedule::command('fiscal:sync-spedy')
+    ->everyTenMinutes()
+    ->withoutOverlapping();

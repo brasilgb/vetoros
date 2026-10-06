@@ -7,9 +7,14 @@ use App\Events\OrderCustomerNotificationAcknowledged;
 use App\Events\OrderCustomerPickupAcknowledged;
 use App\Models\App\Checklist;
 use App\Models\App\Company;
+use App\Models\App\FiscalDocument;
+use App\Models\App\FiscalSetting;
 use App\Models\App\Order;
 use App\Models\App\Other;
 use App\Models\App\Receipt;
+use App\Services\Fiscal\FiscalEmissionException;
+use App\Services\Fiscal\NativeFiscalService;
+use App\Services\Fiscal\Spedy\SpedyException;
 use App\Services\OrderStatusService;
 use App\Support\OrderStatus;
 use Illuminate\Http\Request;
@@ -336,6 +341,34 @@ class OsController extends Controller
             'order' => $order,
             'company' => $company,
             'backUrl' => route('os.token', $order->tracking_token),
+        ]);
+    }
+
+    /** PDF da NFS-e emitida pelo sistema, para o cliente baixar pelo link público da OS. */
+    public function fiscalProofFile(Request $request, string $token, NativeFiscalService $fiscal)
+    {
+        $order = $this->publicOrderByToken($token)->firstOrFail();
+        $this->guardPublicAccess($request, $order);
+
+        $document = FiscalDocument::query()->withoutGlobalScopes()
+            ->where('tenant_id', $order->tenant_id)
+            ->where('documentable_type', Order::class)
+            ->where('documentable_id', $order->id)
+            ->where('provider', FiscalSetting::PROVIDER_SPEDY)
+            ->where('status', FiscalDocument::STATUS_AUTHORIZED)
+            ->latest('id')
+            ->firstOrFail();
+
+        try {
+            $response = $fiscal->download($document, 'pdf');
+        } catch (FiscalEmissionException|SpedyException) {
+            abort(503, 'Documento fiscal indisponível no momento.');
+        }
+
+        return response($response->body(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="nfse-'.($document->number ?: $document->id).'.pdf"',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 

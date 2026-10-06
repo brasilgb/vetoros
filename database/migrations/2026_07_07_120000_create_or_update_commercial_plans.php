@@ -62,14 +62,15 @@ return new class extends Migration
     private function upsertPlans(array $plans): void
     {
         foreach ($plans as $plan) {
-            DB::table('plans')->updateOrInsert(
-                ['slug' => $plan['slug']],
-                [
-                    ...$plan,
-                    'updated_at' => now(),
-                    'created_at' => DB::raw('COALESCE(created_at, CURRENT_TIMESTAMP)'),
-                ]
-            );
+            $query = DB::table('plans')->where('slug', $plan['slug']);
+
+            if ($query->exists()) {
+                $query->update([...$plan, 'updated_at' => now()]);
+
+                continue;
+            }
+
+            DB::table('plans')->insert([...$plan, 'created_at' => now(), 'updated_at' => now()]);
         }
     }
 };

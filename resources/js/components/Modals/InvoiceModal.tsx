@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { maskCpfCnpj, maskMoney } from '@/Utils/mask';
-import { useForm, usePage } from '@inertiajs/react';
-import { useEffect } from 'react';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 
 interface InvoiceModalProps {
     open: boolean;
@@ -43,6 +43,23 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
     const totalOrder = Number(summary?.total_order ?? order.service_cost ?? serviceValue + partsValue);
     const canIssueInvoice = totalOrder > 0;
     const hasRegisteredFiscal = Boolean(order?.fiscal_document_number || order?.fiscal_document_url);
+    const hasNative = Boolean(fiscalSetting?.native?.nfse);
+    const [emitting, setEmitting] = useState(false);
+
+    const handleEmit = () => {
+        if (!orderId) return;
+
+        setEmitting(true);
+        router.post(
+            route('app.orders.fiscal.emit', orderId),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => onClose(),
+                onFinish: () => setEmitting(false),
+            },
+        );
+    };
     const { data, setData, post, processing, errors } = useForm({
         fiscal_document_number: '',
         fiscal_document_url: '',
@@ -74,9 +91,13 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="scrollbar-default max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] max-w-md overflow-y-auto overscroll-contain p-4 sm:max-h-[90svh] sm:w-full sm:p-6">
                 <DialogHeader>
-                    <DialogTitle>Emitir NFS-e Nacional de serviço</DialogTitle>
+                    <DialogTitle>{hasNative ? 'Emitir NFS-e de serviço' : 'Emitir NFS-e Nacional de serviço'}</DialogTitle>
 
-                    <DialogDescription>Use os dados da OS para emitir no Emissor Nacional da NFS-e e registre o comprovante abaixo.</DialogDescription>
+                    <DialogDescription>
+                        {hasNative
+                            ? 'A NFS-e é emitida pelo sistema com o valor dos serviços da OS e acompanhada em Notas fiscais.'
+                            : 'Use os dados da OS para emitir no Emissor Nacional da NFS-e e registre o comprovante abaixo.'}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <Card>
@@ -132,7 +153,15 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
                     </CardContent>
                 </Card>
 
-                <div className="flex justify-end">
+                {hasNative && !hasRegisteredFiscal ? (
+                    <div className="flex justify-end">
+                        <Button type="button" disabled={serviceValue <= 0 || emitting} onClick={handleEmit}>
+                            {emitting ? 'Enviando...' : 'Emitir NFS-e'}
+                        </Button>
+                    </div>
+                ) : null}
+
+                <div className={hasNative ? 'hidden' : 'flex justify-end'}>
                     {!canIssueInvoice ? (
                         <Button type="button" disabled>
                             Abrir emissor
@@ -146,6 +175,7 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
                     )}
                 </div>
 
+                {(!hasNative || hasRegisteredFiscal) && (
                 <Card>
                     <CardContent className="space-y-3 pt-4 text-sm">
                         {hasRegisteredFiscal ? (
@@ -212,13 +242,14 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
                         )}
                     </CardContent>
                     </Card>
+                )}
 
                 <DialogFooter className="bg-background sticky bottom-0 z-10 -mx-4 -mb-4 flex justify-between border-t px-4 py-4 sm:-mx-6 sm:-mb-6 sm:px-6">
                     <Button variant="ghost" onClick={onClose}>
                         Fechar
                     </Button>
 
-                    {!hasRegisteredFiscal && (
+                    {!hasRegisteredFiscal && !hasNative && (
                         <Button onClick={handleRegisterFiscal} disabled={!orderId || processing}>
                             Salvar comprovante
                         </Button>

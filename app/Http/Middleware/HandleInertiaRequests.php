@@ -13,8 +13,10 @@ use App\Models\App\Order;
 use App\Models\App\OrderLog;
 use App\Models\App\Other;
 use App\Models\App\WhatsappMessage;
+use App\Models\Tenant;
 use App\Models\TenantFeedback;
 use App\Models\User;
+use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -418,6 +420,7 @@ class HandleInertiaRequests extends Middleware
                     'default_iss_rate' => $fiscalSetting->default_iss_rate,
                     'default_nfe_series' => $fiscalSetting->default_nfe_series,
                     'default_nfse_series' => $fiscalSetting->default_nfse_series,
+                    'native' => $this->nativeFiscalAvailability($fiscalSetting),
                 ] : null;
             },
             'performanceAlert' => fn () => $this->commercialPerformanceAlert($user),
@@ -460,5 +463,15 @@ class HandleInertiaRequests extends Middleware
                 'url' => config('app.url'),
             ],
         ];
+    }
+
+    /** Modelos de nota que o tenant pode emitir automaticamente (sem chamar a Spedy). */
+    private function nativeFiscalAvailability(FiscalSetting $setting): array
+    {
+        $tenantAllowed = (bool) Tenant::query()->whereKey($setting->tenant_id)->value('automatic_fiscal_emission_enabled');
+
+        return collect([SpedyClient::MODEL_NFE, SpedyClient::MODEL_NFCE, SpedyClient::MODEL_NFSE])
+            ->mapWithKeys(fn (string $model) => [$model => $setting->nativeEmissionBlocker($model, $tenantAllowed) === null])
+            ->all();
     }
 }

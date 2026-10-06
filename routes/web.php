@@ -27,6 +27,9 @@ Route::get('/os/{token}/payment-proof', [OsController::class, 'paymentProof'])
     ->name('os.payment-proof');
 Route::get('/os/{token}/fiscal-proof', [OsController::class, 'fiscalProof'])
     ->name('os.fiscal-proof');
+Route::get('/os/{token}/fiscal-proof/pdf', [OsController::class, 'fiscalProofFile'])
+    ->middleware('throttle:30,1')
+    ->name('os.fiscal-proof.pdf');
 Route::post('/os/{token}/feedback', [OsController::class, 'submitFeedback'])
     ->name('os.feedback.submit');
 Route::get('/experience/{token}', [TenantFeedbackController::class, 'show'])->name('tenant.feedback.show');

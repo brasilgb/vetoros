@@ -30,6 +30,7 @@ class Tenant extends Model
     protected $casts = [
         'expires_at' => 'datetime',
         'last_subscription_notice_sent_at' => 'datetime',
+        'automatic_fiscal_emission_enabled' => 'boolean',
     ];
 
     public function plan(): BelongsTo

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
@@ -54,6 +55,7 @@ export default function EditTenant({ plans, tenant }: any) {
         plan_id: tenant.plan_id,
         status: tenant.status,
         observations: tenant.observations,
+        automatic_fiscal_emission_enabled: Boolean(tenant.automatic_fiscal_emission_enabled),
     });
 
     const handleSubmit = async (e: any) => {
@@ -343,6 +345,21 @@ export default function EditTenant({ plans, tenant }: any) {
                                 />
                                 <InputError className="mt-2" message={errors.status} />
                             </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+                            <div>
+                                <Label htmlFor="automatic_fiscal_emission_enabled">Emissão fiscal automática</Label>
+                                <p className="text-muted-foreground text-sm">
+                                    Libera NF-e, NFC-e e NFS-e emitidas pelo sistema. O cliente ainda precisa concluir o cadastro fiscal e enviar o
+                                    certificado.
+                                </p>
+                            </div>
+                            <Switch
+                                id="automatic_fiscal_emission_enabled"
+                                checked={data.automatic_fiscal_emission_enabled}
+                                onCheckedChange={(checked) => setData('automatic_fiscal_emission_enabled', checked)}
+                            />
                         </div>
 
                         <div className="grid gap-2">

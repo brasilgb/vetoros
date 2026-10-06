@@ -36,7 +36,9 @@ export default function Sales({ sales, parts, search, financial_status, financia
     const companyData = auth?.user?.tenant;
     const acessDenied = auth?.user?.roles === 9 || auth?.user?.roles === 1 ? true : false;
     const canIssueProductInvoice =
-        Boolean(fiscalSetting?.enabled) && Boolean(fiscalSetting?.nfe_enabled) && auth?.permissions?.includes('fiscal_documents');
+        Boolean(fiscalSetting?.enabled) &&
+        (Boolean(fiscalSetting?.nfe_enabled) || Boolean(fiscalSetting?.native?.nfce)) &&
+        auth?.permissions?.includes('fiscal_documents');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedSale, setSelectedSale] = useState(null);
