@@ -1,9 +1,10 @@
 import { MessageCircle } from 'lucide-react';
+import { whatsappLink } from './site-contact';
 
 export function WhatsAppFloat() {
     return (
         <a
-            href="https://wa.me/5551998931325?text=Quero%20mais%20informações%20sobre%20VetorOS"
+            href={whatsappLink()}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Falar com a equipe VetorOS pelo WhatsApp"

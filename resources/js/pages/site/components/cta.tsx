@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import { ArrowRight, MessageCircle } from 'lucide-react';
+import { whatsappLink } from './site-contact';
 
 export function CTA() {
     return (
@@ -41,11 +42,7 @@ export function CTA() {
                             className="gap-2 rounded-full border-white/18 bg-white/8 px-8 text-base font-semibold text-white hover:bg-white/14 hover:text-white"
                             asChild
                         >
-                            <a
-                                href="https://wa.me/5551998931325?text=Quero%20mais%20informações%20sobre%20VetorOS"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
+                            <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
                                 <MessageCircle className="h-5 w-5" />
                                 Falar no WhatsApp
                             </a>

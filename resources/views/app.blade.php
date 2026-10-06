@@ -108,11 +108,7 @@
             'operatingSystem' => 'Web, Android',
             'url' => rtrim(config('app.url', url('/')), '/'),
             'description' => 'Sistema de ordem de serviço para assistência técnica de celulares, informática e empresas de manutenção.',
-            'offers' => [
-                '@type' => 'Offer',
-                'price' => '0',
-                'priceCurrency' => 'BRL',
-            ],
+            // Sem "offers": os preços não são divulgados publicamente (orçamento pelo WhatsApp).
         ];
     @endphp
     <script type="application/ld+json">{!! json_encode($schemaData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>

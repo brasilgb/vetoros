@@ -1,6 +1,7 @@
 import { BrandHorizontalLogo } from '@/components/brand-logo';
 import { Link } from '@inertiajs/react';
 import { MessageCircle } from 'lucide-react';
+import { whatsappLink } from './site-contact';
 
 export function Footer() {
     return (
@@ -100,7 +101,7 @@ export function Footer() {
                         <ul className="space-y-3 text-sm">
                             <li>
                                 <a
-                                    href="https://wa.me/5551998931325?text=Quero%20mais%20informações%20sobre%20VetorOS"
+                                    href={whatsappLink()}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-2 text-white/58 transition-colors hover:text-white"

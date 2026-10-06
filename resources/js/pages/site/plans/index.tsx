@@ -6,6 +6,7 @@ import { FAQ, faqItems } from '../components/faq';
 import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 import { Pricing } from '../components/pricing';
+import { whatsappLink } from '../components/site-contact';
 import { WhatsAppFloat } from '../components/whatsapp-float';
 
 const faqSchema = {
@@ -85,11 +86,7 @@ export default function Plans() {
                         size="lg"
                         className="mt-6 border-white bg-white font-bold text-blue-800 hover:bg-blue-50 hover:text-blue-900"
                     >
-                        <a
-                            href="https://wa.me/5551998931325?text=Quero%20mais%20informações%20sobre%20VetorOS"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
+                        <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
                             <MessageCircle className="mr-2 h-5 w-5" />
                             Falar no WhatsApp
                         </a>

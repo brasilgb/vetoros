@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
-import { formatCurrency, MONTHLY_BASE_PRICE } from './pricing-data';
 
 export function Hero() {
     return (
@@ -57,7 +56,7 @@ export function Hero() {
                         href={route('plans.index')}
                         className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-sky-300 underline-offset-4 hover:underline"
                     >
-                        A partir de {formatCurrency(MONTHLY_BASE_PRICE)}/mês, sem taxa por usuário
+                        Solicite um orçamento
                         <ArrowRight className="size-3.5" />
                     </Link>
                 </div>
