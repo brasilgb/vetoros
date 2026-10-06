@@ -80,14 +80,14 @@ class FiscalEmissionController extends Controller
         abort_unless(in_array($format, ['pdf', 'xml'], true), 404);
 
         try {
-            $response = $this->service->download($fiscalDocument, $format);
+            $content = $this->service->download($fiscalDocument, $format);
         } catch (FiscalEmissionException|SpedyException $exception) {
             return back()->with('error', $exception->getMessage());
         }
 
         $name = sprintf('%s-%s.%s', $fiscalDocument->type, $fiscalDocument->number ?: $fiscalDocument->id, $format);
 
-        return response($response->body(), 200, [
+        return response($content, 200, [
             'Content-Type' => $format === 'pdf' ? 'application/pdf' : 'application/xml',
             'Content-Disposition' => ($format === 'pdf' ? 'inline' : 'attachment').'; filename="'.$name.'"',
             'Cache-Control' => 'private, no-store',

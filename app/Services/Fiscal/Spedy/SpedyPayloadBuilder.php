@@ -216,6 +216,9 @@ class SpedyPayloadBuilder
         if ($setting->default_iss_rate === null) {
             $problems[] = 'Informe a alíquota de ISS nas configurações fiscais.';
         }
+        if (blank($setting->nfse_taxation_type)) {
+            $problems[] = 'Informe o tipo de tributação da NFS-e nas configurações fiscais.';
+        }
 
         $description = $this->serviceDescription($order, $serviceItems);
         if ($description === '') {
@@ -228,7 +231,7 @@ class SpedyPayloadBuilder
             'integrationId' => $integrationId,
             'description' => $description,
             'federalServiceCode' => trim((string) $setting->service_list_item),
-            'taxationType' => 'taxationInMunicipality',
+            'taxationType' => $setting->nfse_taxation_type,
             'sendEmailToCustomer' => filled($customer->email),
             'receiver' => $this->receiver($customer, withAddress: filled($customer->zipcode) && filled($customer->street)),
             'total' => [
@@ -244,6 +247,17 @@ class SpedyPayloadBuilder
         return $payload;
     }
 
+    /** CSTs de ICMS (Regime Normal) sem destaque de imposto: os únicos suportados sem base/alíquota. */
+    private const ICMS_CST_WITHOUT_TAX = [40, 41, 50, 60];
+
+    /** CSTs de PIS/COFINS que exigem base e alíquota, não informadas no VetorOS. */
+    private const PIS_COFINS_CST_WITH_RATE = [1, 2, 3];
+
+    /**
+     * Itens da NF-e/NFC-e. Nenhum valor tributário é presumido: CFOP e NCM vêm
+     * de cada peça e ICMS/PIS/COFINS/unidade das configurações confirmadas pelo
+     * tenant; faltando algo, a emissão é bloqueada com a lista do que corrigir.
+     */
     private function saleItems(Sale $sale, FiscalSetting $setting, array &$problems, bool $interstate): array
     {
         $simples = in_array((string) $setting->company_tax_regime, ['1', '2', '4'], true);
@@ -253,30 +267,59 @@ class SpedyPayloadBuilder
             $problems[] = 'A venda não possui itens.';
         }
 
-        foreach ($sale->items as $item) {
+        $unit = trim((string) $setting->default_commercial_unit);
+        $origin = trim((string) $setting->default_icms_origin);
+        $icmsSituation = trim((string) $setting->default_icms_situation);
+        $pis = trim((string) $setting->default_pis_situation);
+        $cofins = trim((string) $setting->default_cofins_situation);
+
+        foreach (['unidade comercial' => $unit, 'origem do ICMS' => $origin, $simples ? 'CSOSN' : 'CST do ICMS' => $icmsSituation, 'CST do PIS' => $pis, 'CST do COFINS' => $cofins] as $label => $value) {
+            if ($value === '') {
+                $problems[] = "Informe a {$label} nas configurações fiscais.";
+            }
+        }
+
+        if (! $simples && $icmsSituation !== '' && ! in_array((int) $icmsSituation, self::ICMS_CST_WITHOUT_TAX, true)) {
+            $problems[] = "CST de ICMS {$icmsSituation} exige base e alíquota, ainda não suportadas na emissão automática (use 40, 41, 50 ou 60, ou emita pelo registro manual).";
+        }
+        if (! $simples && (in_array((int) $pis, self::PIS_COFINS_CST_WITH_RATE, true) || in_array((int) $cofins, self::PIS_COFINS_CST_WITH_RATE, true))) {
+            $problems[] = 'CST de PIS/COFINS com alíquota ainda não é suportado na emissão automática.';
+        }
+
+        $gross = round((float) $sale->items->sum(fn ($item) => round((float) $item->quantity * round((float) $item->unit_price, 2), 2)), 2);
+        $total = round((float) $sale->total_amount, 2);
+        $discount = round($gross - $total, 2);
+
+        if ($discount < 0) {
+            $problems[] = 'O total da venda é maior que a soma dos itens; acréscimos não são suportados na emissão automática.';
+        }
+
+        $discounts = $this->distributeDiscount($sale->items->all(), max(0, $discount), $gross);
+
+        foreach ($sale->items->values() as $index => $item) {
             $part = $item->part;
             $name = $part?->name ?: 'Item '.$item->id;
             $ncm = $this->digits($part?->ncm);
-            $cfop = $this->digits($part?->cfop) ?: '5102';
+            $cfop = $this->digits($part?->cfop);
 
             if (strlen($ncm) !== 8) {
                 $problems[] = "Informe o NCM (8 dígitos) da peça/produto \"{$name}\".";
             }
             if (strlen($cfop) !== 4) {
-                $problems[] = "O CFOP da peça/produto \"{$name}\" deve ter 4 dígitos.";
+                $problems[] = "Informe o CFOP (4 dígitos) da peça/produto \"{$name}\".";
             }
             if ($interstate && str_starts_with($cfop, '5')) {
+                // Mesma operação, destinatário em outra UF: CFOP 5xxx → 6xxx.
                 $cfop = '6'.substr($cfop, 1);
             }
 
             $quantity = (float) $item->quantity;
             $unitAmount = round((float) $item->unit_price, 2);
-            $unit = $setting->default_commercial_unit ?: 'UN';
 
-            $icms = ['origin' => (int) ($setting->default_icms_origin ?? 0)];
-            $icms[$simples ? 'csosn' : 'cst'] = (int) ($setting->default_icms_situation ?: ($simples ? 102 : 0));
+            $icms = ['origin' => (int) $origin];
+            $icms[$simples ? 'csosn' : 'cst'] = (int) $icmsSituation;
 
-            $items[] = [
+            $items[] = array_filter([
                 'code' => (string) ($part?->part_number ?: $part?->reference_number ?: $part?->id ?: $item->id),
                 'description' => Str::limit($name, 120, ''),
                 'ncm' => $ncm,
@@ -285,19 +328,48 @@ class SpedyPayloadBuilder
                 'quantity' => $quantity,
                 'unitAmount' => $unitAmount,
                 'totalAmount' => round($quantity * $unitAmount, 2),
+                'discountAmount' => $discounts[$index] > 0 ? $discounts[$index] : null,
                 // Trio tributável espelhado: sem ele a SEFAZ rejeita (630) ou a Spedy recusa (SPD003).
-                'unitTax' => $setting->default_tax_unit ?: $unit,
+                'unitTax' => trim((string) $setting->default_tax_unit) ?: $unit,
                 'quantityTax' => $quantity,
                 'unitTaxAmount' => $unitAmount,
                 'taxes' => [
                     'icms' => $icms,
-                    'pis' => ['cst' => (int) ($setting->default_pis_situation ?: 99)],
-                    'cofins' => ['cst' => (int) ($setting->default_cofins_situation ?: 99)],
+                    'pis' => ['cst' => (int) $pis],
+                    'cofins' => ['cst' => (int) $cofins],
                 ],
-            ];
+            ], fn ($value) => $value !== null);
         }
 
         return $items;
+    }
+
+    /**
+     * Rateia o desconto da venda (total menor que a soma dos itens) proporcionalmente
+     * ao valor de cada item; o resíduo de arredondamento vai para o último item.
+     *
+     * @return list<float>
+     */
+    private function distributeDiscount(array $items, float $discount, float $gross): array
+    {
+        $shares = [];
+        $remaining = $discount;
+        $last = count($items) - 1;
+
+        foreach (array_values($items) as $index => $item) {
+            if ($discount <= 0 || $gross <= 0) {
+                $shares[] = 0.0;
+
+                continue;
+            }
+
+            $itemTotal = round((float) $item->quantity * round((float) $item->unit_price, 2), 2);
+            $share = $index === $last ? round($remaining, 2) : round($discount * $itemTotal / $gross, 2);
+            $remaining = round($remaining - $share, 2);
+            $shares[] = $share;
+        }
+
+        return $shares;
     }
 
     private function payments(Sale $sale): array

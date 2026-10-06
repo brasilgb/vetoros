@@ -21,11 +21,14 @@ use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyCompanyService;
 use App\Services\Fiscal\Spedy\SpedyException;
 use App\Services\Fiscal\Spedy\SpedyPayloadBuilder;
+use App\Services\SaleService;
+use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class NativeFiscalEmissionTest extends TestCase
@@ -45,6 +48,11 @@ class NativeFiscalEmissionTest extends TestCase
         parent::setUp();
 
         Http::preventStrayRequests();
+        Storage::fake('fiscal');
+        Http::fake([
+            self::SANDBOX.'/*-invoices/*/xml' => Http::response('<nfeProc>xml</nfeProc>', 200, ['Content-Type' => 'application/xml']),
+            self::SANDBOX.'/*-invoices/*/pdf' => Http::response('%PDF-1.4 nota', 200, ['Content-Type' => 'application/pdf']),
+        ]);
 
         config([
             'services.spedy.environment' => 'sandbox',
@@ -328,9 +336,9 @@ class NativeFiscalEmissionTest extends TestCase
         $sale = $this->sale();
 
         Http::fake([
-            self::SANDBOX.'/product-invoices*' => Http::sequence()
-                ->push(['message' => 'boom'], 503)
-                ->push(['totalCount' => 1, 'items' => [$this->invoice('invoice-9', 'authorized')]]),
+            // POST sem resposta e, depois, a consulta por integrationId (padrões exatos para não capturar o XML/PDF).
+            self::SANDBOX.'/product-invoices' => Http::response(['message' => 'boom'], 503),
+            self::SANDBOX.'/product-invoices?*' => Http::response(['totalCount' => 1, 'items' => [$this->invoice('invoice-9', 'authorized')]]),
         ]);
 
         $document = app(NativeFiscalService::class)->emitForSale($sale, SpedyClient::MODEL_NFE, $this->user->id);
@@ -381,6 +389,7 @@ class NativeFiscalEmissionTest extends TestCase
             && $request['total']['invoiceAmount'] === 180.0
             && $request['total']['issRate'] === 2.5
             && $request['federalServiceCode'] === '14.01'
+            && $request['taxationType'] === 'taxationInMunicipality'
             && str_contains($request['description'], 'Troca de tela')
             && $request['location']['code'] === 4314902);
 
@@ -517,6 +526,186 @@ class NativeFiscalEmissionTest extends TestCase
             && $request['consumerInvoice']['series'] === '2');
     }
 
+    public function test_emission_requires_explicit_tax_confirmation_and_tax_changes_reset_it(): void
+    {
+        $setting = $this->fiscalSetting(['tax_settings_confirmed_at' => null]);
+        $service = app(NativeFiscalService::class);
+
+        $this->assertStringContainsString('validados pela contabilidade', $service->blocker($this->tenant->id, SpedyClient::MODEL_NFE));
+
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+        ]);
+
+        $payload = ['company_tax_regime' => '1', 'emission_environment' => 'homologation', 'nfe_enabled' => true, 'nfce_enabled' => false, 'nfse_enabled' => true,
+            'default_commercial_unit' => 'UN', 'default_icms_origin' => '0', 'default_icms_situation' => '102', 'default_pis_situation' => '49', 'default_cofins_situation' => '49',
+            'nfse_taxation_type' => 'taxationInMunicipality'];
+
+        $this->put(route('app.fiscal-settings.update'), [...$payload, 'tax_settings_confirmed' => true])->assertSessionHas('success');
+        $this->assertNotNull($setting->refresh()->tax_settings_confirmed_at);
+        $this->assertSame($this->user->id, $setting->tax_settings_confirmed_by);
+        $this->assertNull($service->blocker($this->tenant->id, SpedyClient::MODEL_NFE));
+
+        // Mesmos dados sem marcar a confirmação: mantém a confirmação.
+        $this->put(route('app.fiscal-settings.update'), $payload)->assertSessionHas('success');
+        $this->assertNotNull($setting->refresh()->tax_settings_confirmed_at);
+
+        // Alterar um dado tributário sem reconfirmar: volta a bloquear.
+        $this->put(route('app.fiscal-settings.update'), [...$payload, 'default_icms_situation' => '103'])->assertSessionHas('success');
+        $this->assertNull($setting->refresh()->tax_settings_confirmed_at);
+        $this->assertNotNull($service->blocker($this->tenant->id, SpedyClient::MODEL_NFE));
+    }
+
+    public function test_payload_never_presumes_cfop_or_tax_codes(): void
+    {
+        $setting = $this->fiscalSetting(['default_icms_situation' => '', 'default_pis_situation' => '', 'default_commercial_unit' => '']);
+        $sale = $this->sale();
+        Part::query()->update(['cfop' => null]);
+
+        try {
+            app(SpedyPayloadBuilder::class)->productInvoice($sale->fresh(), Company::query()->first(), $setting, 'x');
+            $this->fail('Esperava FiscalValidationException.');
+        } catch (FiscalValidationException $exception) {
+            $this->assertContains('Informe o CFOP (4 dígitos) da peça/produto "Tela Galaxy".', $exception->problems);
+            $this->assertContains('Informe a CSOSN nas configurações fiscais.', $exception->problems);
+            $this->assertContains('Informe a CST do PIS nas configurações fiscais.', $exception->problems);
+            $this->assertContains('Informe a unidade comercial nas configurações fiscais.', $exception->problems);
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_regime_normal_with_taxed_icms_cst_is_blocked(): void
+    {
+        $setting = $this->fiscalSetting(['company_tax_regime' => '3', 'default_icms_situation' => '00', 'default_pis_situation' => '01']);
+
+        try {
+            app(SpedyPayloadBuilder::class)->consumerInvoice($this->sale(), $setting, 'x');
+            $this->fail('Esperava FiscalValidationException.');
+        } catch (FiscalValidationException $exception) {
+            $this->assertStringContainsString('CST de ICMS 00 exige base e alíquota', $exception->getMessage());
+            $this->assertStringContainsString('PIS/COFINS com alíquota', $exception->getMessage());
+        }
+
+        $payload = app(SpedyPayloadBuilder::class)->consumerInvoice($this->sale(), $this->fiscalSetting(['company_tax_regime' => '3', 'default_icms_situation' => '41', 'default_pis_situation' => '07', 'default_cofins_situation' => '07']), 'y');
+        $this->assertSame(['origin' => 0, 'cst' => 41], $payload['items'][0]['taxes']['icms']);
+    }
+
+    public function test_sale_discount_is_distributed_and_surcharge_is_blocked(): void
+    {
+        $setting = $this->fiscalSetting();
+        $sale = $this->sale();
+        $second = Part::factory()->forTenant($this->tenant->id)->create(['name' => 'Capa', 'quantity' => 5]);
+        SaleItem::query()->create(['sale_id' => $sale->id, 'part_id' => $second->id, 'quantity' => 1, 'unit_price' => 50]);
+        // Itens: 2 x 125 + 1 x 50 = 300; venda fechada por 270 (desconto de 30).
+        $sale->update(['total_amount' => 270, 'paid_amount' => 270]);
+
+        $payload = app(SpedyPayloadBuilder::class)->consumerInvoice($sale->fresh(), $setting, 'x');
+
+        $this->assertSame(25.0, $payload['items'][0]['discountAmount']);
+        $this->assertSame(5.0, $payload['items'][1]['discountAmount']);
+        $this->assertSame(270.0, $payload['payments'][0]['amount']);
+
+        $sale->update(['total_amount' => 310]);
+        $this->expectException(FiscalValidationException::class);
+        app(SpedyPayloadBuilder::class)->consumerInvoice($sale->fresh(), $setting, 'y');
+    }
+
+    public function test_authorized_files_are_stored_with_hash_and_served_from_local_copy(): void
+    {
+        $this->fiscalSetting();
+        $sale = $this->sale();
+
+        Http::fake([self::SANDBOX.'/product-invoices' => Http::response($this->invoice('invoice-1', 'authorized'))]);
+
+        $document = app(NativeFiscalService::class)->emitForSale($sale, SpedyClient::MODEL_NFE, $this->user->id)->refresh();
+
+        $this->assertNotNull($document->xml_path);
+        Storage::disk('fiscal')->assertExists($document->xml_path);
+        Storage::disk('fiscal')->assertExists($document->pdf_path);
+        $this->assertSame(hash('sha256', '<nfeProc>xml</nfeProc>'), $document->xml_sha256);
+        $this->assertStringStartsWith($this->tenant->id.'/nfe/', $document->xml_path);
+
+        Storage::disk('fiscal')->put($document->xml_path, '<nfeProc>local</nfeProc>');
+        $this->get(route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'xml']))
+            ->assertOk()
+            ->assertSee('<nfeProc>local</nfeProc>', false);
+    }
+
+    public function test_sync_releases_unconfirmed_submission_after_thirty_minutes_despite_queue_rotation(): void
+    {
+        $this->fiscalSetting();
+        $document = $this->nativeDocument(FiscalDocument::STATUS_PROCESSING, 'placeholder');
+        $document->forceFill(['provider_reference' => null, 'submitted_at' => now()->subMinutes(40)])->save();
+        FiscalDocument::query()->whereKey($document->id)->update(['updated_at' => now()->subMinutes(3)]);
+
+        Http::fake([self::SANDBOX.'/product-invoices?*' => Http::response(['totalCount' => 0, 'items' => []])]);
+
+        $this->artisan('fiscal:sync-spedy')->assertSuccessful();
+
+        $this->assertSame(FiscalDocument::STATUS_FAILED, $document->refresh()->status);
+        $this->assertStringContainsString('não confirmado', $document->error_message);
+    }
+
+    public function test_webhook_ignores_event_whose_company_cnpj_differs_from_tenant(): void
+    {
+        $this->fiscalSetting();
+        $document = $this->nativeDocument(FiscalDocument::STATUS_PROCESSING, 'invoice-1');
+
+        $body = json_encode(['id' => 'evt-x', 'event' => 'invoice.status_changed', 'data' => [
+            ...$this->invoice('invoice-1', 'authorized'),
+            'company' => ['federalTaxNumber' => '99888777000166'],
+        ]]);
+        $this->signedWebhook('evt-x', $body)->assertOk()->assertJson(['ignored' => true]);
+        $this->assertSame(FiscalDocument::STATUS_PROCESSING, $document->refresh()->status);
+
+        $body = json_encode(['id' => 'evt-y', 'event' => 'invoice.status_changed', 'data' => [
+            ...$this->invoice('invoice-1', 'authorized'),
+            'company' => ['federalTaxNumber' => '11222333000181'],
+        ]]);
+        $this->signedWebhook('evt-y', $body)->assertOk()->assertJson(['processed' => true]);
+        $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->refresh()->status);
+    }
+
+    public function test_sale_and_order_with_native_invoice_cannot_be_cancelled_or_deleted(): void
+    {
+        $this->fiscalSetting();
+        $document = $this->nativeDocument(FiscalDocument::STATUS_AUTHORIZED, 'invoice-1');
+        $sale = Sale::query()->findOrFail($document->documentable_id);
+
+        $this->post(route('app.sales.cancel', $sale), ['cancel_reason' => 'Cliente desistiu da compra'])
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'Cancele a nota'));
+        $this->assertNotSame('cancelled', $sale->refresh()->status);
+
+        $document->update(['status' => FiscalDocument::STATUS_CANCELLED]);
+        $sale->update(['status' => 'cancelled']);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('preservar o histórico fiscal');
+        app(SaleService::class)->delete($sale, $this->user);
+    }
+
+    public function test_order_with_native_invoice_cannot_be_deleted(): void
+    {
+        $this->fiscalSetting();
+        $order = $this->order();
+        $order->update(['service_status' => OrderStatus::OPEN]);
+        FiscalDocument::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'documentable_type' => Order::class,
+            'documentable_id' => $order->id,
+            'type' => SpedyClient::MODEL_NFSE,
+            'provider' => FiscalSetting::PROVIDER_SPEDY,
+            'provider_reference' => 'nfse-1',
+            'integration_id' => 'integration-nfse-1',
+            'status' => FiscalDocument::STATUS_CANCELLED,
+        ]);
+
+        $this->delete(route('app.orders.destroy', $order))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'histórico fiscal'));
+        $this->assertNotNull(Order::query()->find($order->id));
+    }
+
     private function fiscalSetting(array $overrides = []): FiscalSetting
     {
         return FiscalSetting::query()->updateOrCreate(['tenant_id' => $this->tenant->id], [
@@ -539,6 +728,9 @@ class NativeFiscalEmissionTest extends TestCase
             'default_icms_situation' => '102',
             'default_pis_situation' => '49',
             'default_cofins_situation' => '49',
+            'default_commercial_unit' => 'UN',
+            'nfse_taxation_type' => 'taxationInMunicipality',
+            'tax_settings_confirmed_at' => now(),
             ...$overrides,
         ]);
     }

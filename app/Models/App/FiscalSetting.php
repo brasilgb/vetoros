@@ -44,6 +44,7 @@ class FiscalSetting extends Model
             'nfce_csc' => 'encrypted',
             'registered_at' => 'datetime',
             'certificate_expires_at' => 'datetime',
+            'tax_settings_confirmed_at' => 'datetime',
         ];
     }
 
@@ -85,6 +86,8 @@ class FiscalSetting extends Model
             ! $this->isRegisteredOnSpedy() => 'Conclua o cadastro da empresa emissora nas configurações fiscais.',
             ! $modelEnabled => 'Este tipo de nota não está habilitado nas configurações fiscais.',
             ! $this->hasValidCertificate() => 'Envie um certificado digital A1 válido nas configurações fiscais.',
+            $this->tax_settings_confirmed_at === null => 'Confirme nas configurações fiscais que os dados tributários foram validados pela contabilidade.',
+            $model === SpedyClient::MODEL_NFSE && blank($this->nfse_taxation_type) => 'Informe o tipo de tributação da NFS-e nas configurações fiscais.',
             $model === SpedyClient::MODEL_NFCE && (blank($this->nfce_csc_id) || blank($this->nfce_csc)) => 'Informe o ID e o CSC da NFC-e nas configurações fiscais.',
             default => null,
         };

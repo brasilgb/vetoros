@@ -42,6 +42,7 @@ class FiscalDocument extends Model
         return [
             'issued_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'submitted_at' => 'datetime',
             'request_payload' => 'array',
             'response_payload' => 'array',
         ];
@@ -60,6 +61,31 @@ class FiscalDocument extends Model
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    /**
+     * Nota emitida pelo sistema que ainda vale (ou pode vir a valer) para o
+     * registro: impede cancelar/excluir a venda ou a OS sem tratar a nota.
+     */
+    public static function hasActiveNativeFor(Model $documentable): bool
+    {
+        return static::query()->withoutGlobalScopes()
+            ->where('documentable_type', $documentable::class)
+            ->where('documentable_id', $documentable->getKey())
+            ->where('provider', FiscalSetting::PROVIDER_SPEDY)
+            ->whereIn('status', self::BLOCKING_STATUSES)
+            ->exists();
+    }
+
+    /** Qualquer nota emitida pelo sistema (inclusive cancelada) mantém o vínculo para rastreabilidade. */
+    public static function hasNativeHistoryFor(Model $documentable): bool
+    {
+        return static::query()->withoutGlobalScopes()
+            ->where('documentable_type', $documentable::class)
+            ->where('documentable_id', $documentable->getKey())
+            ->where('provider', FiscalSetting::PROVIDER_SPEDY)
+            ->whereIn('status', [...self::BLOCKING_STATUSES, self::STATUS_CANCELLED, self::STATUS_DENIED])
+            ->exists();
     }
 
     public function isNative(): bool

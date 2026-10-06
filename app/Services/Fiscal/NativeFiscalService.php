@@ -2,6 +2,7 @@
 
 namespace App\Services\Fiscal;
 
+use App\Jobs\StoreFiscalDocumentFiles;
 use App\Models\App\Company;
 use App\Models\App\FiscalDocument;
 use App\Models\App\FiscalSetting;
@@ -12,10 +13,10 @@ use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyException;
 use App\Services\Fiscal\Spedy\SpedyPayloadBuilder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -117,15 +118,53 @@ class NativeFiscalService
         return $this->applyInvoice($document, $invoice);
     }
 
-    public function download(FiscalDocument $document, string $format): Response
+    /** Conteúdo do PDF/XML: a cópia guardada no disco `fiscal`, ou a Spedy se ainda não guardada. */
+    public function download(FiscalDocument $document, string $format): string
     {
         $this->assertNative($document);
+        $format = $format === 'xml' ? 'xml' : 'pdf';
 
         if (! in_array($document->status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED, FiscalDocument::STATUS_CONTINGENCY], true)) {
             throw new FiscalEmissionException('Arquivo disponível somente para notas autorizadas.');
         }
 
-        return $this->clientFor($document)->downloadInvoiceFile($document->type, $document->provider_reference, $format);
+        $path = $format === 'xml' ? $document->xml_path : $document->pdf_path;
+
+        if (filled($path) && Storage::disk('fiscal')->exists($path)) {
+            return (string) Storage::disk('fiscal')->get($path);
+        }
+
+        return $this->clientFor($document)->downloadInvoiceFile($document->type, $document->provider_reference, $format)->body();
+    }
+
+    /**
+     * Guarda XML e PDF da nota no disco privado `fiscal` (guarda legal e
+     * rastreabilidade). Após o cancelamento, a Spedy devolve o XML com o
+     * evento, que substitui a cópia anterior.
+     */
+    public function storeFiles(FiscalDocument $document): FiscalDocument
+    {
+        $this->assertNative($document);
+
+        if (! in_array($document->status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED], true) || blank($document->provider_reference)) {
+            return $document;
+        }
+
+        $client = $this->clientFor($document);
+        $base = sprintf('%d/%s/%s/%d-%s', $document->tenant_id, $document->type, ($document->issued_at ?? now())->format('Y/m'), $document->id, $document->status);
+        $xml = $client->downloadInvoiceFile($document->type, $document->provider_reference, 'xml')->body();
+        $pdf = $client->downloadInvoiceFile($document->type, $document->provider_reference, 'pdf')->body();
+
+        Storage::disk('fiscal')->put("{$base}.xml", $xml);
+        Storage::disk('fiscal')->put("{$base}.pdf", $pdf);
+
+        $document->forceFill([
+            'xml_path' => "{$base}.xml",
+            'pdf_path' => "{$base}.pdf",
+            'xml_sha256' => hash('sha256', $xml),
+        ])->save();
+
+        return $document;
     }
 
     /**
@@ -144,6 +183,8 @@ class NativeFiscalService
             if ($status === null || $this->isRegression($document->status, $status)) {
                 return $document;
             }
+
+            $previousStatus = $document->status;
 
             $detail = (array) ($invoice['processingDetail'] ?? []);
             $authorization = (array) ($invoice['authorization'] ?? []);
@@ -171,6 +212,11 @@ class NativeFiscalService
             ])->save();
 
             $this->syncDocumentable($document);
+
+            if (in_array($status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED], true)
+                && ($previousStatus !== $status || blank($document->xml_path))) {
+                StoreFiscalDocumentFiles::dispatch($document->id)->afterCommit();
+            }
 
             return $document;
         });
@@ -253,7 +299,7 @@ class NativeFiscalService
             throw $exception;
         }
 
-        $document->forceFill(['request_payload' => $this->redactPayload($payload)])->save();
+        $document->forceFill(['request_payload' => $this->redactPayload($payload), 'submitted_at' => now()])->save();
 
         try {
             $invoice = SpedyClient::forCompany($setting->api_token)->createInvoice($model, $payload);

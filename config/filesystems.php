@@ -30,6 +30,16 @@ return [
 
     'disks' => [
 
+        // XML/PDF de notas autorizadas (guarda legal). Privado; em produção precisa
+        // apontar para um volume persistente (FISCAL_STORAGE_ROOT).
+        'fiscal' => [
+            'driver' => 'local',
+            'root' => env('FISCAL_STORAGE_ROOT') ?: storage_path('app/private/fiscal'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

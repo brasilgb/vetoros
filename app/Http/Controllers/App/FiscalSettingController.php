@@ -20,6 +20,31 @@ use Inertia\Response;
 /** Cadastro fiscal do tenant e habilitação da emissão nativa. */
 class FiscalSettingController extends Controller
 {
+    /** Valores de ServiceInvoiceTaxationType da API da Spedy. */
+    private const NFSE_TAXATION_TYPES = [
+        'taxationInMunicipality',
+        'taxationOutsideMunicipality',
+        'exemption',
+        'immune',
+        'suspendedByCourt',
+        'suspendedByAdministrativeProcedure',
+        'exportation',
+        'nonIncidence',
+    ];
+
+    /** Campos cuja alteração invalida a confirmação tributária. */
+    private const TAX_FIELDS = [
+        'company_tax_regime',
+        'service_list_item',
+        'default_iss_rate',
+        'nfse_taxation_type',
+        'default_commercial_unit',
+        'default_icms_origin',
+        'default_icms_situation',
+        'default_pis_situation',
+        'default_cofins_situation',
+    ];
+
     public function __construct(
         private readonly SpedyCompanyService $companies,
         private readonly NativeFiscalService $emission,
@@ -63,6 +88,8 @@ class FiscalSettingController extends Controller
                 'default_icms_situation' => $setting->default_icms_situation,
                 'default_pis_situation' => $setting->default_pis_situation,
                 'default_cofins_situation' => $setting->default_cofins_situation,
+                'nfse_taxation_type' => $setting->nfse_taxation_type,
+                'tax_settings_confirmed_at' => $setting->tax_settings_confirmed_at?->toIso8601String(),
             ],
             'blockers' => [
                 SpedyClient::MODEL_NFE => $this->emission->blocker($setting->tenant_id, SpedyClient::MODEL_NFE),
@@ -98,6 +125,8 @@ class FiscalSettingController extends Controller
             'default_icms_situation' => ['nullable', 'regex:/^\d{2,3}$/'],
             'default_pis_situation' => ['nullable', 'regex:/^\d{2}$/'],
             'default_cofins_situation' => ['nullable', 'regex:/^\d{2}$/'],
+            'nfse_taxation_type' => ['nullable', Rule::in(self::NFSE_TAXATION_TYPES)],
+            'tax_settings_confirmed' => 'boolean',
         ], [
             'service_city_code.regex' => 'O código IBGE do município deve ter 7 dígitos.',
         ]);
@@ -107,8 +136,20 @@ class FiscalSettingController extends Controller
             unset($data['nfce_csc']);
         }
 
+        $confirmed = (bool) ($data['tax_settings_confirmed'] ?? false);
+        unset($data['tax_settings_confirmed']);
+
         $setting = $this->setting();
         $setting->fill($data);
+
+        // Qualquer mudança tributária exige nova confirmação explícita do tenant.
+        if ($confirmed) {
+            $setting->tax_settings_confirmed_at = now();
+            $setting->tax_settings_confirmed_by = auth()->id();
+        } elseif ($setting->isDirty(self::TAX_FIELDS)) {
+            $setting->tax_settings_confirmed_at = null;
+            $setting->tax_settings_confirmed_by = null;
+        }
 
         // Ativar um modelo de nota ativa também o módulo fiscal.
         if ($setting->nfe_enabled || $setting->nfce_enabled || $setting->nfse_enabled) {

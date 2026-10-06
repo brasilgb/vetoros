@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\App\CashSession;
+use App\Models\App\FiscalDocument;
 use App\Models\App\Part;
 use App\Models\App\PartMovement;
 use App\Models\App\Sale;
@@ -82,6 +83,10 @@ class SaleService
             throw new RuntimeException('Venda já está cancelada.');
         }
 
+        if (FiscalDocument::hasActiveNativeFor($sale)) {
+            throw new RuntimeException('Esta venda tem nota fiscal emitida ou em processamento. Cancele a nota em Notas fiscais antes de cancelar a venda.');
+        }
+
         if ($sale->cashSession && $sale->cashSession->status === 'closed') {
             throw new RuntimeException('Não é possível cancelar venda vinculada a caixa já fechado.');
         }
@@ -124,6 +129,10 @@ class SaleService
     {
         if ($sale->status !== 'cancelled') {
             throw new RuntimeException('Somente vendas canceladas podem ser excluídas.');
+        }
+
+        if (FiscalDocument::hasNativeHistoryFor($sale)) {
+            throw new RuntimeException('Vendas com nota fiscal emitida pelo sistema não podem ser excluídas, para preservar o histórico fiscal.');
         }
 
         if (! $user?->isRoot() && ! $user?->isAdministrator()) {

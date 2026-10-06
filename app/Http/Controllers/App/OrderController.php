@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
 use App\Models\App\Customer;
 use App\Models\App\Equipment;
+use App\Models\App\FiscalDocument;
 use App\Models\App\Order;
 use App\Models\App\OrderLog;
 use App\Models\App\OrderPayment;
@@ -1065,6 +1066,10 @@ class OrderController extends Controller
 
         $hasPayments = $order->orderPayments()->exists();
         $isSafeStatus = in_array((int) $order->service_status, [OrderStatus::OPEN, OrderStatus::CANCELLED], true);
+
+        if (FiscalDocument::hasNativeHistoryFor($order)) {
+            return back()->with('error', 'Ordens com nota fiscal emitida pelo sistema não podem ser excluídas, para preservar o histórico fiscal.');
+        }
 
         if ($hasPayments || ! $isSafeStatus) {
             return back()->with(

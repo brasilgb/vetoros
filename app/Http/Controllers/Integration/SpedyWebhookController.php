@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Integration;
 
 use App\Http\Controllers\Controller;
+use App\Models\App\Company;
 use App\Models\App\FiscalDocument;
 use App\Models\App\FiscalSetting;
+use App\Models\Tenant;
 use App\Services\Fiscal\NativeFiscalService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -67,6 +69,12 @@ class SpedyWebhookController extends Controller
             return response()->json(['ignored' => true]);
         }
 
+        if (! $this->belongsToDocumentTenant($document, $data)) {
+            Log::warning('Spedy webhook: CNPJ da empresa diverge do tenant da nota', ['event_id' => $eventId, 'fiscal_document_id' => $document->id]);
+
+            return response()->json(['ignored' => true]);
+        }
+
         $service->applyInvoice($document, $data);
 
         DB::table('fiscal_webhook_events')
@@ -75,6 +83,24 @@ class SpedyWebhookController extends Controller
             ->update(['processed_at' => now(), 'updated_at' => now()]);
 
         return response()->json(['processed' => true]);
+    }
+
+    /**
+     * Defesa adicional: quando o evento traz o CNPJ do emissor, ele precisa ser
+     * o da empresa do tenant dono da nota.
+     */
+    private function belongsToDocumentTenant(FiscalDocument $document, array $data): bool
+    {
+        $eventCnpj = preg_replace('/\D+/', '', (string) data_get($data, 'company.federalTaxNumber'));
+
+        if ($eventCnpj === '') {
+            return true;
+        }
+
+        $company = Company::query()->withoutGlobalScopes()->where('tenant_id', $document->tenant_id)->value('cnpj')
+            ?: Tenant::query()->whereKey($document->tenant_id)->value('cnpj');
+
+        return preg_replace('/\D+/', '', (string) $company) === $eventCnpj;
     }
 
     private function validSignature(Request $request, string $secret): bool

@@ -47,7 +47,8 @@ class SyncSpedyFiscalDocuments extends Command
 
                 if ($document->status === FiscalDocument::STATUS_PROCESSING
                     && blank($document->provider_reference)
-                    && $document->updated_at->lte(now()->subMinutes(self::UNCONFIRMED_AFTER_MINUTES))) {
+                    // submitted_at, não updated_at: a própria rotação da fila atualiza o updated_at.
+                    && ($document->submitted_at ?? $document->created_at)->lte(now()->subMinutes(self::UNCONFIRMED_AFTER_MINUTES))) {
                     $document->forceFill([
                         'status' => FiscalDocument::STATUS_FAILED,
                         'error_message' => 'Envio não confirmado pelo serviço de emissão. Emita novamente.',

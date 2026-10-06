@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,6 +45,8 @@ type FiscalSettingProps = {
     default_icms_situation?: string | null;
     default_pis_situation?: string | null;
     default_cofins_situation?: string | null;
+    nfse_taxation_type?: string | null;
+    tax_settings_confirmed_at?: string | null;
 };
 
 type Props = {
@@ -64,6 +67,17 @@ const modelLabels: Record<Model, string> = {
     nfce: 'NFC-e (PDV / consumidor final)',
     nfse: 'NFS-e (serviços das ordens)',
 };
+
+const nfseTaxationTypes = [
+    { value: 'taxationInMunicipality', label: 'Tributado no município' },
+    { value: 'taxationOutsideMunicipality', label: 'Tributado fora do município' },
+    { value: 'exemption', label: 'Isento' },
+    { value: 'immune', label: 'Imune' },
+    { value: 'suspendedByCourt', label: 'Suspenso por decisão judicial' },
+    { value: 'suspendedByAdministrativeProcedure', label: 'Suspenso por procedimento administrativo' },
+    { value: 'exportation', label: 'Exportação de serviço' },
+    { value: 'nonIncidence', label: 'Não incidência' },
+];
 
 const taxRegimes = [
     { value: '1', label: 'Simples Nacional' },
@@ -99,11 +113,14 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
         default_nfse_series: setting.default_nfse_series ?? '',
         nfce_csc_id: setting.nfce_csc_id ?? '',
         nfce_csc: '',
-        default_commercial_unit: setting.default_commercial_unit ?? 'UN',
-        default_icms_origin: setting.default_icms_origin ?? '0',
-        default_icms_situation: setting.default_icms_situation ?? '102',
-        default_pis_situation: setting.default_pis_situation ?? '49',
-        default_cofins_situation: setting.default_cofins_situation ?? '49',
+        // Sem valores tributários pré-preenchidos: devem vir da contabilidade.
+        default_commercial_unit: setting.default_commercial_unit ?? '',
+        default_icms_origin: setting.default_icms_origin ?? '',
+        default_icms_situation: setting.default_icms_situation ?? '',
+        default_pis_situation: setting.default_pis_situation ?? '',
+        default_cofins_situation: setting.default_cofins_situation ?? '',
+        nfse_taxation_type: setting.nfse_taxation_type ?? '',
+        tax_settings_confirmed: false,
     });
 
     const [certificate, setCertificate] = useState<File | null>(null);
@@ -118,7 +135,10 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
             if (!confirmed) return;
         }
 
-        put(route('app.fiscal-settings.update'), { preserveScroll: true, onSuccess: () => setData('nfce_csc', '') });
+        put(route('app.fiscal-settings.update'), {
+            preserveScroll: true,
+            onSuccess: () => setData((current) => ({ ...current, nfce_csc: '', tax_settings_confirmed: false })),
+        });
     };
 
     const register = () => {
@@ -465,6 +485,22 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
                             />
                         </div>
                         <div className="grid gap-2 md:max-w-sm">
+                            <Label htmlFor="nfse_taxation_type">Tipo de tributação da NFS-e</Label>
+                            <Select value={data.nfse_taxation_type} onValueChange={(value) => setData('nfse_taxation_type', value)}>
+                                <SelectTrigger id="nfse_taxation_type">
+                                    <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {nfseTaxationTypes.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                            {type.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={errors.nfse_taxation_type} />
+                        </div>
+                        <div className="grid gap-2 md:max-w-sm">
                             <Label htmlFor="nfse_mode">Padrão da NFS-e</Label>
                             <Select value={data.nfse_mode} onValueChange={(value) => setData('nfse_mode', value as 'national' | 'municipal')}>
                                 <SelectTrigger id="nfse_mode">
@@ -475,6 +511,22 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
                                     <SelectItem value="municipal">Provedor do município</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-2xl border p-4">
+                        <Checkbox
+                            id="tax_settings_confirmed"
+                            checked={data.tax_settings_confirmed}
+                            onCheckedChange={(checked) => setData('tax_settings_confirmed', checked === true)}
+                        />
+                        <div className="grid gap-1">
+                            <Label htmlFor="tax_settings_confirmed">Confirmo que os dados tributários acima foram validados pela contabilidade</Label>
+                            <p className="text-muted-foreground text-sm">
+                                {setting.tax_settings_confirmed_at
+                                    ? `Última confirmação em ${formatDate(setting.tax_settings_confirmed_at)}. Alterar dados tributários exige nova confirmação.`
+                                    : 'Sem esta confirmação a emissão automática fica bloqueada. O sistema não presume CFOP, CST, alíquotas nem tipo de tributação.'}
+                            </p>
                         </div>
                     </div>
 

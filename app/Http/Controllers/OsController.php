@@ -360,12 +360,12 @@ class OsController extends Controller
             ->firstOrFail();
 
         try {
-            $response = $fiscal->download($document, 'pdf');
+            $content = $fiscal->download($document, 'pdf');
         } catch (FiscalEmissionException|SpedyException) {
             abort(503, 'Documento fiscal indisponível no momento.');
         }
 
-        return response($response->body(), 200, [
+        return response($content, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="nfse-'.($document->number ?: $document->id).'.pdf"',
             'Cache-Control' => 'private, no-store',
