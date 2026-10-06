@@ -125,10 +125,10 @@ class TechnicianScheduleApiTest extends TestCase
             ->assertJsonPath('result.material_checklist.1.name', 'Cabo HDMI');
 
         $this->assertSame(5, (int) $part->fresh()->quantity);
-        $this->assertSame([
+        $this->assertSame($this->sortedItems([
             ['name' => 'Fonte 12V', 'quantity' => 2, 'part_id' => $part->id, 'used' => false],
             ['name' => 'Cabo HDMI', 'quantity' => 1, 'part_id' => null, 'used' => false],
-        ], $schedule->refresh()->material_checklist);
+        ]), $this->sortedItems($schedule->refresh()->material_checklist));
 
         $this->actingAs($this->technician, 'sanctum')
             ->postJson(route('api.technician.schedules.checklist', $schedule), [
@@ -939,5 +939,15 @@ class TechnicianScheduleApiTest extends TestCase
             'id' => $schedule->id,
             'service_closure_status' => null,
         ]);
+    }
+
+    /** Coluna JSON do MySQL normaliza a ordem das chaves; compara valores e tipos de forma estrita. */
+    private function sortedItems(array $items): array
+    {
+        return array_map(function (array $item) {
+            ksort($item);
+
+            return $item;
+        }, $items);
     }
 }

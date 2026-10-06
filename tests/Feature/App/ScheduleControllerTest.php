@@ -108,11 +108,11 @@ class ScheduleControllerTest extends TestCase
         ]);
 
         $schedule = Schedule::query()->firstOrFail();
-        $this->assertSame([
+        $this->assertSame($this->sortedItems([
             ['name' => 'Etiqueta de identificação', 'quantity' => 2, 'part_id' => null, 'used' => false],
             ['name' => 'Fonte de teste', 'quantity' => 1, 'part_id' => null, 'used' => false],
             ['name' => 'Lacre', 'quantity' => 1, 'part_id' => null, 'used' => false],
-        ], $schedule->material_checklist);
+        ]), $this->sortedItems($schedule->material_checklist));
         $this->assertSame([
             'Conferir equipamento',
             'Orientar cliente',
@@ -304,5 +304,15 @@ class ScheduleControllerTest extends TestCase
             'service_closure_amount' => 245.90,
             'service_closure_priced_by' => $this->user->id,
         ]);
+    }
+
+    /** Coluna JSON do MySQL normaliza a ordem das chaves; compara valores e tipos de forma estrita. */
+    private function sortedItems(array $items): array
+    {
+        return array_map(function (array $item) {
+            ksort($item);
+
+            return $item;
+        }, $items);
     }
 }

@@ -34,8 +34,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('order_payments', function (Blueprint $table) {
-            $table->dropIndex(['cash_session_id', 'paid_at']);
+            // A FK usa o índice composto: remover a FK antes do índice.
             $table->dropForeign(['cash_session_id']);
+            $table->dropIndex(['cash_session_id', 'paid_at']);
             $table->dropColumn('cash_session_id');
         });
 

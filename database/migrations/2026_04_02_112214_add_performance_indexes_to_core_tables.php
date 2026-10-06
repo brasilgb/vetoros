@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -94,81 +95,69 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('plans', function (Blueprint $table) {
-            $table->dropIndex('plans_slug_idx');
-        });
+        $indexes = [
+            'plans' => ['plans_slug_idx'],
+            'tenants' => ['tenants_subscription_expires_idx'],
+            'users' => ['users_tenant_roles_status_idx'],
+            'customers' => ['customers_tenant_number_idx'],
+            'orders' => ['orders_tenant_status_created_idx', 'orders_tenant_customer_created_idx', 'orders_tenant_created_idx'],
+            'messages' => ['messages_recipient_status_id_idx', 'messages_sender_id_idx'],
+            'schedules' => ['schedules_tenant_status_id_idx', 'schedules_tenant_datetime_idx'],
+            'budgets' => ['budgets_tenant_number_idx'],
+            'checklists' => ['checklists_tenant_number_idx'],
+            'parts' => ['parts_tenant_type_created_idx', 'parts_tenant_sellable_idx'],
+            'part_movements' => ['part_movements_tenant_part_created_idx', 'part_movements_order_created_idx'],
+            'sales' => ['sales_tenant_number_idx', 'sales_tenant_status_created_idx'],
+            'sale_items' => ['sale_items_sale_part_idx'],
+            'payments' => ['payments_tenant_status_created_idx', 'payments_gateway_status_idx', 'payments_expires_at_idx'],
+            'order_status_history' => ['order_status_history_order_created_idx'],
+            'order_payments' => ['order_payments_order_paid_at_idx'],
+            'order_logs' => ['order_logs_order_created_idx'],
+        ];
 
-        Schema::table('tenants', function (Blueprint $table) {
-            $table->dropIndex('tenants_subscription_expires_idx');
-        });
+        foreach ($indexes as $table => $names) {
+            foreach ($names as $name) {
+                $this->dropIndexKeepingForeignKeys($table, $name);
+            }
+        }
+    }
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropIndex('users_tenant_roles_status_idx');
-        });
+    /**
+     * No MySQL, uma FK criada depois deste índice composto passa a usá-lo como
+     * índice de suporte; removê-lo direto falha (erro 1553). Antes de remover,
+     * cria um índice simples para cada coluna de FK que dependia só dele.
+     */
+    private function dropIndexKeepingForeignKeys(string $table, string $name): void
+    {
+        if (DB::getDriverName() === 'mysql') {
+            $database = DB::getDatabaseName();
+            $leading = DB::table('information_schema.statistics')
+                ->where('table_schema', $database)
+                ->where('table_name', $table)
+                ->where('index_name', $name)
+                ->where('seq_in_index', 1)
+                ->value('column_name');
 
-        Schema::table('customers', function (Blueprint $table) {
-            $table->dropIndex('customers_tenant_number_idx');
-        });
+            $usedByForeignKey = $leading && DB::table('information_schema.key_column_usage')
+                ->where('table_schema', $database)
+                ->where('table_name', $table)
+                ->where('column_name', $leading)
+                ->whereNotNull('referenced_table_name')
+                ->exists();
 
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropIndex('orders_tenant_status_created_idx');
-            $table->dropIndex('orders_tenant_customer_created_idx');
-            $table->dropIndex('orders_tenant_created_idx');
-        });
+            $otherIndex = $leading && DB::table('information_schema.statistics')
+                ->where('table_schema', $database)
+                ->where('table_name', $table)
+                ->where('column_name', $leading)
+                ->where('seq_in_index', 1)
+                ->where('index_name', '!=', $name)
+                ->exists();
 
-        Schema::table('messages', function (Blueprint $table) {
-            $table->dropIndex('messages_recipient_status_id_idx');
-            $table->dropIndex('messages_sender_id_idx');
-        });
+            if ($usedByForeignKey && ! $otherIndex) {
+                Schema::table($table, fn (Blueprint $blueprint) => $blueprint->index($leading));
+            }
+        }
 
-        Schema::table('schedules', function (Blueprint $table) {
-            $table->dropIndex('schedules_tenant_status_id_idx');
-            $table->dropIndex('schedules_tenant_datetime_idx');
-        });
-
-        Schema::table('budgets', function (Blueprint $table) {
-            $table->dropIndex('budgets_tenant_number_idx');
-        });
-
-        Schema::table('checklists', function (Blueprint $table) {
-            $table->dropIndex('checklists_tenant_number_idx');
-        });
-
-        Schema::table('parts', function (Blueprint $table) {
-            $table->dropIndex('parts_tenant_type_created_idx');
-            $table->dropIndex('parts_tenant_sellable_idx');
-        });
-
-        Schema::table('part_movements', function (Blueprint $table) {
-            $table->dropIndex('part_movements_tenant_part_created_idx');
-            $table->dropIndex('part_movements_order_created_idx');
-        });
-
-        Schema::table('sales', function (Blueprint $table) {
-            $table->dropIndex('sales_tenant_number_idx');
-            $table->dropIndex('sales_tenant_status_created_idx');
-        });
-
-        Schema::table('sale_items', function (Blueprint $table) {
-            $table->dropIndex('sale_items_sale_part_idx');
-        });
-
-        Schema::table('payments', function (Blueprint $table) {
-            $table->dropIndex('payments_tenant_status_created_idx');
-            $table->dropIndex('payments_gateway_status_idx');
-            $table->dropIndex('payments_expires_at_idx');
-        });
-
-        Schema::table('order_status_history', function (Blueprint $table) {
-            $table->dropIndex('order_status_history_order_created_idx');
-        });
-
-        Schema::table('order_payments', function (Blueprint $table) {
-            $table->dropIndex('order_payments_order_paid_at_idx');
-        });
-
-        Schema::table('order_logs', function (Blueprint $table) {
-            $table->dropIndex('order_logs_order_created_idx');
-        });
+        Schema::table($table, fn (Blueprint $blueprint) => $blueprint->dropIndex($name));
     }
 };

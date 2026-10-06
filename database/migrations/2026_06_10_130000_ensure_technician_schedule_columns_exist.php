@@ -49,22 +49,8 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('schedules', function (Blueprint $table) {
-            $columns = array_values(array_filter([
-                Schema::hasColumn('schedules', 'check_out_observations') ? 'check_out_observations' : null,
-                Schema::hasColumn('schedules', 'check_out_longitude') ? 'check_out_longitude' : null,
-                Schema::hasColumn('schedules', 'check_out_latitude') ? 'check_out_latitude' : null,
-                Schema::hasColumn('schedules', 'check_out_at') ? 'check_out_at' : null,
-                Schema::hasColumn('schedules', 'check_in_observations') ? 'check_in_observations' : null,
-                Schema::hasColumn('schedules', 'check_in_longitude') ? 'check_in_longitude' : null,
-                Schema::hasColumn('schedules', 'check_in_latitude') ? 'check_in_latitude' : null,
-                Schema::hasColumn('schedules', 'check_in_at') ? 'check_in_at' : null,
-                Schema::hasColumn('schedules', 'send_to_technician') ? 'send_to_technician' : null,
-            ]));
-
-            if ($columns !== []) {
-                $table->dropColumn($columns);
-            }
-        });
+        // As colunas pertencem a 2026_06_01_120000_add_order_and_send_to_technician_to_schedules_table,
+        // que as remove no próprio down. Esta migration só garante que existam;
+        // removê-las aqui fazia o rollback daquela falhar (coluna inexistente).
     }
 };
