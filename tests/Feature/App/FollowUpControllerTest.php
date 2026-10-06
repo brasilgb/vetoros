@@ -578,7 +578,6 @@ class FollowUpControllerTest extends TestCase
             'budget_follow_up_paused_by' => $this->user->id,
             'budget_follow_up_pause_reason' => 'Cliente pediu pausa até segunda-feira.',
         ]);
-
     }
 
     public function test_it_resumes_payment_automation_for_order(): void
@@ -634,7 +633,6 @@ class FollowUpControllerTest extends TestCase
             'budget_follow_up_pause_reason' => 'Aguardando peça',
             'budget_follow_up_paused_by' => $this->user->id,
         ]);
-
     }
 
     public function test_it_marks_follow_up_task_as_completed(): void
@@ -690,7 +688,6 @@ class FollowUpControllerTest extends TestCase
             'id' => $order->id,
             'budget_follow_up_assigned_to' => $assignee->id,
         ]);
-
     }
 
     public function test_it_assigns_feedback_recovery_task_to_responsible_user(): void
@@ -758,7 +755,6 @@ class FollowUpControllerTest extends TestCase
 
         $this->assertNotNull($order->payment_follow_up_snoozed_until);
         $this->assertTrue($order->payment_follow_up_snoozed_until->isFuture());
-
 
         $agendaResponse = $this->get(route('app.follow-ups.index'));
 
