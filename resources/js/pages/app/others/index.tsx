@@ -24,7 +24,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Others({ othersettings, company, time_remaining, mailSettings, businessMetrics, fiscalSetting }: any) {
+export default function Others({ othersettings, company, time_remaining, mailSettings, businessMetrics, fiscalSetting, licensePlanName }: any) {
     const { auth } = usePage().props as any;
     const canManageOtherSettings = auth?.permissions?.includes('other_settings');
     const initialTab =
@@ -92,7 +92,7 @@ export default function Others({ othersettings, company, time_remaining, mailSet
                         <HeadingSmall
                             title="Licença de uso do sistema"
                             description={`Este software é licenciado para a empresa ${company?.companyname}, CNPJ: ${maskCpfCnpj(company?.cnpj)}. Localizada na ${company?.street}, ${company?.number}, ${company?.district}, ${company?.city} - ${company?.state}.`}
-                            license={auth.user.tenant.plan.name}
+                            license={licensePlanName ?? auth?.user?.tenant?.plan?.name ?? 'Sem plano'}
                             time_remaining={time_remaining}
                         />
                     </div>

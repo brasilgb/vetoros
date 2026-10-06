@@ -103,6 +103,8 @@ class OtherController extends Controller
             'othersettings' => $othersettings,
             'company' => $company,
             'time_remaining' => $time_remaining,
+            // A relação tenant.plan não vem em auth.user para todos os papéis.
+            'licensePlanName' => $tenant?->plan?->name,
             'mailSettings' => $mailSettings,
             'businessMetrics' => $businessMetrics,
             'fiscalSetting' => $fiscalSetting ? [
