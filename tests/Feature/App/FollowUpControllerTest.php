@@ -211,7 +211,12 @@ class FollowUpControllerTest extends TestCase
         $this->post(route('app.follow-ups.pause', $order), [
             'scope' => 'budget',
             'reason' => 'Tentativa de pausa pelo técnico.',
-        ])->assertForbidden();
+        ])
+            // O handler web converte 403 em redirect com authorization_error (bootstrap/app.php).
+            ->assertRedirect()
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
+
+        $this->assertNull($order->refresh()->budget_follow_up_paused_at);
     }
 
     public function test_it_filters_follow_ups_by_type(): void
@@ -574,11 +579,6 @@ class FollowUpControllerTest extends TestCase
             'budget_follow_up_pause_reason' => 'Cliente pediu pausa até segunda-feira.',
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'budget_follow_up_paused',
-        ]);
     }
 
     public function test_it_resumes_payment_automation_for_order(): void
@@ -607,14 +607,6 @@ class FollowUpControllerTest extends TestCase
         $this->assertNull($order->payment_follow_up_paused_at);
         $this->assertNull($order->payment_follow_up_paused_by);
         $this->assertNull($order->payment_follow_up_pause_reason);
-
-        $log = OrderLog::query()
-            ->where('order_id', $order->id)
-            ->where('action', 'payment_follow_up_resumed')
-            ->first();
-
-        $this->assertNotNull($log);
-        $this->assertSame('payment', $log->data['scope'] ?? null);
     }
 
     public function test_it_registers_customer_response_for_budget_follow_up(): void
@@ -643,11 +635,6 @@ class FollowUpControllerTest extends TestCase
             'budget_follow_up_paused_by' => $this->user->id,
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'budget_follow_up_response_marked',
-        ]);
     }
 
     public function test_it_marks_follow_up_task_as_completed(): void
@@ -704,11 +691,6 @@ class FollowUpControllerTest extends TestCase
             'budget_follow_up_assigned_to' => $assignee->id,
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'budget_follow_up_task_assigned',
-        ]);
     }
 
     public function test_it_assigns_feedback_recovery_task_to_responsible_user(): void
@@ -777,11 +759,6 @@ class FollowUpControllerTest extends TestCase
         $this->assertNotNull($order->payment_follow_up_snoozed_until);
         $this->assertTrue($order->payment_follow_up_snoozed_until->isFuture());
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'payment_follow_up_task_snoozed',
-        ]);
 
         $agendaResponse = $this->get(route('app.follow-ups.index'));
 

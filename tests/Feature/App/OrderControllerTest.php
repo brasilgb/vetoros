@@ -92,11 +92,6 @@ class OrderControllerTest extends TestCase
             'note' => OrderStatus::label(OrderStatus::OPEN),
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'created',
-        ]);
         $this->assertDatabaseHas('operational_audits', [
             'tenant_id' => $this->tenant->id,
             'user_id' => $this->user->id,
@@ -268,11 +263,6 @@ class OrderControllerTest extends TestCase
             'total_price' => 150,
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'status_changed',
-        ]);
         $this->assertDatabaseHas('operational_audits', [
             'tenant_id' => $this->tenant->id,
             'user_id' => $this->user->id,
@@ -554,11 +544,6 @@ class OrderControllerTest extends TestCase
             'status' => 'partial',
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'payment_registered',
-        ]);
         $this->assertDatabaseHas('operational_audits', [
             'tenant_id' => $this->tenant->id,
             'user_id' => $this->user->id,
@@ -622,10 +607,12 @@ class OrderControllerTest extends TestCase
             'status' => 'partial',
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
+        $this->assertDatabaseHas('operational_audits', [
+            'tenant_id' => $this->tenant->id,
             'user_id' => $this->user->id,
-            'action' => 'payment_registered',
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => 'order_payment_registered',
         ]);
     }
 
@@ -760,11 +747,6 @@ class OrderControllerTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'user_id' => $this->user->id,
-            'action' => 'payment_removed',
-        ]);
         $this->assertDatabaseHas('operational_audits', [
             'tenant_id' => $this->tenant->id,
             'user_id' => $this->user->id,
@@ -903,21 +885,29 @@ class OrderControllerTest extends TestCase
             'status' => OrderStatus::DELIVERED,
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'payment_registered',
+        $this->assertDatabaseHas('operational_audits', [
+            'tenant_id' => $this->tenant->id,
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => 'order_payment_registered',
         ]);
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_notification_acknowledged',
+        $this->assertDatabaseHas('operational_audits', [
+            'tenant_id' => $this->tenant->id,
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => 'order_customer_notification_acknowledged',
         ]);
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_pickup_acknowledged',
+        $this->assertDatabaseHas('operational_audits', [
+            'tenant_id' => $this->tenant->id,
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => 'order_customer_pickup_acknowledged',
         ]);
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_feedback_submitted',
+        $this->assertDatabaseHas('operational_audits', [
+            'tenant_id' => $this->tenant->id,
+            'entity_type' => 'order',
+            'entity_id' => $order->id,
+            'action' => 'order_customer_feedback_submitted',
         ]);
     }
 

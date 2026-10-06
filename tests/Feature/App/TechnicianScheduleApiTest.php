@@ -305,6 +305,8 @@ class TechnicianScheduleApiTest extends TestCase
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
         $order = Order::factory()->forTenant($this->tenant->id)->create([
             'customer_id' => $customer->id,
+            // A factory sorteia o status; fixado para provar que a OS não é alterada.
+            'service_status' => OrderStatus::OPEN,
             'user_id' => $this->technician->id,
             'technician_diagnosis' => 'Falha identificada.',
             'technician_solution' => 'Servico concluido.',

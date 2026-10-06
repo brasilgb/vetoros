@@ -136,7 +136,7 @@ class PartControllerTest extends TestCase
                 ->component('app/parts/index')
                 ->where('parts.data.0.id', $matched->id)
                 ->where('parts.data.0.reference_number', 'REF-987654321')
-                ->where('parts.data.1', null)
+                ->has('parts.data', 1)
             );
     }
 
@@ -162,7 +162,7 @@ class PartControllerTest extends TestCase
                 ->component('app/parts/index')
                 ->where('parts.data.0.id', $matched->id)
                 ->where('parts.data.0.part_number', 'PN-445566')
-                ->where('parts.data.1', null)
+                ->has('parts.data', 1)
             );
     }
 

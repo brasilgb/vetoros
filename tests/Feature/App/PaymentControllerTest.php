@@ -71,7 +71,8 @@ class PaymentControllerTest extends TestCase
             ->withArgs(function (array $paymentRequest, string $idempotencyKey) use ($plan, $tenant) {
                 $this->assertSame((float) $plan->value, $paymentRequest['transaction_amount']);
                 $this->assertSame('pix', $paymentRequest['payment_method_id']);
-                $this->assertSame($tenant->email, $paymentRequest['payer']['email']);
+                // E-mail sintético por tenant (ed638c14); não usa o e-mail do cadastro.
+                $this->assertSame("pix_{$tenant->id}@vetoros.com.br", $paymentRequest['payer']['email']);
                 $this->assertSame('CNPJ', $paymentRequest['payer']['identification']['type']);
                 $this->assertSame(preg_replace('/\D/', '', $tenant->cnpj), $paymentRequest['payer']['identification']['number']);
                 $this->assertSame(

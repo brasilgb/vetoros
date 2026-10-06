@@ -78,7 +78,8 @@ class PermissionsTest extends TestCase
             ->assertOk();
 
         $this->get(route('app.images.index', ['or' => $foreignOrder->id]))
-            ->assertForbidden();
+            ->assertRedirect()
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
     }
 
     public function test_api_images_returns_order_images_from_route_parameter(): void
@@ -187,13 +188,16 @@ class PermissionsTest extends TestCase
             ->actingAs($this->technician);
 
         $this->get(route('app.receipts.printing', ['or' => $order->id, 'tp' => 'receivingequipment']))
-            ->assertForbidden();
+            ->assertRedirect()
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
 
         $this->get(route('app.whatsapp-message.index'))
-            ->assertForbidden();
+            ->assertRedirect()
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
 
         $this->get(route('app.label-printing.index'))
-            ->assertForbidden();
+            ->assertRedirect()
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
 
         $this->get(route('app.sales.index'))
             ->assertRedirect(route('app.dashboard'));

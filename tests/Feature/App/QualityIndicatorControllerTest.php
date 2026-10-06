@@ -221,11 +221,6 @@ class QualityIndicatorControllerTest extends TestCase
             'customer_feedback_recovery_notes' => 'Contato realizado para entender o atraso.',
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_feedback_recovery_updated',
-        ]);
-
         $this->assertDatabaseHas('operational_audits', [
             'tenant_id' => $this->tenant->id,
             'user_id' => $this->user->id,

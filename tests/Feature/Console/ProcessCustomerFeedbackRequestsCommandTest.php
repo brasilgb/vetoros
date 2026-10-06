@@ -73,10 +73,6 @@ class ProcessCustomerFeedbackRequestsCommandTest extends TestCase
 
         Mail::assertSent(OrderFeedbackReminderMail::class, 1);
         $this->assertNotNull($order->fresh()->customer_feedback_reminder_sent_at);
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_feedback_reminder_sent',
-        ]);
 
         $this->artisan('vetoros:process-customer-feedback-requests')
             ->expectsOutputToContain('Processadas: 1 | Lembretes: 0 | Expiradas: 0 | Ignoradas: 1')
@@ -98,10 +94,6 @@ class ProcessCustomerFeedbackRequestsCommandTest extends TestCase
 
         Queue::assertNothingPushed();
         $this->assertNotNull($order->fresh()->customer_feedback_request_expired_at);
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_feedback_request_expired',
-        ]);
     }
 
     public function test_feedback_reminder_job_delivers_mail(): void

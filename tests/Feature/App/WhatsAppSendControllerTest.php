@@ -24,6 +24,7 @@ class WhatsAppSendControllerTest extends TestCase
         parent::setUp();
 
         config(['services.waha.base_url' => 'http://waha.test']);
+        Http::preventStrayRequests();
 
         $this->tenant = Tenant::factory()->create();
         $this->user = User::factory()->forTenant($this->tenant->id)->create();
@@ -48,6 +49,8 @@ class WhatsAppSendControllerTest extends TestCase
         $order = Order::factory()->forTenant($this->tenant->id)->create(['customer_id' => $customer->id]);
 
         Http::fake([
+            // O envio resolve o chatId real antes (nono dígito); ver WahaService::resolveChatId.
+            'waha.test/api/contacts/check-exists*' => Http::response(['numberExists' => true, 'chatId' => '5551999999999@c.us']),
             'waha.test/api/sendText' => Http::response(['id' => 'true_5551999999999@c.us_ABC']),
         ]);
 
@@ -64,10 +67,8 @@ class WhatsAppSendControllerTest extends TestCase
                 && $request['text'] === 'Seu equipamento está pronto para retirada.';
         });
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'whatsapp_sent',
-        ]);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/api/contacts/check-exists')
+            && $request['phone'] === '5551999999999');
     }
 
     public function test_order_whatsapp_send_fails_with_friendly_error_when_disconnected(): void
@@ -131,6 +132,8 @@ class WhatsAppSendControllerTest extends TestCase
         $customer = Customer::factory()->forTenant($this->tenant->id)->create(['whatsapp' => '51999999999']);
 
         Http::fake([
+            // O envio resolve o chatId real antes (nono dígito); ver WahaService::resolveChatId.
+            'waha.test/api/contacts/check-exists*' => Http::response(['numberExists' => true, 'chatId' => '5551999999999@c.us']),
             'waha.test/api/sendText' => Http::response(['id' => 'true_5551999999999@c.us_ABC']),
         ]);
 

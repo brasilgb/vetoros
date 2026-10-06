@@ -149,11 +149,6 @@ class OsControllerTest extends TestCase
             'note' => 'Cliente confirmou que recebeu o aviso de conclusão.',
         ]);
 
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_notification_acknowledged',
-        ]);
-
         $this->assertDatabaseHas('operational_audits', [
             'tenant_id' => $tenant->id,
             'entity_type' => 'order',
@@ -194,11 +189,6 @@ class OsControllerTest extends TestCase
             'order_id' => $order->id,
             'status' => OrderStatus::DELIVERED,
             'note' => 'Cliente confirmou a retirada do equipamento pela área pública.',
-        ]);
-
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_pickup_acknowledged',
         ]);
 
         $this->assertDatabaseHas('operational_audits', [
@@ -312,11 +302,6 @@ class OsControllerTest extends TestCase
             'feedback' => 1,
             'customer_feedback_rating' => 5,
             'customer_feedback_comment' => 'Atendimento rápido e claro.',
-        ]);
-
-        $this->assertDatabaseHas('order_logs', [
-            'order_id' => $order->id,
-            'action' => 'customer_feedback_submitted',
         ]);
 
         $this->assertDatabaseHas('operational_audits', [
