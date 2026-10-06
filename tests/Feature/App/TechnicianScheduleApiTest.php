@@ -252,6 +252,9 @@ class TechnicianScheduleApiTest extends TestCase
 
     public function test_technician_dashboard_returns_summary_and_next_schedule(): void
     {
+        // Meio-dia: "agora + 2h" não pode cair no dia seguinte (falhava entre 22h e 0h UTC).
+        $this->travelTo(now()->setTime(12, 0));
+
         $customer = Customer::factory()->forTenant($this->tenant->id)->create([
             'name' => 'Cliente Prioritario',
         ]);
