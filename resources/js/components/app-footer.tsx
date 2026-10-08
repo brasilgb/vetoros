@@ -18,10 +18,13 @@ export default function AppFooter() {
                     &copy;{moment().format('YYYY')} - {company?.companyname} - CNPJ: {maskCpfCnpj(company?.cnpj ?? '')}
                 </span>
                 <div className="flex shrink-0 items-center gap-3 text-xs font-semibold text-gray-600">
-                    <a href="https://vetoros.com.br" target="_blank" rel="noreferrer">
-                        VETOROS.COM.BR
-                    </a>
-                    <span className="text-gray-500">{import.meta.env.VITE_APP_VERSION}</span>
+                    <span>
+                        <a href="https://abrasilsistemas.com.br" target="_blank" rel="noreferrer">
+                            ABrasil Sistemas
+                        </a>
+                        {' — VetorOS | '}
+                        <span className="text-gray-500">{__APP_VERSION__}</span>
+                    </span>
                 </div>
             </div>
         </footer>
