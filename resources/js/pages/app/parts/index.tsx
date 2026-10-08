@@ -11,9 +11,10 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { maskMoney } from '@/Utils/mask';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Barcode, Camera, Edit, PackageCheck, Plus, Printer, ShoppingCart } from 'lucide-react';
+import { Barcode, Camera, Edit, PackageCheck, Plus, Printer, ShoppingCart, Upload } from 'lucide-react';
 import moment from 'moment';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ImportPartsModal from './import-parts-modal';
 
 declare global {
     interface Window {
@@ -42,6 +43,7 @@ export default function Parts({ parts, search, filter }: any) {
         barcode: '',
     });
     const [cameraOpen, setCameraOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [cameraSupported, setCameraSupported] = useState(false);
     const [isMobileDevice, setIsMobileDevice] = useState(false);
@@ -218,6 +220,12 @@ export default function Parts({ parts, search, filter }: any) {
                         </Link>
                     </Button>
                     {canManageParts && (
+                        <Button onClick={() => setImportOpen(true)} className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto">
+                            <Upload className="h-4 w-4" />
+                            <span>CSV</span>
+                        </Button>
+                    )}
+                    {canManageParts && (
                         <Button variant={'default'} asChild className="w-full whitespace-nowrap sm:w-auto">
                             <Link href={route('app.parts.create')}>
                                 <Plus className="h-4 w-4" />
@@ -227,6 +235,8 @@ export default function Parts({ parts, search, filter }: any) {
                     )}
                 </div>
             </div>
+
+            <ImportPartsModal isOpen={importOpen} onClose={() => setImportOpen(false)} />
 
             {cameraError && <div className="px-4 text-sm text-red-600">{cameraError}</div>}
             {cameraOpen && (
