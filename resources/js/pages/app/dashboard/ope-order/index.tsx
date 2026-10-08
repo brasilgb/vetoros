@@ -66,7 +66,7 @@ export default function OrderDashboard({
     const showFinanceShortcut = Boolean(others?.enable_finance && canUseFinance);
     const showPdvShortcut = Boolean(others?.enablesales && canUsePdv);
     const quickShortcutClass =
-        'border-input bg-background hover:bg-muted/60 flex h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs font-medium whitespace-nowrap shadow-xs transition-colors lg:size-[110px] lg:flex-none';
+        'border-input bg-background hover:bg-muted/60 flex h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs font-medium whitespace-nowrap shadow-xs transition-colors xl:h-auto xl:w-24 xl:flex-none 2xl:w-36';
 
     useEffect(() => {
         const getOrders = async () => {
@@ -283,21 +283,20 @@ export default function OrderDashboard({
     return (
         <div className="min-w-0">
             <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
+                {/* Atalhos à direita a partir de 1280 px (largura conforme o espaço); antes disso, abaixo da barra. */}
+                <div className="flex flex-col gap-2 xl:flex-row xl:items-stretch">
                     <Card className="min-w-0 flex-1 gap-0 overflow-hidden py-0">
-                        <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
-                            <div className="flex min-w-[180px] items-center gap-3">
-                                <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                                    <Activity className="h-4 w-4" />
+                        <div className="@container flex flex-col gap-2 px-4 py-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                                <div className="bg-primary/10 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded">
+                                    <Activity className="h-3.5 w-3.5" />
                                 </div>
-                                <div>
-                                    <div className="text-sm font-semibold">Prioridades de hoje</div>
-                                    <div className="text-muted-foreground text-xs">
-                                        {todayPriorityCount > 0 ? `${todayPriorityCount} itens pedem atenção` : 'Operação em dia'}
-                                    </div>
-                                </div>
+                                <span className="truncate text-sm font-semibold">Prioridades de hoje</span>
+                                <span className="text-muted-foreground truncate text-xs">
+                                    {todayPriorityCount > 0 ? `${todayPriorityCount} itens pedem atenção` : 'Operação em dia'}
+                                </span>
                             </div>
-                            <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-2 @min-[460px]:grid-cols-3 @min-[620px]:grid-cols-4">
                                 {todayPriorities.map((priority) => {
                                     const PriorityIcon = priority.icon;
 
@@ -305,13 +304,14 @@ export default function OrderDashboard({
                                         <Link
                                             key={priority.label}
                                             href={priority.href}
-                                            className={`hover:bg-muted/60 flex min-w-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                                            title={priority.label}
+                                            className={`hover:bg-muted/60 flex h-11 min-w-0 items-center justify-between gap-1.5 rounded-md border px-2.5 text-sm leading-tight transition-colors ${
                                                 priority.urgent && priority.value > 0
                                                     ? 'border-red-200 bg-red-50/70 dark:border-red-900/70 dark:bg-red-950/30'
                                                     : ''
                                             }`}
                                         >
-                                            <span className="flex min-w-0 items-center gap-2">
+                                            <span className="flex min-w-0 items-center gap-1.5">
                                                 <PriorityIcon
                                                     className={`h-4 w-4 shrink-0 ${
                                                         priority.urgent && priority.value > 0
@@ -319,16 +319,17 @@ export default function OrderDashboard({
                                                             : 'text-muted-foreground'
                                                     }`}
                                                 />
-                                                <span className="truncate">{priority.label}</span>
+                                                {/* Até duas linhas: o rótulo quebra entre palavras em vez de truncar. */}
+                                                <span className="line-clamp-2 min-w-0">{priority.label}</span>
                                             </span>
-                                            <span className="font-semibold tabular-nums">{priority.value}</span>
+                                            <span className="shrink-0 font-semibold tabular-nums">{priority.value}</span>
                                         </Link>
                                     );
                                 })}
                             </div>
                         </div>
                     </Card>
-                    <nav aria-label="Atalhos rápidos" className="flex gap-2 lg:shrink-0">
+                    <nav aria-label="Atalhos rápidos" className="flex gap-2 xl:shrink-0">
                         {showFinanceShortcut && (
                             <Tooltip>
                                 <TooltipTrigger asChild>

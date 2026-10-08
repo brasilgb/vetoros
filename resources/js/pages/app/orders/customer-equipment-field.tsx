@@ -31,11 +31,13 @@ type CustomerEquipmentSavedFlash = CustomerEquipmentOption;
 
 type CustomerEquipmentSelectOption = OptionType & { device: CustomerEquipmentOption };
 
+export const customerEquipmentLabel = (item: CustomerEquipmentOption): string =>
+    `#${item.customer_equipment_number} · ${[item.brand, item.model].filter(Boolean).join(' ') || 'Sem marca/modelo'}` +
+    (item.serial_number ? ` · SN ${item.serial_number}` : '');
+
 const mapOption = (item: CustomerEquipmentOption): CustomerEquipmentSelectOption => ({
     value: item.id,
-    label:
-        `#${item.customer_equipment_number} · ${[item.brand, item.model].filter(Boolean).join(' ') || 'Sem marca/modelo'}` +
-        (item.serial_number ? ` · SN ${item.serial_number}` : ''),
+    label: customerEquipmentLabel(item),
     device: item,
 });
 
@@ -52,9 +54,7 @@ export default function CustomerEquipmentField({
 }) {
     const { flash } = usePage().props as { flash?: { customer_equipment_saved?: CustomerEquipmentSavedFlash } };
     const [open, setOpen] = useState(false);
-    const [selected, setSelected] = useState<CustomerEquipmentSelectOption | null>(
-        initialDevice ? mapOption(initialDevice) : null,
-    );
+    const [selected, setSelected] = useState<CustomerEquipmentSelectOption | null>(initialDevice ? mapOption(initialDevice) : null);
     const [reloadToken, setReloadToken] = useState(0);
 
     const createForm = useForm({
@@ -161,9 +161,7 @@ export default function CustomerEquipmentField({
                                         onSelectEquipment={(equipmentId) => createForm.setData('equipment_id', equipmentId)}
                                     />
                                 </div>
-                                {createForm.errors.equipment_id && (
-                                    <div className="text-sm text-red-500">{createForm.errors.equipment_id}</div>
-                                )}
+                                {createForm.errors.equipment_id && <div className="text-sm text-red-500">{createForm.errors.equipment_id}</div>}
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="new-ce-brand">Marca</Label>

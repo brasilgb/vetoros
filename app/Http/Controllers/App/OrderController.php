@@ -211,6 +211,28 @@ class OrderController extends Controller
         return $user instanceof User ? $user : null;
     }
 
+    /**
+     * Trocar o cliente ou o equipamento da OS é operação do cadastro de clientes: exige a
+     * permissão "customers". Quem só tem "orders" (ex.: técnico) atualiza a própria OS, mas
+     * mantém cliente e equipamento. Compara o que seria gravado com o que já está gravado.
+     */
+    private function authorizeCustomerAndEquipmentChange(array $data, Order $order): void
+    {
+        $user = $this->currentUser();
+        if (! $user || $user->isRoot() || $user->hasPermission('customers')) {
+            return;
+        }
+
+        $isEquipmentOrder = ($data['order_type'] ?? Order::TYPE_EQUIPMENT) === Order::TYPE_EQUIPMENT;
+        $id = static fn ($value): ?int => $value === null || $value === '' ? null : (int) $value;
+
+        $changed = $id($data['customer_id'] ?? null) !== $id($order->customer_id)
+            || $id($isEquipmentOrder ? ($data['customer_equipment_id'] ?? null) : null) !== $id($order->customer_equipment_id)
+            || $id($isEquipmentOrder ? ($data['equipment_id'] ?? null) : null) !== $id($order->equipment_id);
+
+        abort_if($changed, 403, 'Alterar cliente ou equipamento da OS exige permissão de clientes.');
+    }
+
     private function normalizeMoneyValue(mixed $value): string
     {
         if ($value === null || $value === '') {
@@ -923,6 +945,7 @@ class OrderController extends Controller
 
         $data = $request->all();
         $request->validated();
+        $this->authorizeCustomerAndEquipmentChange($data, $order);
         if ($order->is_warranty_return) {
             $data['is_warranty_return'] = true;
             $data['warranty_source_order_id'] = $order->warranty_source_order_id;

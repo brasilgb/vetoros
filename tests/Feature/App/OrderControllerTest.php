@@ -7,6 +7,7 @@ use App\Mail\OrderPaymentReminderMail;
 use App\Mail\OrderStatusUpdatedMail;
 use App\Models\App\CashSession;
 use App\Models\App\Customer;
+use App\Models\App\CustomerEquipment;
 use App\Models\App\Equipment;
 use App\Models\App\Order;
 use App\Models\App\OrderPayment;
@@ -367,6 +368,115 @@ class OrderControllerTest extends TestCase
         $order->refresh();
         $this->assertSame('Modelo novo', $order->model);
         $this->assertSame(OrderStatus::REPAIR_IN_PROGRESS, (int) $order->service_status);
+    }
+
+    public function test_technician_updates_own_order_keeping_customer_and_equipment(): void
+    {
+        // VETOR-HML-01.2 (D2): o reforço não pode impedir a atualização legítima da própria OS.
+        [$technician, $order, $customer, $equipment, $device] = $this->technicianOrderWithDevice();
+
+        $this->actingAs($technician)
+            ->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $customer, $equipment, [
+                'user_id' => $technician->id,
+                'customer_equipment_id' => $device->id,
+                'services_performed' => 'Troca do conector de carga',
+            ]))
+            ->assertRedirect(route('app.orders.show', ['order' => $order->id]))
+            ->assertSessionMissing('authorization_error');
+
+        $this->assertSame('Troca do conector de carga', $order->fresh()->services_performed);
+    }
+
+    public function test_technician_cannot_change_order_customer(): void
+    {
+        [$technician, $order, $customer, $equipment, $device] = $this->technicianOrderWithDevice();
+        $otherCustomer = Customer::factory()->forTenant($this->tenant->id)->create();
+
+        $this->actingAs($technician)
+            ->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $otherCustomer, $equipment, [
+                'user_id' => $technician->id,
+                'customer_equipment_id' => null,
+                'model' => 'Nao deve gravar',
+            ]))
+            ->assertRedirect()
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
+
+        $order->refresh();
+        $this->assertSame($customer->id, (int) $order->customer_id);
+        $this->assertSame($device->id, (int) $order->customer_equipment_id);
+        $this->assertNotSame('Nao deve gravar', $order->model);
+    }
+
+    public function test_technician_cannot_change_or_clear_order_equipment(): void
+    {
+        [$technician, $order, $customer, $equipment, $device] = $this->technicianOrderWithDevice();
+        $otherDevice = CustomerEquipment::factory()->forTenant($this->tenant->id)->create(['customer_id' => $customer->id, 'equipment_id' => $equipment->id]);
+        $otherType = Equipment::factory()->forTenant($this->tenant->id)->create();
+
+        foreach ([
+            ['customer_equipment_id' => $otherDevice->id],
+            ['customer_equipment_id' => null],
+            ['customer_equipment_id' => $device->id, 'equipment_id' => $otherType->id],
+        ] as $change) {
+            $this->actingAs($technician)
+                ->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $customer, $equipment, ['user_id' => $technician->id, ...$change]))
+                ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
+        }
+
+        $order->refresh();
+        $this->assertSame($device->id, (int) $order->customer_equipment_id);
+        $this->assertSame($equipment->id, (int) $order->equipment_id);
+    }
+
+    public function test_user_with_customers_permission_can_change_order_customer_and_equipment(): void
+    {
+        [, $order, , $equipment] = $this->technicianOrderWithDevice();
+        $operator = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_OPERATOR]);
+        $newCustomer = Customer::factory()->forTenant($this->tenant->id)->create();
+        $newDevice = CustomerEquipment::factory()->forTenant($this->tenant->id)->create(['customer_id' => $newCustomer->id, 'equipment_id' => $equipment->id]);
+
+        $this->actingAs($operator)
+            ->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $newCustomer, $equipment, [
+                'user_id' => $order->user_id,
+                'customer_equipment_id' => $newDevice->id,
+            ]))
+            ->assertSessionMissing('authorization_error');
+
+        $order->refresh();
+        $this->assertSame($newCustomer->id, (int) $order->customer_id);
+        $this->assertSame($newDevice->id, (int) $order->customer_equipment_id);
+    }
+
+    public function test_customer_from_another_tenant_is_never_accepted(): void
+    {
+        [, $order, $customer, $equipment] = $this->technicianOrderWithDevice();
+        $foreignCustomer = Customer::factory()->forTenant(Tenant::factory()->create()->id)->create();
+        $operator = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_OPERATOR]);
+
+        $this->actingAs($operator)
+            ->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $foreignCustomer, $equipment, ['user_id' => $order->user_id]));
+
+        $this->assertSame($customer->id, (int) $order->fresh()->customer_id);
+    }
+
+    public function test_technician_still_cannot_use_customer_searches(): void
+    {
+        // Sem ampliar privilégios: as buscas continuam exigindo a permissão de clientes.
+        [$technician] = $this->technicianOrderWithDevice();
+
+        $this->actingAs($technician)->getJson(route('app.customers.search'))->assertForbidden();
+        $this->actingAs($technician)->getJson(route('app.customer-equipments.search', ['customer_id' => 0]))->assertForbidden();
+    }
+
+    public function test_order_page_tells_frontend_technician_cannot_search_customers(): void
+    {
+        [$technician, $order] = $this->technicianOrderWithDevice();
+
+        $this->actingAs($technician)
+            ->get(route('app.orders.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('auth.permissions', fn ($permissions) => ! collect($permissions)->contains('customers')));
     }
 
     public function test_technician_can_reassign_order_to_another_technician(): void
@@ -1519,6 +1629,27 @@ class OrderControllerTest extends TestCase
                     && ($matched['last_communication']['trigger'] ?? null) === 'manual'
                     && ($matched['last_communication']['channel'] ?? null) === 'email';
             });
+    }
+
+    /**
+     * @return array{0: User, 1: Order, 2: Customer, 3: Equipment, 4: CustomerEquipment}
+     */
+    private function technicianOrderWithDevice(): array
+    {
+        $technician = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_TECHNICIAN]);
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
+        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
+        $device = CustomerEquipment::factory()->forTenant($this->tenant->id)->create(['customer_id' => $customer->id, 'equipment_id' => $equipment->id]);
+        $order = Order::factory()->forTenant($this->tenant->id)->create([
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'customer_equipment_id' => $device->id,
+            'user_id' => $technician->id,
+            'model' => 'Modelo original',
+            'service_status' => OrderStatus::OPEN,
+        ]);
+
+        return [$technician, $order, $customer, $equipment, $device];
     }
 
     private function orderUpdatePayload(Order $order, Customer $customer, Equipment $equipment, array $overrides = []): array

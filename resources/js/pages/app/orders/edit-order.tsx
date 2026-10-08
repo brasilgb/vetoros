@@ -26,7 +26,7 @@ import moment from 'moment';
 import { useEffect, useState, type FormEvent } from 'react';
 import Select from 'react-select';
 import AddPartsModal from './add-parts';
-import CustomerEquipmentField from './customer-equipment-field';
+import CustomerEquipmentField, { customerEquipmentLabel } from './customer-equipment-field';
 import OrderBudgetHistory, { type OrderBudgetVersion } from './order-budget-history';
 import OrderMessages, { type OrderMessageEntry } from './order-messages';
 import OrderPreBudgetFields from './order-pre-budget-fields';
@@ -133,6 +133,9 @@ export default function EditOrder({
 
     const { othersetting, auth, fiscalSetting } = usePage().props as any;
     const canManageOrders = auth?.role !== 'technician' && auth?.permissions?.includes('orders');
+    // Trocar cliente/equipamento exige a permissão de clientes (o servidor também confere);
+    // sem ela, os campos ficam somente leitura e as buscas (que dariam 403) não são feitas.
+    const canChangeCustomer = Boolean(auth?.permissions?.includes('customers'));
     const canAccessSalesModules =
         auth?.role === 'administrator' || auth?.role === 'operator' || auth?.role === 'root_app' || auth?.role === 'root_system';
     const canManagePayments = canManageOrders && canAccessSalesModules && Boolean(othersetting?.enable_finance) && Boolean(auth?.permissions?.includes('finance'));
@@ -481,14 +484,24 @@ export default function EditOrder({
                                             <div className="grid gap-2 md:col-span-2">
                                                 <Label htmlFor="customer_id">Cliente</Label>
                                                 <div className="flex min-w-0 items-center gap-2">
-                                                    <AsyncResourceSelect
-                                                        inputId="customer_id"
-                                                        searchUrl={route('app.customers.search')}
-                                                        value={selectedCustomer}
-                                                        onChange={changeCustomer}
-                                                        placeholder="Digite o nome do cliente..."
-                                                        className="min-w-0 flex-1"
-                                                    />
+                                                    {canChangeCustomer ? (
+                                                        <AsyncResourceSelect
+                                                            inputId="customer_id"
+                                                            searchUrl={route('app.customers.search')}
+                                                            value={selectedCustomer}
+                                                            onChange={changeCustomer}
+                                                            placeholder="Digite o nome do cliente..."
+                                                            className="min-w-0 flex-1"
+                                                        />
+                                                    ) : (
+                                                        <Input
+                                                            id="customer_id"
+                                                            value={selectedCustomer?.label ?? ''}
+                                                            className="min-w-0 flex-1"
+                                                            readOnly
+                                                            disabled
+                                                        />
+                                                    )}
                                                     {publicAccessKey && (
                                                         <Button
                                                             type="button"
@@ -503,22 +516,40 @@ export default function EditOrder({
                                                     )}
                                                 </div>
                                                 <InputError className="mt-2" message={errors.customer_id} />
+                                                {!canChangeCustomer && (
+                                                    <p className="text-muted-foreground text-xs">
+                                                        Trocar cliente ou equipamento exige permissão de clientes.
+                                                    </p>
+                                                )}
                                             </div>
 
                                             <div className="grid gap-2 md:col-span-2">
                                                 <Label htmlFor="customer_equipment_id">Equipamento do cliente *</Label>
-                                                <CustomerEquipmentField
-                                                    customerId={data.customer_id}
-                                                    equipmentTypes={equipments}
-                                                    initialDevice={order?.customer_equipment ?? null}
-                                                    onChange={(customerEquipmentId, device) => {
-                                                        setData('customer_equipment_id', customerEquipmentId);
-                                                        if (device) {
-                                                            setData('equipment_id', String(device.equipment_id ?? ''));
-                                                            setData('model', [device.brand, device.model].filter(Boolean).join(' '));
+                                                {canChangeCustomer ? (
+                                                    <CustomerEquipmentField
+                                                        customerId={data.customer_id}
+                                                        equipmentTypes={equipments}
+                                                        initialDevice={order?.customer_equipment ?? null}
+                                                        onChange={(customerEquipmentId, device) => {
+                                                            setData('customer_equipment_id', customerEquipmentId);
+                                                            if (device) {
+                                                                setData('equipment_id', String(device.equipment_id ?? ''));
+                                                                setData('model', [device.brand, device.model].filter(Boolean).join(' '));
+                                                            }
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <Input
+                                                        id="customer_equipment_id"
+                                                        value={
+                                                            order?.customer_equipment
+                                                                ? customerEquipmentLabel(order.customer_equipment)
+                                                                : 'Não vinculado'
                                                         }
-                                                    }}
-                                                />
+                                                        readOnly
+                                                        disabled
+                                                    />
+                                                )}
                                                 <InputError message={errors.customer_equipment_id} />
                                             </div>
 
