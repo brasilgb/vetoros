@@ -5,7 +5,6 @@ import { KpiDashboard } from '@/components/kpi-dashboard';
 import { SalesProducts } from '@/components/sales-products';
 import ScheduleCalendarModal from '@/components/Schedules/ScheduleCalendarModal';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,6 +22,7 @@ import {
     Star,
     UserRoundX,
     Users,
+    WalletCards,
     Wrench,
 } from 'lucide-react';
 import moment from 'moment';
@@ -65,6 +65,8 @@ export default function OrderDashboard({
     const isCashierOpen = Boolean(cashier?.isOpen);
     const showFinanceShortcut = Boolean(others?.enable_finance && canUseFinance);
     const showPdvShortcut = Boolean(others?.enablesales && canUsePdv);
+    const quickShortcutClass =
+        'border-input bg-background hover:bg-muted/60 flex h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border p-2 text-xs font-medium whitespace-nowrap shadow-xs transition-colors lg:size-[110px] lg:flex-none';
 
     useEffect(() => {
         const getOrders = async () => {
@@ -281,48 +283,82 @@ export default function OrderDashboard({
     return (
         <div className="min-w-0">
             <div className="flex flex-col gap-4">
-                <Card className="gap-0 overflow-hidden py-0">
-                    <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
-                        <div className="flex min-w-[180px] items-center gap-3">
-                            <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                                <Activity className="h-4 w-4" />
-                            </div>
-                            <div>
-                                <div className="text-sm font-semibold">Prioridades de hoje</div>
-                                <div className="text-muted-foreground text-xs">
-                                    {todayPriorityCount > 0 ? `${todayPriorityCount} itens pedem atenção` : 'Operação em dia'}
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
+                    <Card className="min-w-0 flex-1 gap-0 overflow-hidden py-0">
+                        <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
+                            <div className="flex min-w-[180px] items-center gap-3">
+                                <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                                    <Activity className="h-4 w-4" />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-semibold">Prioridades de hoje</div>
+                                    <div className="text-muted-foreground text-xs">
+                                        {todayPriorityCount > 0 ? `${todayPriorityCount} itens pedem atenção` : 'Operação em dia'}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
-                            {todayPriorities.map((priority) => {
-                                const PriorityIcon = priority.icon;
+                            <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                                {todayPriorities.map((priority) => {
+                                    const PriorityIcon = priority.icon;
 
-                                return (
+                                    return (
+                                        <Link
+                                            key={priority.label}
+                                            href={priority.href}
+                                            className={`hover:bg-muted/60 flex min-w-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                                                priority.urgent && priority.value > 0
+                                                    ? 'border-red-200 bg-red-50/70 dark:border-red-900/70 dark:bg-red-950/30'
+                                                    : ''
+                                            }`}
+                                        >
+                                            <span className="flex min-w-0 items-center gap-2">
+                                                <PriorityIcon
+                                                    className={`h-4 w-4 shrink-0 ${
+                                                        priority.urgent && priority.value > 0
+                                                            ? 'text-red-600 dark:text-red-400'
+                                                            : 'text-muted-foreground'
+                                                    }`}
+                                                />
+                                                <span className="truncate">{priority.label}</span>
+                                            </span>
+                                            <span className="font-semibold tabular-nums">{priority.value}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </Card>
+                    <nav aria-label="Atalhos rápidos" className="flex gap-2 lg:shrink-0">
+                        {showFinanceShortcut && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
                                     <Link
-                                        key={priority.label}
-                                        href={priority.href}
-                                        className={`hover:bg-muted/60 flex min-w-0 items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
-                                            priority.urgent && priority.value > 0
-                                                ? 'border-red-200 bg-red-50/70 dark:border-red-900/70 dark:bg-red-950/30'
-                                                : ''
+                                        href={route('app.cashier.index')}
+                                        aria-label={isCashierOpen ? 'Caixa aberto' : 'Caixa fechado'}
+                                        className={`${quickShortcutClass} ${
+                                            isCashierOpen
+                                                ? ''
+                                                : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-400'
                                         }`}
                                     >
-                                        <span className="flex min-w-0 items-center gap-2">
-                                            <PriorityIcon
-                                                className={`h-4 w-4 shrink-0 ${
-                                                    priority.urgent && priority.value > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
-                                                }`}
-                                            />
-                                            <span className="truncate">{priority.label}</span>
-                                        </span>
-                                        <span className="font-semibold tabular-nums">{priority.value}</span>
+                                        <WalletCards
+                                            className={`h-5 w-5 shrink-0 ${isCashierOpen ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
+                                        />
+                                        <span>Caixa</span>
                                     </Link>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </Card>
+                                </TooltipTrigger>
+                                <TooltipContent>{isCashierOpen ? 'Caixa aberto' : 'Caixa fechado — clique para abrir'}</TooltipContent>
+                            </Tooltip>
+                        )}
+                        {showPdvShortcut && <SalesProducts parts={parts} iconSize={20} triggerLabel="PDV" triggerClassName={quickShortcutClass} />}
+                        <ScheduleCalendarModal
+                            schedules={listSchedules}
+                            iconSize={20}
+                            triggerLabel="Calendário"
+                            triggerClassName={quickShortcutClass}
+                        />
+                    </nav>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     <KpiDashboard
                         link={route('app.schedules.index')}
@@ -413,46 +449,8 @@ export default function OrderDashboard({
                     </div>
                 </div>
             </div>
-            <div className="mt-3 grid min-h-[210px] gap-3 xl:grid-cols-3">
+            <div className="mt-3 grid min-h-[210px] gap-3">
                 <div className="h-full min-w-0">
-                    {showFinanceShortcut || showPdvShortcut ? (
-                        <div className="flex h-full flex-col gap-3">
-                            <Card className="flex h-full flex-col items-center justify-center gap-3 p-4">
-                                {showFinanceShortcut && (
-                                    <div className="w-full rounded-lg border p-3 text-center">
-                                        <div className="text-sm font-medium">Caixa</div>
-                                        <div
-                                            className={`text-xs ${
-                                                isCashierOpen ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-                                            }`}
-                                        >
-                                            {isCashierOpen ? 'Aberto' : 'Fechado'}
-                                        </div>
-                                        {!isCashierOpen && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="mt-2" asChild>
-                                                        <Link href={route('app.cashier.index')}>Abrir caixa</Link>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>Acessar o caixa para iniciar o expediente</TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                    </div>
-                                )}
-                                {showPdvShortcut && <SalesProducts parts={parts} iconSize={60} />}
-                            </Card>
-                            <Card className="flex h-full items-center justify-center p-4">
-                                <ScheduleCalendarModal schedules={listSchedules} iconSize={60} />
-                            </Card>
-                        </div>
-                    ) : (
-                        <Card className="flex h-full items-center justify-center p-4">
-                            <ScheduleCalendarModal schedules={listSchedules} iconSize={80} />
-                        </Card>
-                    )}
-                </div>
-                <div className="h-full min-w-0 xl:col-span-2">
                     <Card className="@container/card h-full flex-1 gap-4 overflow-hidden">
                         <CardHeader className="border-b pb-4">
                             <div className="flex items-start justify-between gap-4">

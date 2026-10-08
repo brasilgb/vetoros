@@ -21,9 +21,11 @@ type ScheduleCalendarItem = {
 type ScheduleCalendarModalProps = {
     schedules: ScheduleCalendarItem[];
     iconSize?: number;
+    triggerLabel?: string;
+    triggerClassName?: string;
 };
 
-export default function ScheduleCalendarModal({ schedules, iconSize }: ScheduleCalendarModalProps) {
+export default function ScheduleCalendarModal({ schedules, iconSize, triggerLabel, triggerClassName }: ScheduleCalendarModalProps) {
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
     const { auth } = usePage<{ auth?: { role?: string; permissions?: string[] } }>().props;
     const canManageSchedules = auth?.role !== 'technician' && auth?.permissions?.includes('schedules');
@@ -55,8 +57,9 @@ export default function ScheduleCalendarModal({ schedules, iconSize }: ScheduleC
         <Dialog>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <DialogTrigger className="flex h-full cursor-pointer items-center justify-center" aria-label="Abrir agenda">
+                    <DialogTrigger className={triggerClassName ?? 'flex h-full cursor-pointer items-center justify-center'} aria-label="Abrir agenda">
                         <Calendar size={iconSize} className="text-primary" />
+                        {triggerLabel && <span>{triggerLabel}</span>}
                     </DialogTrigger>
                 </TooltipTrigger>
                 <TooltipContent>Abrir agenda</TooltipContent>
