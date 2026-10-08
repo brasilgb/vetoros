@@ -19,6 +19,7 @@ use App\Http\Controllers\App\HelpTopicController;
 use App\Http\Controllers\App\TechnicianCommissionController;
 use App\Http\Controllers\App\MaintenanceContractController;
 use App\Http\Controllers\App\ImageController;
+use App\Http\Controllers\App\IntelIndicatorController;
 use App\Http\Controllers\App\LabelPrintingController;
 use App\Http\Controllers\App\MessageController;
 use App\Http\Controllers\App\OrderController;
@@ -137,6 +138,7 @@ Route::get('receipts/{or}/{tp}/data', [ReceiptController::class, 'printingData']
 Route::resource('label-printing', LabelPrintingController::class);
 Route::get('label-printing-print', [LabelPrintingController::class, 'print'])->name('label-printing.print');
 Route::put('label-printing-settings', [LabelPrintingController::class, 'updateSettings'])->name('label-printing.settings');
+Route::get('/intel/indicators', IntelIndicatorController::class)->middleware('throttle:60,1')->name('intel.indicators');
 Route::get('/parts/search', [PartController::class, 'search'])->name('parts.search');
 Route::get('/parts/import/template', [PartImportController::class, 'template'])->name('parts.import.template');
 Route::post('/parts/import/preview', [PartImportController::class, 'preview'])->middleware('throttle:30,1')->name('parts.import.preview');
