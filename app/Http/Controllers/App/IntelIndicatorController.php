@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 /**
  * Indicadores operacionais e comerciais (VETOR-INTEL-04), somente leitura.
@@ -16,12 +18,30 @@ use Illuminate\Support\Facades\Gate;
  */
 class IntelIndicatorController extends Controller
 {
-    public function __invoke(Request $request, OperationalIndicatorsService $indicators): JsonResponse
+    public const MAX_PERIOD_DAYS = 366;
+
+    /**
+     * Mesma rota para a tela e para a API: o navegador recebe a página "Indicadores"
+     * (que busca os dados neste endpoint em JSON); requisições JSON recebem os dados.
+     */
+    public function __invoke(Request $request, OperationalIndicatorsService $indicators): JsonResponse|InertiaResponse
     {
         Gate::authorize('reports.view');
 
         $tenantId = (int) Auth::user()?->tenant_id;
         abort_unless($tenantId > 0, 403);
+
+        if (! $request->expectsJson()) {
+            return Inertia::render('app/intel/indicators', [
+                'defaults' => [
+                    'from' => now()->subDays(29)->toDateString(),
+                    'to' => now()->toDateString(),
+                    'stalled_days' => 7,
+                    'expiring_days' => 3,
+                    'max_period_days' => self::MAX_PERIOD_DAYS,
+                ],
+            ]);
+        }
 
         $validated = $request->validate([
             'from' => ['nullable', 'date'],
@@ -33,7 +53,7 @@ class IntelIndicatorController extends Controller
         $to = isset($validated['to']) ? Carbon::parse($validated['to']) : now();
         $from = isset($validated['from']) ? Carbon::parse($validated['from']) : $to->copy()->subDays(29);
 
-        if ($from->diffInDays($to) > 366) {
+        if ($from->diffInDays($to) > self::MAX_PERIOD_DAYS) {
             return response()->json(['message' => 'O período máximo é de 366 dias.', 'errors' => ['from' => ['O período máximo é de 366 dias.']]], 422);
         }
 

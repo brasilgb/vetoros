@@ -9,6 +9,7 @@ use App\Models\App\Equipment;
 use App\Models\App\Expense;
 use App\Models\App\Message;
 use App\Models\App\Order;
+use App\Models\App\OrderBudget;
 use App\Models\App\Other;
 use App\Models\App\Part;
 use App\Models\App\PurchaseOrder;
@@ -46,6 +47,22 @@ class DashboardController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * Subconsulta: a versão corrente do orçamento da OS está vencida (status persistido
+     * "expired" ou enviada com validade anterior a hoje — regra de OrderBudget::isExpired).
+     */
+    private function currentBudgetExpired($query, Carbon $today): void
+    {
+        $query->select(DB::raw(1))
+            ->from('order_budgets as ob')
+            ->whereColumn('ob.order_id', 'orders.id')
+            ->whereRaw('ob.version = (SELECT MAX(v.version) FROM order_budgets v WHERE v.order_id = orders.id)')
+            ->where(fn ($expired) => $expired->where('ob.status', OrderBudget::STATUS_EXPIRED)
+                ->orWhere(fn ($sent) => $sent->where('ob.status', OrderBudget::STATUS_SENT)
+                    ->whereNotNull('ob.valid_until')
+                    ->where('ob.valid_until', '<', $today->toDateString())));
     }
 
     private function warrantyReturnIndicator(int $totalOrders, int $warrantyReturns): array
@@ -91,7 +108,12 @@ class DashboardController extends Controller
                 ->whereNotIn('service_status', [OrderStatus::CANCELLED, OrderStatus::SERVICE_NOT_EXECUTED, OrderStatus::DELIVERED])
                 ->count(),
             'numorde_awaiting_pickup' => (clone $ordersQuery)->where('service_status', OrderStatus::CUSTOMER_NOTIFIED)->count(),
-            'numorde_awaiting_approval' => (clone $ordersQuery)->where('service_status', OrderStatus::BUDGET_GENERATED)->count(),
+            // Mesma regra do VETOR-INTEL-04 (orçamentos aguardando): orçamento corrente vencido
+            // não está "aguardando aprovação" — tem destaque próprio. Escopo do usuário preservado.
+            'numorde_awaiting_approval' => (clone $ordersQuery)->where('service_status', OrderStatus::BUDGET_GENERATED)
+                ->whereNotExists(fn ($query) => $this->currentBudgetExpired($query, $today))->count(),
+            'numorde_budget_expired' => (clone $ordersQuery)->where('service_status', OrderStatus::BUDGET_GENERATED)
+                ->whereExists(fn ($query) => $this->currentBudgetExpired($query, $today))->count(),
             'numparts_low_stock' => Part::query()
                 ->where('is_sellable', true)
                 ->whereColumn('quantity', '<=', 'minimum_stock_level')

@@ -2,6 +2,8 @@
 
 Implementação: `App\Services\Intel\OperationalIndicatorsService`, exposto em
 `GET /app/intel/indicators` (rota `app.intel.indicators`, permissão `reports.view`).
+A mesma rota abre a tela **Indicadores** no navegador (`app/intel/indicators`), que busca os
+dados nela mesma em JSON (`Accept: application/json`) — uma chamada por aplicação de filtros.
 
 ## Princípios
 
@@ -18,11 +20,13 @@ Implementação: `App\Services\Intel\OperationalIndicatorsService`, exposto em
 - **Referência:** último evento de linha do tempo de status (`order_created`, `status_changed`, `order_reopened`).
   Sem evento (OS legada): última entrada em `order_status_history`. Sem nenhum dos dois: `unknown`.
 - **Parada:** referência há mais de `stalled_days` (padrão 7) dias.
-- **Saída:** total, lista (id, número, status, dias parada, origem da referência) e `reference_unknown`.
+- **Saída:** total, lista (id, número, status, dias parada, origem da referência, cliente, equipamento, técnico) e `reference_unknown`.
+- **Técnico:** só a atribuição registrada em aberto (`order_technician_assignments`); sem trilha, `null` — `orders.user_id` não é usado retroativamente.
 
 ### 2. OS atrasadas (`overdue_orders`)
 - **Universo:** OS ativas com `delivery_forecast` (prazo vigente) anterior a hoje.
 - **Saída:** total e quantas têm prazo original conhecido e já renegociado (`delivery_forecast` ≠ `original_delivery_forecast`).
+- **Contra o prazo original (2ª entrega):** `past_original` = OS ativas com `original_delivery_forecast` anterior a hoje (inclui renegociadas para depois — a renegociação não apaga o atraso contra a promessa); `past_original_renegotiated`; `original_unknown` = OS ativas sem prazo original (legado). A tela destaca `past_original`.
 
 ### 3. Orçamentos aguardando aprovação (`budgets_awaiting`)
 - **Universo:** versão corrente com status `sent` e **não vencida** (`OrderBudget::isExpired`).
@@ -58,9 +62,24 @@ Implementação: `App\Services\Intel\OperationalIndicatorsService`, exposto em
 ### 9. Rentabilidade real (`profitability`)
 - **Universo:** OS com entrega no período.
 - **Cálculo:** `OrderMarginService::breakdown` por OS.
-- **Saída:** soma de receita e de margem **apenas das OS completas**; quantidade de OS completas e incompletas e,
+- **Saída:** soma de receita, custo conhecido (`known_cost_complete` = receita − margem) e margem **apenas das OS completas**; quantidade de OS completas e incompletas e,
   para as incompletas, contagem por componente (`stock_parts`, `manual_parts`, `commission`, `payment_fees`) e status (`unknown`/`pending`).
   Nunca soma margem parcial.
 
 ### 10. Qualidade dos dados (`data_quality`)
 Resumo das contagens de desconhecidos/pendentes dos indicadores acima, para o usuário saber quanto do número é confiável.
+
+## Dashboard existente (auditoria da 2ª entrega)
+
+| Card | Regra antiga | Comparação com o serviço | Decisão |
+|---|---|---|---|
+| Prazo vencido (`numorde_overdue`) | OS fora de 2/8/10 com `delivery_forecast` < hoje | Igual a `overdue_orders.total` (prazo vigente) | Mantido (equivalente) |
+| Aguardando aprovação (`numorde_awaiting_approval`) | Toda OS no status 3 | Divergia: contava orçamento corrente **vencido** | Substituído pela regra do serviço (versão corrente não vencida); novo card **Orçamento vencido** (`numorde_budget_expired`). Escopo do técnico preservado |
+| Vencendo hoje / amanhã | `delivery_forecast` = hoje/amanhã | Sem equivalente no serviço | Mantido |
+| Aguardando retirada | Status 9 | Sem equivalente | Mantido |
+| Sem técnico | `user_id` nulo em OS ativa | Sem equivalente (estado atual, não histórico) | Mantido |
+| Acompanhamentos de orçamento | Corrigido no INTEL-03 (data real de envio) | — | Mantido |
+
+Os cards do dashboard respeitam o escopo do usuário (técnico vê só as próprias OS); a tela
+Indicadores é da empresa inteira e exige `reports.view`. Por isso os cards não leem o serviço
+diretamente: aplicam a mesma regra sobre o escopo do usuário.

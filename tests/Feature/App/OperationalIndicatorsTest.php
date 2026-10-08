@@ -85,7 +85,14 @@ class OperationalIndicatorsTest extends TestCase
         $this->order(OrderStatus::OPEN, ['delivery_forecast' => '2026-10-25']);
         $this->order(OrderStatus::DELIVERED, ['delivery_forecast' => '2026-10-01']);
 
-        $this->assertSame(['total' => 2, 'renegotiated' => 1], $this->service()->overdueOrders($this->tenant->id));
+        // Prazo vigente (regra da 1ª entrega) e, desde a 2ª entrega, contra o prazo original.
+        $this->assertSame([
+            'total' => 2,
+            'renegotiated' => 1,
+            'past_original' => 2,
+            'past_original_renegotiated' => 1,
+            'original_unknown' => 1,
+        ], $this->service()->overdueOrders($this->tenant->id));
     }
 
     public function test_budgets_awaiting_and_expiring(): void

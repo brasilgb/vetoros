@@ -203,6 +203,13 @@ export default function OrderDashboard({
             icon: Clock,
         },
         {
+            label: 'Orçamento vencido',
+            value: Number(acount?.numorde_budget_expired ?? 0),
+            href: route('app.orders.index', { status: 3 }),
+            icon: AlertTriangle,
+            urgent: true,
+        },
+        {
             label: 'Aguardando retirada',
             value: Number(acount?.numorde_awaiting_pickup ?? 0),
             href: route('app.orders.index', { filter: 'awaiting_pickup' }),

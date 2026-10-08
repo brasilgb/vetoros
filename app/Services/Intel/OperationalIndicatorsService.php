@@ -53,6 +53,7 @@ class OperationalIndicatorsService
             'productivity_unattributed_events' => $indicators['technician_productivity']['unattributed']['completed']
                 + $indicators['technician_productivity']['unattributed']['delivered'],
             'deadline_original_unknown' => $indicators['deadline_compliance']['original_unknown'],
+            'active_original_unknown' => $indicators['overdue_orders']['original_unknown'],
             'profitability_incomplete' => $indicators['profitability']['incomplete'],
         ];
 
@@ -64,7 +65,7 @@ class OperationalIndicatorsService
      */
     public function stalledOrders(int $tenantId, int $days = 7): array
     {
-        $orders = $this->activeOrders($tenantId)->get(['id', 'order_number', 'service_status']);
+        $orders = $this->activeOrders($tenantId)->get(['id', 'order_number', 'service_status', 'customer_id', 'equipment_id']);
         $ids = $orders->pluck('id');
 
         $lastEvent = DB::table('order_events')
@@ -106,23 +107,30 @@ class OperationalIndicatorsService
 
         usort($stalled, fn (array $a, array $b) => $b['days'] <=> $a['days']);
 
-        return ['threshold_days' => $days, 'total' => count($stalled), 'reference_unknown' => $unknown, 'orders' => $stalled];
+        return ['threshold_days' => $days, 'total' => count($stalled), 'reference_unknown' => $unknown, 'orders' => $this->withOrderContext($tenantId, $stalled, $orders)];
     }
 
     /**
-     * @return array{total: int, renegotiated: int}
+     * total/renegotiated: prazo vigente (regra da 1ª entrega). past_original: OS ativas cujo
+     * prazo ORIGINAL já passou (inclui as renegociadas para depois); original_unknown: OS
+     * ativas sem prazo original registrado (legado), fora de past_original.
+     *
+     * @return array{total: int, renegotiated: int, past_original: int, past_original_renegotiated: int, original_unknown: int}
      */
     public function overdueOrders(int $tenantId): array
     {
-        $overdue = $this->activeOrders($tenantId)
-            ->whereNotNull('delivery_forecast')
-            ->whereDate('delivery_forecast', '<', now()->toDateString())
-            ->get(['delivery_forecast', 'original_delivery_forecast']);
+        $today = now()->toDateString();
+        $active = $this->activeOrders($tenantId)->get(['delivery_forecast', 'original_delivery_forecast']);
+        $overdue = $active->filter(fn ($order) => $order->delivery_forecast !== null && $order->delivery_forecast < $today);
+        $renegotiated = fn ($order) => $order->original_delivery_forecast !== null && $order->original_delivery_forecast !== $order->delivery_forecast;
+        $pastOriginal = $active->filter(fn ($order) => $order->original_delivery_forecast !== null && $order->original_delivery_forecast < $today);
 
         return [
             'total' => $overdue->count(),
-            'renegotiated' => $overdue->filter(fn ($order) => $order->original_delivery_forecast !== null
-                && $order->original_delivery_forecast !== $order->delivery_forecast)->count(),
+            'renegotiated' => $overdue->filter($renegotiated)->count(),
+            'past_original' => $pastOriginal->count(),
+            'past_original_renegotiated' => $pastOriginal->filter($renegotiated)->count(),
+            'original_unknown' => $active->whereNull('original_delivery_forecast')->count(),
         ];
     }
 
@@ -379,10 +387,46 @@ class OperationalIndicatorsService
             'complete' => $complete,
             'incomplete' => $orderIds->count() - $complete,
             'revenue_complete' => round($revenue, 2),
+            'known_cost_complete' => round($revenue - $margin, 2),
             'margin_complete' => round($margin, 2),
             'margin_rate_complete' => $revenue > 0 ? round($margin / $revenue * 100, 1) : null,
             'incomplete_by_component' => $missing,
         ];
+    }
+
+    /**
+     * Cliente, equipamento e técnico das OS listadas (consultas agrupadas, sem N+1).
+     * Técnico = atribuição registrada em aberto; sem histórico de atribuição fica null
+     * (orders.user_id não é usado, para não imputar responsabilidade sem trilha).
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function withOrderContext(int $tenantId, array $rows, Collection $orders): array
+    {
+        $byId = $orders->keyBy('id');
+        $ids = array_column($rows, 'order_id');
+        $customers = DB::table('customers')->where('tenant_id', $tenantId)
+            ->whereIn('id', $orders->whereIn('id', $ids)->pluck('customer_id')->filter())->pluck('name', 'id');
+        $equipments = DB::table('equipment')->where('tenant_id', $tenantId)
+            ->whereIn('id', $orders->whereIn('id', $ids)->pluck('equipment_id')->filter())->pluck('equipment', 'id');
+        $technicians = DB::table('order_technician_assignments as a')
+            ->join('users as u', 'u.id', '=', 'a.technician_id')
+            ->where('a.tenant_id', $tenantId)
+            ->whereIn('a.order_id', $ids)
+            ->whereNull('a.unassigned_at')
+            ->pluck('u.name', 'a.order_id');
+
+        return array_map(function (array $row) use ($byId, $customers, $equipments, $technicians) {
+            $order = $byId[$row['order_id']];
+
+            return [
+                ...$row,
+                'customer' => $customers[$order->customer_id] ?? null,
+                'equipment' => $equipments[$order->equipment_id] ?? null,
+                'technician' => $technicians[$row['order_id']] ?? null,
+            ];
+        }, $rows);
     }
 
     private function activeOrders(int $tenantId)
