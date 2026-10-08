@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\App\OperationalAudit;
+use App\Support\SensitiveData;
 use Illuminate\Database\Eloquent\Model;
 
 class OperationalAuditService
@@ -23,7 +24,8 @@ class OperationalAuditService
             'entity_type' => $entityType,
             'entity_id' => $entity->getKey(),
             'action' => $action,
-            'data' => $data,
+            // Ex.: o JSON 'changes' de order_status_changed incluía a senha do equipamento.
+            'data' => SensitiveData::strip($data),
             'created_at' => now(),
         ]);
     }

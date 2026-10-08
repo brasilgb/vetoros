@@ -358,7 +358,7 @@ class DashboardController extends Controller
         $budgetFollowUps = $this->scopeOrdersQuery(Order::query())
             ->where('service_status', OrderStatus::BUDGET_GENERATED)
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->where('updated_at', '<=', $communicationThreshold)
+            ->whereBudgetPendingBefore($communicationThreshold)
             ->count();
 
         $pendingPaymentFollowUps = Other::financeEnabled(auth()->user()?->tenant_id)

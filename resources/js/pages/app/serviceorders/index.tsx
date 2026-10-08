@@ -156,6 +156,12 @@ function nextStepText(order: Order, remainingAmount: number) {
     switch (order.service_status) {
         case ORDER_STATUS.OPEN:
             return 'Seu equipamento entrou na fila de análise. Nossa equipe vai avaliar o defeito e atualizar o andamento.';
+        case ORDER_STATUS.IN_DIAGNOSIS:
+            return 'Seu equipamento está em diagnóstico. Assim que a análise terminar, o orçamento aparecerá aqui.';
+        case ORDER_STATUS.AWAITING_PART:
+            return 'Estamos aguardando a chegada de peça para continuar o serviço.';
+        case ORDER_STATUS.AWAITING_CUSTOMER:
+            return 'A assistência está aguardando um retorno seu para continuar. Em caso de dúvida, entre em contato.';
         case ORDER_STATUS.BUDGET_GENERATED:
             return 'Seu orçamento já está pronto. Você pode aprovar ou reprovar diretamente nesta página.';
         case ORDER_STATUS.BUDGET_APPROVED:
@@ -222,7 +228,8 @@ function actionChecklist(order: Order, remainingAmount: number) {
 }
 
 function ServiceOrders({ order }: { order: Order }) {
-    const { company, hasChecklist } = usePage().props as any;
+    const { company, hasChecklist, budget } = usePage().props as any;
+    const publicBudget = budget as { version: number; status: string; quoted_amount: string | null; valid_until: string | null } | null;
     const [loadingA, setLoadingA] = useState(false);
     const [loadingR, setLoadingR] = useState(false);
     const [loadingAck, setLoadingAck] = useState(false);
@@ -232,6 +239,7 @@ function ServiceOrders({ order }: { order: Order }) {
     const [feedbackComment, setFeedbackComment] = useState(order.customer_feedback_comment ?? '');
     const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null);
     const [budgetModalOpen, setBudgetModalOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
     const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
     const [pickupConfirmOpen, setPickupConfirmOpen] = useState(false);
 
@@ -276,7 +284,8 @@ function ServiceOrders({ order }: { order: Order }) {
     function budgetAlter(status: 4 | 5) {
         router.post(
             route('orders.budget.status', order.tracking_token),
-            { status },
+            // A resposta cita a versão exibida: se o orçamento mudou, o servidor recusa.
+            { status, budget_version: publicBudget?.version ?? null, rejection_reason: status === 5 ? rejectionReason : null },
             {
                 preserveScroll: true,
                 onStart: () => (status === 4 ? setLoadingA(true) : setLoadingR(true)),
@@ -284,8 +293,8 @@ function ServiceOrders({ order }: { order: Order }) {
                     setBudgetModalOpen(false);
                     toastSuccess('Sucesso', status === 4 ? 'Orçamento aprovado com sucesso' : 'Orçamento recusado com sucesso');
                 },
-                onError: () => {
-                    toastWarning('Erro', 'Não foi possível atualizar o orçamento');
+                onError: (errors) => {
+                    toastWarning('Erro', errors.status || 'Não foi possível atualizar o orçamento');
                 },
                 onFinish: () => (status === 4 ? setLoadingA(false) : setLoadingR(false)),
             },
@@ -1092,7 +1101,29 @@ function ServiceOrders({ order }: { order: Order }) {
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                             <p className="text-sm text-emerald-800">Valor do orçamento</p>
                             <p className="mt-1 text-2xl font-semibold text-emerald-900">{formatCurrency(order.budget_value)}</p>
+                            {publicBudget && (
+                                <p className="mt-1 text-xs text-emerald-800">
+                                    Versão {publicBudget.version}
+                                    {publicBudget.valid_until ? ` · válido até ${formatDate(publicBudget.valid_until)}` : ''}
+                                    {publicBudget.status === 'expired' ? ' · vencido' : ''}
+                                </p>
+                            )}
                         </div>
+                        {order.service_status === ORDER_STATUS.BUDGET_GENERATED && (
+                            <div>
+                                <label htmlFor="rejection_reason" className="text-sm font-semibold text-slate-700">
+                                    Motivo, caso recuse (opcional)
+                                </label>
+                                <textarea
+                                    id="rejection_reason"
+                                    maxLength={500}
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-950"
+                                    rows={2}
+                                />
+                            </div>
+                        )}
                         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <Button
                                 variant="outline"

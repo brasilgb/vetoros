@@ -8,11 +8,41 @@ use App\Mail\OrderFeedbackReminderMail;
 use App\Mail\OrderPaymentReminderMail;
 use App\Mail\OrderStatusUpdatedMail;
 use App\Models\App\Order;
+use App\Models\App\OrderMessage;
+use App\Support\OrderStatus;
 use App\Support\TenantMailConfig;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Mail;
 
 class OrderNotificationService
 {
+    public function __construct(private readonly OrderMessageService $messages) {}
+
+    /**
+     * Envia o e-mail e registra a comunicação em order_messages. A falha é registrada
+     * sem detalhes do servidor SMTP (podem conter usuário/host) e a exceção segue para
+     * o job, preservando o retry atual.
+     */
+    private function sendRecorded(Order $order, string $customerEmail, string $template, Mailable $mail): void
+    {
+        if (! $order->tenant_id) {
+            // OS legada sem tenant não pode ter trilha (tenant obrigatório): só envia, como antes.
+            Mail::to($customerEmail)->send($mail);
+
+            return;
+        }
+
+        try {
+            Mail::to($customerEmail)->send($mail);
+        } catch (\Throwable $exception) {
+            $this->messages->recordFailed($order, OrderMessage::CHANNEL_EMAIL, $customerEmail, $template, 'smtp', class_basename($exception), 'Falha no envio do e-mail.');
+
+            throw $exception;
+        }
+
+        $this->messages->recordSent($order, OrderMessage::CHANNEL_EMAIL, $customerEmail, $template, 'smtp');
+    }
+
     private function resolveOrder(int $orderId): ?Order
     {
         return Order::query()
@@ -91,7 +121,7 @@ class OrderNotificationService
         }
 
         TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
-        Mail::to($customerEmail)->send(new OrderCreatedMail($order));
+        $this->sendRecorded($order, $customerEmail, 'order_created', new OrderCreatedMail($order));
     }
 
     public function deliverStatusUpdated(int $orderId, string $statusLabel, ?string $observations = null): void
@@ -109,7 +139,9 @@ class OrderNotificationService
         }
 
         TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
-        Mail::to($customerEmail)->send(new OrderStatusUpdatedMail($order, $statusLabel, $observations));
+        // Aviso de "Orçamento Gerado" leva o orçamento: a mensagem fica ligada à versão enviada.
+        $template = (int) $order->service_status === OrderStatus::BUDGET_GENERATED ? 'budget_generated' : 'status_updated';
+        $this->sendRecorded($order, $customerEmail, $template, new OrderStatusUpdatedMail($order, $statusLabel, $observations));
     }
 
     public function deliverPaymentReminder(int $orderId, array $paymentSummary, bool $isOverdue): void
@@ -127,7 +159,7 @@ class OrderNotificationService
         }
 
         TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
-        Mail::to($customerEmail)->send(new OrderPaymentReminderMail($order, $paymentSummary, $isOverdue));
+        $this->sendRecorded($order, $customerEmail, 'payment_reminder', new OrderPaymentReminderMail($order, $paymentSummary, $isOverdue));
     }
 
     public function deliverBudgetFollowUp(int $orderId, int $daysPending): void
@@ -145,7 +177,7 @@ class OrderNotificationService
         }
 
         TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
-        Mail::to($customerEmail)->send(new OrderBudgetFollowUpMail($order, $daysPending));
+        $this->sendRecorded($order, $customerEmail, 'budget_follow_up', new OrderBudgetFollowUpMail($order, $daysPending));
     }
 
     public function deliverFeedbackReminder(int $orderId): void
@@ -163,6 +195,6 @@ class OrderNotificationService
         }
 
         TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
-        Mail::to($customerEmail)->send(new OrderFeedbackReminderMail($order));
+        $this->sendRecorded($order, $customerEmail, 'feedback_reminder', new OrderFeedbackReminderMail($order));
     }
 }

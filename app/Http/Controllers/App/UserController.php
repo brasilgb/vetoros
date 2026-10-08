@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Models\App\Company;
+use App\Models\App\OrderTechnicianAssignment;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\TenantSequence;
@@ -211,7 +212,9 @@ class UserController extends Controller
     {
         $this->authorize('delete', $user);
 
-        if ($user->orders()->exists() || $user->schedules()->exists()) {
+        $hasAssignmentHistory = OrderTechnicianAssignment::withoutGlobalScopes()->where('technician_id', $user->id)->exists();
+
+        if ($user->orders()->exists() || $user->schedules()->exists() || $hasAssignmentHistory) {
             return redirect()->route('app.users.index')->with(
                 'error',
                 'Não é possível excluir este usuário porque existem ordens ou agendamentos vinculados a ele. Desative-o em vez de excluir.'

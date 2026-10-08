@@ -10,6 +10,7 @@ use App\Models\App\OrderItem;
 use App\Models\App\Sale;
 use App\Models\Tenant;
 use App\Services\Fiscal\FiscalValidationException;
+use App\Services\OrderTotalsService;
 use Illuminate\Support\Str;
 
 /**
@@ -205,6 +206,27 @@ class SpedyPayloadBuilder
         if ($amount <= 0) {
             $problems[] = 'A ordem não possui valor de serviço para a NFS-e.';
         }
+
+        // Desconto/acréscimo da OS: a NFS-e cobre só os serviços, então recebe a parcela que
+        // cabe aos serviços (rateio proporcional, OrderTotalsService::servicesShare).
+        // - Desconto → total.discountUnconditionedAmount (CreateServiceInvoiceDto/ServiceInvoiceTotalDto
+        //   da API Spedy: "Valor total do desconto incondicionado"). O desconto da OS é concedido
+        //   no fechamento, sem condição futura: incondicionado.
+        // - Acréscimo → a API não tem campo próprio; é preço do serviço cobrado do tomador e entra
+        //   em invoiceAmount ("Valor total da NFS-e").
+        // Resultado: invoiceAmount − discountUnconditionedAmount = parcela de serviços do total da OS.
+        $share = OrderTotalsService::servicesShare(
+            $amount,
+            round((float) ($order->parts_value ?? 0), 2),
+            round((float) ($order->discount_amount ?? 0), 2),
+            round((float) ($order->surcharge_amount ?? 0), 2),
+        );
+        $invoiceAmount = round($share['services_gross'] + $share['services_surcharge'], 2);
+        $unconditionedDiscount = $share['services_discount'];
+
+        if ($amount > 0 && $unconditionedDiscount >= $invoiceAmount) {
+            $problems[] = 'O desconto rateado para os serviços zera o valor da NFS-e; revise o desconto da ordem.';
+        }
         if (! $customer) {
             $problems[] = 'A ordem precisa de um cliente (tomador) para a NFS-e.';
         } elseif (! in_array(strlen($this->digits($customer->cpfcnpj)), [11, 14], true)) {
@@ -234,10 +256,11 @@ class SpedyPayloadBuilder
             'taxationType' => $setting->nfse_taxation_type,
             'sendEmailToCustomer' => filled($customer->email),
             'receiver' => $this->receiver($customer, withAddress: filled($customer->zipcode) && filled($customer->street)),
-            'total' => [
-                'invoiceAmount' => $amount,
+            'total' => array_filter([
+                'invoiceAmount' => $invoiceAmount,
+                'discountUnconditionedAmount' => $unconditionedDiscount > 0 ? $unconditionedDiscount : null,
                 'issRate' => (float) $setting->default_iss_rate,
-            ],
+            ], fn ($value) => $value !== null),
         ];
 
         if (filled($setting->service_city_code)) {

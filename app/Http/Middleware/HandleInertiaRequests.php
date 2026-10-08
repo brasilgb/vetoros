@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
         $budgetOrders = Order::query()
             ->where('budget_follow_up_assigned_to', $user->id)
             ->where('service_status', OrderStatus::BUDGET_GENERATED)
-            ->where('updated_at', '<=', now()->subDays($thresholdDays))
+            ->whereBudgetPendingBefore(now()->subDays($thresholdDays))
             ->where(function ($query) {
                 $query->whereNull('budget_follow_up_snoozed_until')
                     ->orWhere('budget_follow_up_snoozed_until', '<=', now());
@@ -49,7 +49,8 @@ class HandleInertiaRequests extends Middleware
                 $query->where('action', 'budget_follow_up_task_completed')
                     ->whereDate('created_at', now()->toDateString());
             })
-            ->get(['id', 'updated_at']);
+            ->withBudgetPendingSince()
+            ->get(['orders.id', 'orders.updated_at']);
 
         $paymentOrders = Order::query()
             ->where('payment_follow_up_assigned_to', $user->id)
@@ -72,7 +73,7 @@ class HandleInertiaRequests extends Middleware
             $paymentOrders = collect();
         }
 
-        $criticalBudget = $budgetOrders->filter(fn ($order) => optional($order->updated_at)->diffInDays(now()) >= 10)->count();
+        $criticalBudget = $budgetOrders->filter(fn ($order) => optional($order->budgetPendingSince())->diffInDays(now()) >= 10)->count();
         $criticalPayment = $paymentOrders->filter(function ($order) {
             $reference = $order->delivery_date ?? $order->updated_at;
 
@@ -82,7 +83,7 @@ class HandleInertiaRequests extends Middleware
         $unassignedBudget = Order::query()
             ->whereNull('budget_follow_up_assigned_to')
             ->where('service_status', OrderStatus::BUDGET_GENERATED)
-            ->where('updated_at', '<=', now()->subDays($thresholdDays))
+            ->whereBudgetPendingBefore(now()->subDays($thresholdDays))
             ->where(function ($query) {
                 $query->whereNull('budget_follow_up_snoozed_until')
                     ->orWhere('budget_follow_up_snoozed_until', '<=', now());

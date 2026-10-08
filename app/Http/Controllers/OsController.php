@@ -10,21 +10,29 @@ use App\Models\App\Company;
 use App\Models\App\FiscalDocument;
 use App\Models\App\FiscalSetting;
 use App\Models\App\Order;
+use App\Models\App\OrderBudget;
+use App\Models\App\OrderEvent;
 use App\Models\App\Other;
 use App\Models\App\Receipt;
 use App\Services\Fiscal\FiscalEmissionException;
 use App\Services\Fiscal\NativeFiscalService;
 use App\Services\Fiscal\Spedy\SpedyException;
+use App\Services\OrderBudgetService;
 use App\Services\OrderStatusService;
+use App\Support\OrderActor;
 use App\Support\OrderStatus;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class OsController extends Controller
 {
-    public function __construct(private readonly OrderStatusService $orderStatusService) {}
+    public function __construct(
+        private readonly OrderStatusService $orderStatusService,
+        private readonly OrderBudgetService $orderBudgetService,
+    ) {}
 
     private function publicOrderQuery()
     {
@@ -78,8 +86,20 @@ class OsController extends Controller
             ->where('equipment_id', $order->equipment_id)
             ->exists();
 
+        // Versão corrente do orçamento: a resposta do cliente precisa citá-la.
+        $budget = OrderBudget::withoutGlobalScopes()
+            ->where('order_id', $order->id)
+            ->orderByDesc('version')
+            ->first(['id', 'order_id', 'version', 'status', 'quoted_amount', 'valid_until', 'sent_at']);
+
         return Inertia::render('app/serviceorders/index', [
             'order' => $order,
+            'budget' => $budget ? [
+                'version' => (int) $budget->version,
+                'status' => $budget->effective_status,
+                'quoted_amount' => $budget->quoted_amount,
+                'valid_until' => $budget->valid_until?->toDateString(),
+            ] : null,
             'company' => $company,
             'hasChecklist' => $hasChecklist,
         ])->withViewData([
@@ -145,6 +165,8 @@ class OsController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', 'integer'],
+            'budget_version' => ['nullable', 'integer', 'min:1'],
+            'rejection_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ((int) $validated['status'] !== OrderStatus::BUDGET_APPROVED && (int) $validated['status'] !== OrderStatus::BUDGET_REJECTED) {
@@ -159,11 +181,29 @@ class OsController extends Controller
             ]);
         }
 
+        $approve = (int) $validated['status'] === OrderStatus::BUDGET_APPROVED;
+        $version = isset($validated['budget_version']) ? (int) $validated['budget_version'] : null;
+
+        // Expiração consolidada antes da resposta: se a resposta for recusada, o vencimento fica registrado.
+        $this->orderBudgetService->expireCurrentIfDue($order);
+
         try {
-            $this->orderStatusService->transition($order, (int) $validated['status'], null);
-        } catch (ValidationException) {
+            // Resposta da versão (que precisa ser a corrente e enviada) e transição de status
+            // na mesma transação, com a OS travada: duas respostas simultâneas não passam.
+            DB::transaction(function () use ($order, $approve, $version, $validated): void {
+                $budget = $this->orderBudgetService->respondAsCustomer($order, $version, $approve, $validated['rejection_reason'] ?? null);
+
+                $this->orderStatusService->transition($order, (int) $validated['status'], OrderActor::customer(), null, null, array_filter([
+                    'channel' => 'public_tracking',
+                    'budget_id' => $budget?->id,
+                    'budget_version' => $budget?->version,
+                ], fn ($value) => $value !== null));
+            });
+        } catch (ValidationException $exception) {
+            $errors = $exception->errors();
+
             return back()->withErrors([
-                'status' => 'Transição de status não permitida para este orçamento.',
+                'status' => $errors['status'][0] ?? 'Transição de status não permitida para este orçamento.',
             ]);
         }
 
@@ -189,7 +229,8 @@ class OsController extends Controller
             'customer_notification_acknowledged_at' => now(),
         ];
 
-        $shouldTransitionToCustomerNotified = (int) $order->service_status === OrderStatus::SERVICE_COMPLETED;
+        $statusBefore = (int) $order->service_status;
+        $shouldTransitionToCustomerNotified = $statusBefore === OrderStatus::SERVICE_COMPLETED;
 
         $order->update($updates);
 
@@ -197,10 +238,19 @@ class OsController extends Controller
             $order = $this->orderStatusService->transition(
                 $order,
                 OrderStatus::CUSTOMER_NOTIFIED,
+                OrderActor::customer(),
+                'Cliente confirmou que recebeu o aviso de conclusão.',
                 null,
-                'Cliente confirmou que recebeu o aviso de conclusão.'
+                ['channel' => 'public_tracking'],
             );
         }
+
+        $this->orderStatusService->recordCustomerAction(
+            $order,
+            OrderEvent::TYPE_CUSTOMER_NOTIFICATION_ACKNOWLEDGED,
+            $statusBefore,
+            (int) $order->service_status,
+        );
 
         event(new OrderCustomerNotificationAcknowledged($order->id, [
             'acknowledged_at' => now()->toIso8601String(),
@@ -236,22 +286,30 @@ class OsController extends Controller
             'customer_pickup_acknowledged_at' => $now,
         ];
 
-        $shouldTransitionToDelivered = (int) $order->service_status === OrderStatus::CUSTOMER_NOTIFIED;
+        $statusBefore = (int) $order->service_status;
+        $shouldTransitionToDelivered = $statusBefore === OrderStatus::CUSTOMER_NOTIFIED;
 
-        if (! $order->delivery_date) {
-            $updates['delivery_date'] = $now;
-        }
-
+        // A data da entrega é gravada pela transição para "Entregue" (OrderStatusService).
         $order->update($updates);
 
         if ($shouldTransitionToDelivered) {
             $order = $this->orderStatusService->transition(
                 $order,
                 OrderStatus::DELIVERED,
+                OrderActor::customer(),
+                'Cliente confirmou a retirada do equipamento pela área pública.',
                 null,
-                'Cliente confirmou a retirada do equipamento pela área pública.'
+                ['channel' => 'public_tracking'],
+                $now,
             );
         }
+
+        $this->orderStatusService->recordCustomerAction(
+            $order,
+            OrderEvent::TYPE_CUSTOMER_PICKUP_ACKNOWLEDGED,
+            $statusBefore,
+            (int) $order->service_status,
+        );
 
         event(new OrderCustomerPickupAcknowledged($order->id, [
             'acknowledged_at' => $now->toIso8601String(),

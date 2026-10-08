@@ -9,6 +9,7 @@ use App\Models\App\Schedule;
 use App\Models\App\ScheduleImage;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\PartCostPolicy;
 use App\Support\OrderStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -159,6 +160,7 @@ class TechnicianScheduleController extends Controller
                 'user_id' => $userId,
                 'movement_type' => $movementType,
                 'quantity' => $movementQuantity,
+                ...PartCostPolicy::currentMovementCost($part, $movementQuantity),
                 'reason' => $movementReason,
             ]);
         }

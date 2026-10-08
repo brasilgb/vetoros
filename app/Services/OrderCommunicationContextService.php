@@ -26,7 +26,8 @@ class OrderCommunicationContextService
             return false;
         }
 
-        return $order->updated_at?->lte(now()->subDays($this->communicationThresholdDays($tenantId))) ?? false;
+        // Referência do orçamento (envio da versão / entrada no status), não a última edição da OS.
+        return $order->budgetPendingSince()?->lte(now()->subDays($this->communicationThresholdDays($tenantId))) ?? false;
     }
 
     public function isPendingPayment(Order $order, ?int $tenantId, float $remaining): bool
@@ -48,7 +49,9 @@ class OrderCommunicationContextService
 
     public function communicationDaysPending(Order $order): int
     {
-        $referenceDate = $order->delivery_date ?? $order->updated_at ?? $order->created_at;
+        $referenceDate = (int) $order->service_status === OrderStatus::BUDGET_GENERATED
+            ? $order->budgetPendingSince()
+            : ($order->delivery_date ?? $order->updated_at ?? $order->created_at);
 
         return $referenceDate ? max(0, (int) $referenceDate->diffInDays(now())) : 0;
     }

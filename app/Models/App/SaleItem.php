@@ -15,6 +15,7 @@ class SaleItem extends Model
         'part_id',
         'quantity',
         'unit_price',
+        'unit_cost',
     ];
 
     public function sale(): BelongsTo

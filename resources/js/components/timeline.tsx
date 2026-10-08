@@ -1,4 +1,4 @@
-import { ORDER_STATUS } from '@/Utils/order-status';
+import { ORDER_STATUS, orderStatusFlowValue } from '@/Utils/order-status';
 
 const FLOW = [
     { value: ORDER_STATUS.OPEN, label: 'Ordem aberta' },
@@ -31,7 +31,8 @@ type TimelineProps = {
     theme?: 'light' | 'dark';
 };
 
-export default function Timeline({ status, theme = 'light' }: TimelineProps) {
+export default function Timeline({ status: rawStatus, theme = 'light' }: TimelineProps) {
+    const status = orderStatusFlowValue(rawStatus);
     const isBranch = status in BRANCH_CONFIG;
     const branch = BRANCH_CONFIG[status as keyof typeof BRANCH_CONFIG];
     const isDark = theme === 'dark';

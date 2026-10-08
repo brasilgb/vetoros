@@ -23,6 +23,7 @@ use App\Http\Controllers\App\LabelPrintingController;
 use App\Http\Controllers\App\MessageController;
 use App\Http\Controllers\App\OrderController;
 use App\Http\Controllers\App\OtherController;
+use App\Http\Controllers\App\PaymentFeeSettingController;
 use App\Http\Controllers\App\PartController;
 use App\Http\Controllers\App\ProfileController;
 use App\Http\Controllers\App\PurchaseOrderController;
@@ -118,6 +119,7 @@ Route::delete('images/{image}', [ImageController::class, 'destroy'])->name('imag
 Route::get('other-settings', [OtherController::class, 'index'])->name('other-settings.index');
 Route::put('other-settings/{other}', [OtherController::class, 'update'])->name('other-settings.update');
 Route::post('other-settings/{other}/test-mail', [OtherController::class, 'sendTestMail'])->name('other-settings.test-mail');
+Route::put('payment-fee-settings', [PaymentFeeSettingController::class, 'update'])->name('payment-fee-settings.update');
 Route::get('auxiliary-apps', [AuxiliaryAppController::class, 'index'])->name('auxiliary-apps.index');
 
 Route::resource('company', CompanyController::class);

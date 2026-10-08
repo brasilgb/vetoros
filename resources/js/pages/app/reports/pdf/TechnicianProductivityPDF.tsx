@@ -1,5 +1,5 @@
 import { currencyFormatter } from '@/Utils/currency-formatter';
-import { ORDER_STATUS, ORDER_STATUSES_COMPLETED } from '@/Utils/order-status';
+import { ORDER_STATUS, ORDER_STATUSES_COMPLETED, orderStatusRank } from '@/Utils/order-status';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import moment from 'moment';
 
@@ -182,7 +182,7 @@ export default function TechnicianProductivityPDF({ data, reportMeta, company, d
         }, 0) / (deliveredOrders.length || 1);
 
     const pendingLongTime = data.filter((order: any) => {
-        if (order.service_status >= ORDER_STATUS.REPAIR_IN_PROGRESS) return false;
+        if (orderStatusRank(order.service_status) >= orderStatusRank(ORDER_STATUS.REPAIR_IN_PROGRESS)) return false;
 
         const days = moment().diff(moment(order.created_at), 'days');
 

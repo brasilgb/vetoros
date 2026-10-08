@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\App\Company;
 use App\Models\App\FiscalSetting;
 use App\Models\App\Other;
+use App\Models\App\PaymentFeeSetting;
 use App\Models\Tenant;
 use App\Support\TenantMailConfig;
 use Carbon\Carbon;
@@ -107,6 +108,8 @@ class OtherController extends Controller
             'licensePlanName' => $tenant?->plan?->name,
             'mailSettings' => $mailSettings,
             'businessMetrics' => $businessMetrics,
+            // Taxas por meio de pagamento (sem linha = taxa desconhecida).
+            'paymentFees' => PaymentFeeSetting::query()->get(['payment_method', 'fee_percentage', 'fee_fixed_amount']),
             'fiscalSetting' => $fiscalSetting ? [
                 'enabled' => (bool) $fiscalSetting->enabled,
                 'nfe_enabled' => (bool) $fiscalSetting->nfe_enabled,

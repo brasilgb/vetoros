@@ -18,7 +18,7 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, OptionType } from '@/types';
 import { statusServico } from '@/Utils/dataSelect';
 import { maskMoney, maskMoneyDot } from '@/Utils/mask';
-import { ORDER_STATUS, ORDER_STATUSES_READY_FOR_INVOICE } from '@/Utils/order-status';
+import { ORDER_STATUS, ORDER_STATUSES_READY_FOR_INVOICE, orderStatusChangeRequirement } from '@/Utils/order-status';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, FileTextIcon, KeyRound, Mail, MessageSquareText, Printer, Save, Wrench, X } from 'lucide-react';
@@ -27,6 +27,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Select from 'react-select';
 import AddPartsModal from './add-parts';
 import CustomerEquipmentField from './customer-equipment-field';
+import OrderBudgetHistory, { type OrderBudgetVersion } from './order-budget-history';
+import OrderMessages, { type OrderMessageEntry } from './order-messages';
 import OrderPreBudgetFields from './order-pre-budget-fields';
 import OrderPaymentsModal from './order-payments-modal';
 
@@ -83,6 +85,8 @@ export default function EditOrder({
     equipmentHistory,
     warrantySourceOrders,
     publicAccessKey,
+    budgets,
+    messages,
     page,
     search,
     status,
@@ -134,6 +138,13 @@ export default function EditOrder({
     const canManagePayments = canManageOrders && canAccessSalesModules && Boolean(othersetting?.enable_finance) && Boolean(auth?.permissions?.includes('finance'));
     const canIssueServiceInvoice = canManageOrders && Boolean(fiscalSetting?.enabled) && Boolean(fiscalSetting?.nfse_enabled);
     const [partsData, setPartsData] = useState<any>([]);
+    // Preço praticado congelado no item da OS; o sale_price atual só vale para peça nova.
+    const frozenPartPrices = new Map<number, string>(
+        (order?.order_items ?? [])
+            .filter((item: { source_type: string }) => item.source_type === 'part')
+            .map((item: { source_id: number; unit_price: string }) => [Number(item.source_id), item.unit_price]),
+    );
+    const partUnitPrice = (part: { id: number; sale_price: string | number }) => frozenPartPrices.get(Number(part.id)) ?? part.sale_price;
 
 
     const optionsTechnical = technicals.map((technical: any) => ({
@@ -163,15 +174,24 @@ export default function EditOrder({
         budget_description: order?.budget_description, // descrição do orçamento
         budget_value: order?.budget_value, // valor do orçamento
         budget_link: order?.budget_link ?? '',
+        budget_valid_until: (budgets as OrderBudgetVersion[] | undefined)?.[0]?.valid_until ?? '',
         services_performed: order.services_performed, // servicos executados
         parts_value: order.parts_value,
         service_value: order.service_value,
-        service_cost: order.service_cost, // custo
+        service_cost: order.service_cost, // total (calculado no servidor)
+        stock_parts_value: '0',
+        manual_parts_value: order.manual_parts_value ?? '0',
+        // Vazio = custo desconhecido; 0 = sem custo.
+        manual_parts_cost: order.manual_parts_cost ?? '',
+        discount_amount: order.discount_amount ?? '0',
+        surcharge_amount: order.surcharge_amount ?? '0',
         delivery_date: order.delivery_date,
         warranty_days: order?.warranty_days ?? '',
         is_warranty_return: Boolean(order?.is_warranty_return),
         warranty_source_order_id: order?.warranty_source_order_id ? String(order.warranty_source_order_id) : '',
         service_status: order?.service_status,
+        status_reason: '',
+        status_change_kind: '',
         delivery_forecast: order?.delivery_forecast, // previsao de entrega
         observations: order?.observations,
         allparts: '',
@@ -205,8 +225,8 @@ export default function EditOrder({
 
     useEffect(() => {
         const finalPartsMap = new Map();
-        (orderparts || []).forEach((p: any) => finalPartsMap.set(p.id, { id: p.id, sale_price: p.sale_price, quantity: p.pivot.quantity }));
-        (partsData || []).forEach((p: any) => finalPartsMap.set(p.id, { id: p.id, sale_price: p.sale_price, quantity: p.quantity }));
+        (orderparts || []).forEach((p: any) => finalPartsMap.set(p.id, { id: p.id, sale_price: partUnitPrice(p), quantity: p.pivot.quantity }));
+        (partsData || []).forEach((p: any) => finalPartsMap.set(p.id, { id: p.id, sale_price: partUnitPrice(p), quantity: p.quantity }));
 
         const finalListWithDetails = Array.from(finalPartsMap.values());
         const allpartsPayload = finalListWithDetails.map((p) => ({ part_id: p.id, quantity: p.quantity }));
@@ -220,24 +240,22 @@ export default function EditOrder({
             // Se o total for 0 e não houver peças, fixa 0.
             // Removido a condição "totalValue ? totalValue : order?.parts_value"
             // que causava a insistência no valor antigo do banco.
-            parts_value: totalValue.toFixed(2),
+            stock_parts_value: totalValue.toFixed(2),
         }));
     }, [partsData, orderparts]);
 
     useEffect(() => {
-        // Converte para número, mas garante que se for vazio ou NaN, vire 0
-        const pValue = toMoneyNumber(data?.parts_value);
-        const sValue = toMoneyNumber(data?.service_value);
+        // Prévia para exibição; o servidor recalcula os totais ao salvar (OrderTotalsService).
+        const stockParts = toMoneyNumber(data?.stock_parts_value);
+        const partsValue = stockParts + toMoneyNumber(data?.manual_parts_value);
+        const total = toMoneyNumber(data?.service_value) + partsValue + toMoneyNumber(data?.surcharge_amount) - toMoneyNumber(data?.discount_amount);
 
-        const total = pValue + sValue;
-
-        // Atualiza o custo total formatado
         setData((prev: any) => ({
             ...prev,
+            parts_value: partsValue.toFixed(2),
             service_cost: total.toFixed(2),
         }));
-
-    }, [data.parts_value, data.service_value]);
+    }, [data.stock_parts_value, data.manual_parts_value, data.service_value, data.surcharge_amount, data.discount_amount]);
 
     useEffect(() => {
         const status = Number(data.service_status);
@@ -263,8 +281,20 @@ export default function EditOrder({
     };
 
     const changeServiceStatus = (selected: any) => {
-        setData('service_status', selected?.value);
+        setData((current) => ({ ...current, service_status: selected?.value, status_reason: '', status_change_kind: '' }));
     };
+
+    // Motivo e tipo só aparecem quando a matriz de transições exige (cancelamento, não execução, regressão, reabertura).
+    const statusRequirement = orderStatusChangeRequirement(Number(order?.service_status), Number(data.service_status));
+    const statusKindOptions = statusRequirement.kindRequired
+        ? [
+              { value: 'reopen', label: 'Reabertura (novo atendimento da OS)' },
+              { value: 'correction', label: 'Correção de lançamento' },
+          ]
+        : [
+              { value: 'regression', label: 'Retorno de etapa' },
+              { value: 'correction', label: 'Correção de lançamento' },
+          ];
 
     const copyBudgetLink = async () => {
         const link = String(data.budget_link ?? '').trim();
@@ -308,14 +338,14 @@ export default function EditOrder({
         ...(orderparts || []).map((part: any) => ({
             id: part.id,
             name: part.name, // 🔥 essencial
-            sale_price: part.sale_price,
+            sale_price: partUnitPrice(part),
             quantity: part.pivot.quantity,
             source: 'database',
         })),
         ...(partsData || []).map((part: any) => ({
             id: part.id,
             name: part.name,
-            sale_price: part.sale_price,
+            sale_price: partUnitPrice(part),
             quantity: part.quantity,
             source: 'local',
         })),
@@ -438,6 +468,8 @@ export default function EditOrder({
                             <TabsList>
                                 <TabsTrigger value="details">Detalhes</TabsTrigger>
                                 <TabsTrigger value="history">Histórico</TabsTrigger>
+                                <TabsTrigger value="budget">Orçamento</TabsTrigger>
+                                <TabsTrigger value="messages">Comunicação</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="details" className="space-y-6">
@@ -591,6 +623,20 @@ export default function EditOrder({
                                             </div>
                                             {errors.budget_link && <div className="text-sm text-red-500">{errors.budget_link}</div>}
                                         </div>
+
+                                        <div className="grid gap-2">
+                                            <FormFieldHelp
+                                                label="Validade do orçamento"
+                                                content="Opcional. Depois desta data o cliente não consegue mais aprovar esta versão; altere ou reenvie o orçamento para gerar uma nova."
+                                            />
+                                            <Input
+                                                type="date"
+                                                id="budget_valid_until"
+                                                value={data.budget_valid_until ?? ''}
+                                                onChange={(e) => setData('budget_valid_until', e.target.value)}
+                                            />
+                                            <InputError message={errors.budget_valid_until} />
+                                        </div>
                                     </CardContent>
                                 </Card>
 
@@ -660,14 +706,50 @@ export default function EditOrder({
                                     <CardContent className="space-y-4 pt-6">
                                         <div className="grid gap-4 md:grid-cols-3">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="parts_value">Valor das peças</Label>
+                                                <FormFieldHelp
+                                                    label="Peças do estoque"
+                                                    content="Soma das peças adicionadas, pelo preço praticado quando cada peça entrou na OS."
+                                                />
                                                 <Input
                                                     type="text"
-                                                    id="parts_value"
-                                                    name="parts_value"
-                                                    value={maskMoney(data.parts_value ?? 0)}
-                                                    onChange={(e) => setData('parts_value', maskMoneyDot(e.target.value))}
+                                                    id="stock_parts_value"
+                                                    value={maskMoney(data.stock_parts_value ?? '0')}
+                                                    readOnly
+                                                    disabled
                                                 />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="manual_parts_value">Peças e materiais avulsos</Label>
+                                                <Input
+                                                    type="text"
+                                                    id="manual_parts_value"
+                                                    name="manual_parts_value"
+                                                    value={maskMoney(data.manual_parts_value ?? '0')}
+                                                    onChange={(e) => setData('manual_parts_value', maskMoneyDot(e.target.value))}
+                                                />
+                                                <InputError message={errors.manual_parts_value} />
+                                            </div>
+
+                                            <div className="grid gap-2">
+                                                <FormFieldHelp
+                                                    label="Custo das peças avulsas"
+                                                    content="Quanto a assistência pagou pelas peças/materiais avulsos. Deixe em branco se não souber; use 0 se não houve custo."
+                                                />
+                                                <Input
+                                                    type="text"
+                                                    id="manual_parts_cost"
+                                                    name="manual_parts_cost"
+                                                    value={
+                                                        data.manual_parts_cost === '' || data.manual_parts_cost === null
+                                                            ? ''
+                                                            : maskMoney(data.manual_parts_cost)
+                                                    }
+                                                    onChange={(e) =>
+                                                        setData('manual_parts_cost', e.target.value === '' ? '' : maskMoneyDot(e.target.value))
+                                                    }
+                                                    placeholder="Não informado"
+                                                />
+                                                <InputError message={errors.manual_parts_cost} />
                                             </div>
 
                                             <div className="grid gap-2">
@@ -682,13 +764,34 @@ export default function EditOrder({
                                             </div>
 
                                             <div className="grid gap-2">
-                                                <Label htmlFor="service_cost">Valor total</Label>
+                                                <Label htmlFor="discount_amount">Desconto</Label>
                                                 <Input
                                                     type="text"
-                                                    id="service_cost"
-                                                    value={maskMoney(data.service_cost)}
-                                                    onChange={(e) => setData('service_cost', e.target.value)}
+                                                    id="discount_amount"
+                                                    name="discount_amount"
+                                                    value={maskMoney(data.discount_amount ?? '0')}
+                                                    onChange={(e) => setData('discount_amount', maskMoneyDot(e.target.value))}
                                                 />
+                                                <InputError message={errors.discount_amount} />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="surcharge_amount">Acréscimo</Label>
+                                                <Input
+                                                    type="text"
+                                                    id="surcharge_amount"
+                                                    name="surcharge_amount"
+                                                    value={maskMoney(data.surcharge_amount ?? '0')}
+                                                    onChange={(e) => setData('surcharge_amount', maskMoneyDot(e.target.value))}
+                                                />
+                                                <InputError message={errors.surcharge_amount} />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <FormFieldHelp
+                                                    label="Valor total"
+                                                    content="Serviço + peças + acréscimo − desconto. Calculado novamente pelo sistema ao salvar."
+                                                />
+                                                <Input type="text" id="service_cost" value={maskMoney(data.service_cost)} readOnly disabled />
+                                                <InputError message={errors.service_cost} />
                                             </div>
                                         </div>
 
@@ -719,6 +822,40 @@ export default function EditOrder({
                                                     styles={selectStyles}
                                                 />
                                                 <InputError message={errors.service_status} />
+                                                {statusRequirement.isBackward && (
+                                                    <>
+                                                        <Label htmlFor="status_change_kind">
+                                                            {statusRequirement.kindRequired
+                                                                ? 'Esta OS está encerrada. Tipo da alteração'
+                                                                : 'Tipo da alteração'}
+                                                        </Label>
+                                                        <Select
+                                                            inputId="status_change_kind"
+                                                            menuPosition="fixed"
+                                                            options={statusKindOptions}
+                                                            value={
+                                                                statusKindOptions.find((option) => option.value === data.status_change_kind) ?? null
+                                                            }
+                                                            onChange={(selected) => setData('status_change_kind', selected?.value ?? '')}
+                                                            placeholder={statusRequirement.kindRequired ? 'Selecione' : 'Retorno de etapa'}
+                                                            className="min-w-0"
+                                                            styles={selectStyles}
+                                                        />
+                                                        <InputError message={errors.status_change_kind} />
+                                                    </>
+                                                )}
+                                                {statusRequirement.reasonRequired && (
+                                                    <>
+                                                        <Label htmlFor="status_reason">Motivo da alteração de status</Label>
+                                                        <Textarea
+                                                            id="status_reason"
+                                                            maxLength={500}
+                                                            value={data.status_reason}
+                                                            onChange={(e) => setData('status_reason', e.target.value)}
+                                                        />
+                                                        <InputError message={errors.status_reason} />
+                                                    </>
+                                                )}
                                             </div>
                                             <div className="grid gap-2">
                                                 <FormFieldHelp
@@ -935,6 +1072,19 @@ export default function EditOrder({
                                         </CardContent>
                                     </Card>
                                 </div>
+                            </TabsContent>
+
+                            <TabsContent value="budget">
+                                <OrderBudgetHistory budgets={(budgets ?? []) as OrderBudgetVersion[]} />
+                            </TabsContent>
+
+                            <TabsContent value="messages">
+                                <OrderMessages
+                                    messages={(messages ?? []) as OrderMessageEntry[]}
+                                    budgetVersions={Object.fromEntries(
+                                        ((budgets ?? []) as OrderBudgetVersion[]).map((budget) => [budget.id, budget.version]),
+                                    )}
+                                />
                             </TabsContent>
                         </Tabs>
                     </form>

@@ -204,10 +204,15 @@ class WahaService
             return null;
         }
 
-        return [
+        $secret = config('services.waha.webhook_secret');
+
+        // message.ack atualiza a entrega/leitura em order_messages. O HMAC (sha512 do corpo)
+        // autentica o webhook: sem segredo configurado o endpoint recusa as chamadas.
+        return array_filter([
             'url' => $url,
-            'events' => ['session.status', 'message'],
-        ];
+            'events' => ['session.status', 'message', 'message.ack'],
+            'hmac' => filled($secret) ? ['key' => $secret] : null,
+        ]);
     }
 
     /**

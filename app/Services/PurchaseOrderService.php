@@ -8,6 +8,7 @@ use App\Models\App\PartMovement;
 use App\Models\App\PurchaseOrder;
 use App\Models\App\PurchaseOrderItem;
 use App\Models\App\PurchaseOrderLog;
+use App\Support\PartCostPolicy;
 use App\Support\TenantSequence;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -87,8 +88,17 @@ class PurchaseOrderService
                     continue;
                 }
 
-                $part->increment('quantity', $item->quantity);
-                $part->update(['cost_price' => $item->unit_cost]);
+                // Custo médio ponderado móvel (PartCostPolicy), não mais o último custo de compra.
+                $averageCost = PartCostPolicy::weightedAverage(
+                    (int) $part->quantity,
+                    $part->cost_price === null ? null : (float) $part->cost_price,
+                    (int) $item->quantity,
+                    (float) $item->unit_cost,
+                );
+                $part->forceFill([
+                    'quantity' => (int) $part->quantity + (int) $item->quantity,
+                    'cost_price' => $averageCost,
+                ])->save();
 
                 PartMovement::create([
                     'part_id' => $part->id,
@@ -96,6 +106,7 @@ class PurchaseOrderService
                     'user_id' => $userId,
                     'movement_type' => PartMovement::TYPE_PURCHASE,
                     'quantity' => $item->quantity,
+                    ...PartCostPolicy::movementCost((float) $item->unit_cost, (int) $item->quantity),
                     'reason' => 'Recebimento da compra '.$purchaseOrder->purchase_order_number,
                 ]);
             }

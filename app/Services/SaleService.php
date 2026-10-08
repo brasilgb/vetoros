@@ -9,6 +9,7 @@ use App\Models\App\PartMovement;
 use App\Models\App\Sale;
 use App\Models\App\SaleItem;
 use App\Models\User;
+use App\Support\PartCostPolicy;
 use App\Support\TenantSequence;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -59,6 +60,7 @@ class SaleService
                     'part_id' => $part->id,
                     'quantity' => $item['quantity'],
                     'unit_price' => $part->sale_price,
+                    'unit_cost' => $part->cost_price,
                 ]);
 
                 $part->decrement('quantity', $item['quantity']);
@@ -67,6 +69,7 @@ class SaleService
                     'user_id' => auth()->id(),
                     'movement_type' => PartMovement::TYPE_SALE,
                     'quantity' => $item['quantity'],
+                    ...PartCostPolicy::currentMovementCost($part, $item['quantity']),
                     'reason' => 'Venda '.$sale->sales_number,
                 ]);
             }
@@ -106,6 +109,10 @@ class SaleService
                         'user_id' => $user?->id,
                         'movement_type' => PartMovement::TYPE_RETURN,
                         'quantity' => $item->quantity,
+                        // Volta ao estoque pelo custo com que saiu na venda, quando conhecido.
+                        ...($item->unit_cost !== null
+                            ? PartCostPolicy::movementCost((float) $item->unit_cost, $item->quantity)
+                            : PartCostPolicy::currentMovementCost($part, $item->quantity)),
                         'reason' => 'Cancelamento da venda '.$sale->sales_number,
                     ]);
                 }

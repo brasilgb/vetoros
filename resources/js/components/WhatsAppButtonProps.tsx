@@ -101,42 +101,63 @@ const applyOpenOrderGreeting = (message: string, greeting: string, customerName:
     return `${greeting}, ${customerName}!\n${capitalizeFirstLetter(content)}`;
 };
 
-const getTemplateForContext = ({
+// Chave do modelo usado: o backend a registra na comunicação (e liga ao orçamento quando for o caso).
+type TemplateKey = 'budget_follow_up' | 'pending_payment' | 'feedback' | 'generatedbudget' | 'servicecompleted' | 'defaultmessage';
+
+const getTemplateKeyForContext = ({
     status,
     feedback,
     context,
     whats,
-}: Pick<WhatsAppButtonProps, 'status' | 'feedback' | 'context' | 'whats'>): string | null => {
+}: Pick<WhatsAppButtonProps, 'status' | 'feedback' | 'context' | 'whats'>): TemplateKey | null => {
     const currentStatus = normalizeStatus(status);
 
     if (context === 'budget_follow_up' && whats?.budgetfollowup) {
-        return whats.budgetfollowup;
+        return 'budget_follow_up';
     }
 
     if (context === 'pending_payment' && whats?.pendingpayment) {
-        return whats.pendingpayment;
+        return 'pending_payment';
     }
 
     // prioridade máxima: janela de feedback
     if (feedback) {
-        return whats?.feedback ?? null;
+        return whats?.feedback ? 'feedback' : null;
     }
 
     // status com template específico
     if (currentStatus === STATUS_BUDGET && whats?.generatedbudget) {
-        return whats.generatedbudget;
+        return 'generatedbudget';
     }
 
     if (currentStatus === STATUS_COMPLETED && whats?.servicecompleted) {
-        return whats.servicecompleted;
+        return 'servicecompleted';
     }
 
     // demais status usam mensagem padrão
     if (whats?.defaultmessage) {
-        return whats.defaultmessage;
+        return 'defaultmessage';
     }
 
     return null;
+};
+
+const TEMPLATE_FIELDS: Record<
+    TemplateKey,
+    'budgetfollowup' | 'pendingpayment' | 'feedback' | 'generatedbudget' | 'servicecompleted' | 'defaultmessage'
+> = {
+    budget_follow_up: 'budgetfollowup',
+    pending_payment: 'pendingpayment',
+    feedback: 'feedback',
+    generatedbudget: 'generatedbudget',
+    servicecompleted: 'servicecompleted',
+    defaultmessage: 'defaultmessage',
+};
+
+const getTemplateForContext = (props: Pick<WhatsAppButtonProps, 'status' | 'feedback' | 'context' | 'whats'>): string | null => {
+    const key = getTemplateKeyForContext(props);
+
+    return key ? (props.whats?.[TEMPLATE_FIELDS[key]] ?? null) : null;
 };
 
 const formatTemplateMessage = ({
@@ -302,7 +323,7 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
         // Envia pelo WhatsApp conectado do tenant (via WAHA), não mais por link wa.me manual.
         router.post(
             route('app.orders.whatsapp.send', orderId),
-            { message },
+            { message, template: getTemplateKeyForContext({ status, feedback, context, whats }) },
             {
                 preserveScroll: true,
                 preserveState: true,

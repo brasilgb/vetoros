@@ -10,6 +10,7 @@ use App\Models\App\PurchaseOrderItem;
 use App\Models\App\SaleItem;
 use App\Support\Ean13;
 use App\Support\Pagination;
+use App\Support\PartCostPolicy;
 use App\Support\TenantSequence;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -180,6 +181,7 @@ class PartController extends Controller
                 'user_id' => Auth::id(),
                 'movement_type' => PartMovement::TYPE_STOCK_IN,
                 'quantity' => $data['quantity'],
+                ...PartCostPolicy::currentMovementCost($part, (int) $data['quantity']),
                 'reason' => 'Cadastro inicial',
             ]);
         });
@@ -260,6 +262,7 @@ class PartController extends Controller
                     'user_id' => Auth::id(),
                     'movement_type' => PartMovement::TYPE_ADJUSTMENT,
                     'quantity' => abs($quantityDiff),
+                    ...PartCostPolicy::currentMovementCost($part, abs($quantityDiff)),
                     'reason' => 'Ajuste de estoque',
                 ]);
             }
@@ -292,6 +295,7 @@ class PartController extends Controller
                 'user_id' => Auth::id(),
                 'movement_type' => PartMovement::TYPE_ADJUSTMENT,
                 'quantity' => $part->quantity,
+                ...PartCostPolicy::currentMovementCost($part, (int) $part->quantity),
                 'reason' => 'Exclusão de peça',
             ]);
 

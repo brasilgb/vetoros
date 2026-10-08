@@ -17,6 +17,11 @@ class OrderItem extends Model
     public const SOURCE_ORDER_SERVICE = 'order_service';
     public const SOURCE_PART = 'part';
 
+    /**
+     * Peças/materiais avulsos (não estocados) informados manualmente na OS.
+     */
+    public const SOURCE_MANUAL_PARTS = 'manual_parts';
+
     protected $fillable = [
         'tenant_id',
         'order_id',
@@ -28,6 +33,8 @@ class OrderItem extends Model
         'unit_price',
         'total_price',
         'unit_cost',
+        'total_cost',
+        'pricing_snapshot_at',
         'sort_order',
         'meta',
     ];
@@ -37,6 +44,8 @@ class OrderItem extends Model
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
         'unit_cost' => 'decimal:2',
+        'total_cost' => 'decimal:2',
+        'pricing_snapshot_at' => 'datetime',
         'meta' => 'array',
     ];
 

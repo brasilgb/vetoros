@@ -10,6 +10,9 @@ export const APP_STATUS_CONFIGS = {
         8: { label: 'Serviço não executado', color: 'bg-red-600 text-white border-red-400' },
         9: { label: 'Cliente avisado / aguardando retirada', color: 'bg-teal-100 text-teal-700 border-teal-200' },
         10: { label: 'Entregue ao cliente', color: 'bg-green-600 text-white border-green-700' },
+        13: { label: 'Em diagnóstico', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+        14: { label: 'Aguardando peça', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+        15: { label: 'Aguardando cliente', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
     },
     userStatus: {
         0: { label: 'Inativo', color: 'bg-red-100 text-red-700 border-red-200' },

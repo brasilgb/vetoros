@@ -132,7 +132,11 @@ class WhatsAppService
      * @throws WhatsAppException  quando o tenant não está conectado, o telefone é inválido
      *                             ou o WAHA falha — sempre com mensagem segura para o usuário.
      */
-    public function sendText(int $tenantId, ?string $phone, string $message): void
+    /**
+     * @return array{chat_id: string, response: array<string, mixed>} chatId de destino e resposta do WAHA
+     *                                                                (o chamador guarda só o id da mensagem).
+     */
+    public function sendText(int $tenantId, ?string $phone, string $message): array
     {
         $connection = $this->connectionFor($tenantId);
 
@@ -154,7 +158,10 @@ class WhatsAppService
             throw WhatsAppException::notOnWhatsapp();
         }
 
-        $this->waha->sendText($connection->session_name, $chatId, $message);
+        return [
+            'chat_id' => $chatId,
+            'response' => $this->waha->sendText($connection->session_name, $chatId, $message),
+        ];
     }
 
     public function sendDocument(int $tenantId, ?string $phone, string $url, ?string $filename = null, ?string $caption = null): void

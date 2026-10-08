@@ -13,7 +13,10 @@ class OrderPaymentService
     public const MOBILE_PAYMENT_PENDING = 'pending';
     public const MOBILE_PAYMENT_CONFIRMED = 'confirmed';
 
-    public function __construct(private readonly FinancialReceivableService $financialReceivableService) {}
+    public function __construct(
+        private readonly FinancialReceivableService $financialReceivableService,
+        private readonly PaymentFeeService $paymentFeeService,
+    ) {}
 
     public function reportMobilePayment(Order $order, array $data, int $userId): void
     {
@@ -85,10 +88,21 @@ class OrderPaymentService
             ]);
         }
 
+        // Taxa congelada no registro (manual > configuração > desconhecida): nunca
+        // recalculada depois, mesmo que a configuração do meio de pagamento mude.
+        $feeInformed = array_key_exists('fee_amount', $data) && $data['fee_amount'] !== null && $data['fee_amount'] !== '';
+        $fee = $this->paymentFeeService->resolve(
+            OrderEventRecorder::tenantOf($order),
+            (string) $data['payment_method'],
+            $amount,
+            $feeInformed ? (float) $data['fee_amount'] : null,
+        );
+
         $payment = OrderPayment::create([
             'order_id' => $order->id,
             'cash_session_id' => $openCashSessionId,
             'amount' => $amount,
+            ...$fee,
             'payment_method' => $data['payment_method'],
             'paid_at' => $data['paid_at'] ?? now(),
             'notes' => $data['notes'] ?? null,

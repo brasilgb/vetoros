@@ -14,6 +14,7 @@ use App\Http\Controllers\App\UserController;
 use App\Http\Controllers\App\WebhookController;
 use App\Http\Controllers\Integration\RegistrationCheckController;
 use App\Http\Controllers\Integration\SpedyWebhookController;
+use App\Http\Controllers\Integration\WahaWebhookController;
 use App\Http\Middleware\VerifyCrmIntegrationToken;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,9 @@ Route::post('/integrations/registration-check', RegistrationCheckController::cla
 Route::post('/webhooks/spedy', SpedyWebhookController::class)
     ->middleware('throttle:600,1')
     ->name('webhook.spedy');
+Route::post('/webhooks/waha', WahaWebhookController::class)
+    ->middleware('throttle:600,1')
+    ->name('webhook.waha');
 Route::post('/loginuser', [UserController::class, 'loginuser'])->name('loginuser');
 
 Route::middleware('auth:sanctum')->group(function () {

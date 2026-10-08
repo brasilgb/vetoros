@@ -8,9 +8,9 @@ use App\Models\App\AccountReceivable;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\MaintenanceContractLog;
 use App\Models\App\Order;
-use App\Models\App\OrderStatusHistory;
 use App\Models\App\Schedule;
 use App\Support\Ean13;
+use App\Support\OrderActor;
 use App\Support\OrderStatus;
 use App\Support\TenantSequence;
 use Illuminate\Support\Carbon;
@@ -20,6 +20,11 @@ use Illuminate\Support\Str;
 
 class MaintenanceContractService
 {
+    public function __construct(
+        private readonly OrderStatusService $orderStatusService,
+        private readonly OrderTotalsService $orderTotalsService,
+    ) {}
+
     public function create(array $data, ?int $userId = null): MaintenanceContract
     {
         return DB::transaction(function () use ($data, $userId) {
@@ -239,11 +244,12 @@ class MaintenanceContractService
             'observations' => 'Ordem gerada automaticamente pelo contrato de manutenção #'.$contract->contract_number.'.',
         ]);
 
-        OrderStatusHistory::create([
-            'order_id' => $order->id,
-            'status' => (int) $order->service_status,
-            'changed_by' => null,
-            'note' => OrderStatus::label((int) $order->service_status),
+        $this->orderTotalsService->recalculate($order);
+
+        // Geração automática pelo contrato: ator sistema, técnico preferencial como atribuição inicial.
+        $this->orderStatusService->recordCreation($order, OrderActor::system(), [
+            'source' => 'maintenance_contract',
+            'maintenance_contract_id' => $contract->id,
         ]);
 
         event(new OrderLifecycleCreated($order->id, null, [

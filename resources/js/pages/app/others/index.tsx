@@ -12,6 +12,7 @@ import { BreadcrumbItem } from '@/types';
 import { maskCpfCnpj } from '@/Utils/mask';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CogIcon, Save } from 'lucide-react';
+import PaymentFeeSettings from './payment-fee-settings';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -24,7 +25,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Others({ othersettings, company, time_remaining, mailSettings, businessMetrics, fiscalSetting, licensePlanName }: any) {
+export default function Others({
+    othersettings,
+    company,
+    time_remaining,
+    mailSettings,
+    businessMetrics,
+    fiscalSetting,
+    licensePlanName,
+    paymentFees,
+}: any) {
     const { auth } = usePage().props as any;
     const canManageOtherSettings = auth?.permissions?.includes('other_settings');
     const initialTab =
@@ -628,6 +638,7 @@ export default function Others({ othersettings, company, time_remaining, mailSet
                             </Button>
                         </div>
                     </form>
+                    <PaymentFeeSettings paymentFees={paymentFees ?? []} disabled={!canManageOtherSettings} />
                 </div>
             </div>
         </AppLayout>

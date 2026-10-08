@@ -16,29 +16,36 @@ use App\Models\App\Equipment;
 use App\Models\App\FiscalDocument;
 use App\Models\App\Order;
 use App\Models\App\OrderLog;
+use App\Models\App\OrderMessage;
 use App\Models\App\OrderPayment;
-use App\Models\App\OrderStatusHistory;
 use App\Models\App\Other;
 use App\Models\App\Part;
-use App\Models\App\PartMovement;
 use App\Models\App\Schedule;
 use App\Models\App\WhatsappMessage;
 use App\Models\User;
 use App\Services\FinancialReceivableService;
 use App\Services\FiscalDocumentService;
 use App\Services\OperationalAuditService;
+use App\Services\OrderBudgetService;
 use App\Services\OrderCommunicationContextService;
+use App\Services\OrderDeadlineService;
 use App\Services\OrderItemSyncService;
+use App\Services\OrderMessageService;
 use App\Services\OrderNotificationService;
+use App\Services\OrderPartsService;
 use App\Services\OrderPaymentService;
 use App\Services\OrderStatusService;
+use App\Services\OrderTechnicianAssignmentService;
+use App\Services\OrderTotalsService;
 use App\Services\TechnicianCommissionService;
 use App\Services\WhatsAppService;
 use App\Support\Ean13;
+use App\Support\OrderActor;
 use App\Support\OrderSignature;
 use App\Support\OrderStatus;
 use App\Support\Pagination;
 use App\Support\TenantSequence;
+use App\Support\WhatsAppPhone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -47,6 +54,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -56,9 +64,15 @@ class OrderController extends Controller
         private readonly OperationalAuditService $operationalAuditService,
         private readonly OrderPaymentService $orderPaymentService,
         private readonly OrderStatusService $orderStatusService,
+        private readonly OrderTechnicianAssignmentService $orderTechnicianAssignmentService,
         private readonly FinancialReceivableService $financialReceivableService,
         private readonly TechnicianCommissionService $technicianCommissionService,
         private readonly OrderItemSyncService $orderItemSyncService,
+        private readonly OrderPartsService $orderPartsService,
+        private readonly OrderTotalsService $orderTotalsService,
+        private readonly OrderDeadlineService $orderDeadlineService,
+        private readonly OrderMessageService $orderMessageService,
+        private readonly OrderBudgetService $orderBudgetService,
         private readonly FiscalDocumentService $fiscalDocumentService,
         private readonly OrderNotificationService $orderNotificationService,
         private readonly WhatsAppService $whatsAppService,
@@ -325,83 +339,46 @@ class OrderController extends Controller
         $this->operationalAuditService->record($action, 'order', $order, $this->currentUser()?->id, $data);
     }
 
-    private function syncOrderPartsStock(Order $order, array $partsToSync, array $currentPartsSnapshot): array
+    /**
+     * Quantidades finais de peças de estoque enviadas pelo formulário; null quando o
+     * formulário não enviou a lista (peças não mudam).
+     *
+     * @return array<int, int>|null
+     */
+    private function requestedPartQuantities(array $data): ?array
     {
-        $nextPartsSnapshot = collect($partsToSync)
-            ->mapWithKeys(fn ($part, $partId) => [(int) $partId => max(0, (int) ($part['quantity'] ?? 0))])
-            ->filter(fn (int $quantity): bool => $quantity > 0)
-            ->toArray();
-
-        $partIds = array_values(array_unique(array_merge(array_keys($currentPartsSnapshot), array_keys($nextPartsSnapshot))));
-        $parts = Part::query()
-            ->whereIn('id', $partIds)
-            ->lockForUpdate()
-            ->get()
-            ->keyBy('id');
-        $movements = [];
-
-        foreach ($partIds as $partId) {
-            $previousQuantity = (int) ($currentPartsSnapshot[$partId] ?? 0);
-            $nextQuantity = (int) ($nextPartsSnapshot[$partId] ?? 0);
-            $quantityDiff = $nextQuantity - $previousQuantity;
-
-            if ($quantityDiff === 0) {
-                continue;
-            }
-
-            $part = $parts->get($partId);
-
-            if (! $part) {
-                throw ValidationException::withMessages([
-                    'allparts' => 'Uma das peças informadas não foi encontrada.',
-                ]);
-            }
-
-            if ($quantityDiff > 0) {
-                if ((int) $part->quantity < $quantityDiff) {
-                    throw ValidationException::withMessages([
-                        'allparts' => "Estoque insuficiente para {$part->name}.",
-                    ]);
-                }
-
-                $part->decrement('quantity', $quantityDiff);
-                $movementType = PartMovement::TYPE_ORDER_USE;
-                $movementReason = 'Uso na OS '.$order->order_number;
-                $movementQuantity = $quantityDiff;
-            } else {
-                $movementQuantity = abs($quantityDiff);
-                $part->increment('quantity', $movementQuantity);
-                $movementType = PartMovement::TYPE_RETURN;
-                $movementReason = 'Devolução de peça da OS '.$order->order_number;
-            }
-
-            PartMovement::create([
-                'part_id' => $part->id,
-                'order_id' => $order->id,
-                'user_id' => $this->currentUser()?->id,
-                'movement_type' => $movementType,
-                'quantity' => $movementQuantity,
-                'reason' => $movementReason,
-            ]);
-
-            $movements[] = [
-                'part_id' => (int) $part->id,
-                'part_name' => $part->name,
-                'movement_type' => $movementType,
-                'quantity' => $movementQuantity,
-            ];
+        if (! isset($data['allparts']) || ! is_array($data['allparts'])) {
+            return null;
         }
 
-        $order->orderParts()->sync(
-            collect($nextPartsSnapshot)
-                ->mapWithKeys(fn (int $quantity, int $partId) => [$partId => ['quantity' => $quantity]])
-                ->toArray()
-        );
+        $quantities = [];
+        foreach ($data['allparts'] as $part) {
+            $quantities[(int) $part['part_id']] = (int) $part['quantity'];
+        }
 
-        return [
-            'snapshot' => $nextPartsSnapshot,
-            'movements' => $movements,
-        ];
+        return $quantities;
+    }
+
+    /**
+     * Valor de peças avulsas (não estocadas). Clientes antigos que não enviam
+     * manual_parts_value: sem peças de estoque, o "Valor das peças" digitado é exatamente
+     * esse valor (comportamento anterior); com peças de estoque, mantém o valor já gravado.
+     *
+     * @param  array<int, int>|null  $nextParts
+     */
+    private function resolveManualPartsValue(Request $request, array $data, Order $order, ?array $nextParts): string
+    {
+        if ($request->has('manual_parts_value')) {
+            return $this->normalizeMoneyValue($data['manual_parts_value']);
+        }
+
+        $hasStockParts = $nextParts !== null
+            ? array_filter($nextParts, fn (int $quantity): bool => $quantity > 0) !== []
+            : $order->orderParts()->exists();
+
+        return $hasStockParts
+            ? (string) ($order->manual_parts_value ?? '0.00')
+            : $this->normalizeMoneyValue($data['parts_value'] ?? 0);
     }
 
     private function buildPaymentSummary(Order $order): array
@@ -583,7 +560,7 @@ class OrderController extends Controller
                 );
         } elseif ($filter === 'budget_follow_up') {
             $query->where('service_status', OrderStatus::BUDGET_GENERATED)
-                ->where('updated_at', '<=', now()->subDays($this->communicationThresholdDays()));
+                ->whereBudgetPendingBefore(now()->subDays($this->communicationThresholdDays()));
         } elseif ($filter === 'pending_payment_follow_up') {
             $query
                 ->where('service_status', OrderStatus::DELIVERED)
@@ -739,17 +716,37 @@ class OrderController extends Controller
             : ($data['service_type'] ?: ($data['service_details'] ?: 'Serviço externo'));
         $data['is_warranty_return'] = (bool) $warrantySourceOrder;
         $data['warranty_source_order_id'] = $warrantySourceOrder?->id;
-        $order = Order::create($data);
-        if ($sourceSchedule) {
-            $sourceSchedule->update(['order_id' => $order->id]);
-        }
+        $budgetValidUntil = $data['budget_valid_until'] ?? null;
+        unset($data['status_reason'], $data['status_change_kind'], $data['budget_valid_until'], $data['delivery_forecast_reason']);
 
-        OrderStatusHistory::create([
-            'order_id' => $order->id,
-            'status' => (int) $order->service_status,
-            'changed_by' => $this->currentUser()?->id,
-            'note' => OrderStatus::label((int) $order->service_status),
-        ]);
+        $order = DB::transaction(function () use ($data, $sourceSchedule, $warrantySourceOrder, $budgetValidUntil): Order {
+            $order = Order::create($data);
+            if ($sourceSchedule) {
+                $sourceSchedule->update(['order_id' => $order->id]);
+            }
+
+            $this->orderTotalsService->recalculate($order);
+
+            $this->orderStatusService->recordCreation(
+                $order,
+                OrderActor::userOrSystem($this->currentUser()),
+                array_filter([
+                    'source' => $sourceSchedule ? 'schedule' : 'manual',
+                    'schedule_id' => $sourceSchedule?->id,
+                    'warranty_source_order_id' => $warrantySourceOrder?->id,
+                ], fn ($value) => $value !== null),
+            );
+
+            $this->orderBudgetService->syncFromOrder(
+                $order,
+                null,
+                (int) $order->service_status,
+                OrderActor::userOrSystem($this->currentUser()),
+                $budgetValidUntil,
+            );
+
+            return $order;
+        });
         event(new OrderLifecycleCreated($order->id, $this->currentUser()?->id, [
             'status' => (int) $order->service_status,
             'status_label' => OrderStatus::label($order->service_status),
@@ -888,6 +885,11 @@ class OrderController extends Controller
             ],
             'warrantySourceOrders' => $this->warrantySourceOptions($order->warranty_source_order_id, $order->id),
             'publicAccessKey' => $order->public_access_key,
+            'budgets' => $order->budgets()->with('items')->get()->reverse()->values(),
+            'messages' => $order->messages()->limit(50)->get([
+                'id', 'order_budget_id', 'channel', 'recipient', 'template', 'status',
+                'sent_at', 'delivered_at', 'read_at', 'failed_at', 'error_message', 'created_at',
+            ]),
             'page' => $request->page,
             'search' => $request->search,
             'status' => $request->status,
@@ -938,31 +940,49 @@ class OrderController extends Controller
                 ->firstOrFail();
         }
         $data['budget_value'] = $this->normalizeMoneyValue($data['budget_value'] ?? 0);
-        $data['parts_value'] = $this->normalizeMoneyValue($data['parts_value'] ?? 0);
         $data['service_value'] = $this->normalizeMoneyValue($data['service_value'] ?? 0);
-        $data['service_cost'] = $this->normalizeMoneyValue($data['service_cost'] ?? 0);
-        $data = $this->normalizeDeliveryDateForStatus($data);
+        // parts_value e service_cost enviados pelo navegador são ignorados: o servidor recalcula
+        // (OrderTotalsService). Desconto/acréscimo ausentes mantêm o valor já gravado.
+        $data['discount_amount'] = $request->has('discount_amount')
+            ? $this->normalizeMoneyValue($data['discount_amount'])
+            : (string) ($order->discount_amount ?? '0.00');
+        $data['surcharge_amount'] = $request->has('surcharge_amount')
+            ? $this->normalizeMoneyValue($data['surcharge_amount'])
+            : (string) ($order->surcharge_amount ?? '0.00');
+        $nextParts = $this->requestedPartQuantities($data);
+        $data['manual_parts_value'] = $this->resolveManualPartsValue($request, $data, $order, $nextParts);
+        // Custo avulso: vazio = desconhecido (null), 0 = custo zero; ausente na requisição mantém o gravado.
+        $data['manual_parts_cost'] = $request->has('manual_parts_cost')
+            ? ($data['manual_parts_cost'] === null || $data['manual_parts_cost'] === '' ? null : $this->normalizeMoneyValue($data['manual_parts_cost']))
+            : $order->manual_parts_cost;
         $warrantyDays = isset($data['warranty_days']) && $data['warranty_days'] !== '' ? max(0, (int) $data['warranty_days']) : null;
-        $deliveryDate = ! empty($data['delivery_date']) ? Carbon::parse($data['delivery_date']) : null;
-        $warrantyExpiresAt = $deliveryDate && $warrantyDays ? $deliveryDate->copy()->addDays($warrantyDays) : null;
+        $submittedDeliveryDate = ! empty($data['delivery_date']) ? Carbon::parse($data['delivery_date']) : null;
         $warrantySourceOrder = $isEquipmentOrder ? $this->warrantySourceOrder($data, $order) : null;
-        $oldStatus = $order->service_status;
-        $currentPartsSnapshot = $order->orderParts()
-            ->get(['parts.id'])
-            ->mapWithKeys(fn ($part) => [(int) $part->id => (int) ($part->pivot->quantity ?? 0)])
-            ->toArray();
+        $oldStatus = (int) $order->service_status;
+        $newStatus = (int) $data['service_status'];
+        $statusReason = trim((string) ($data['status_reason'] ?? '')) ?: null;
+        $statusChangeKind = $data['status_change_kind'] ?? null;
+        // Valida a transição antes de gravar qualquer campo, para não salvar a OS pela metade.
+        $this->orderStatusService->assertTransition($oldStatus, $newStatus, $statusReason, $statusChangeKind);
+        $actor = OrderActor::userOrSystem($this->currentUser());
+        $previousTechnicianId = $order->user_id ? (int) $order->user_id : null;
+        $newTechnicianId = ! empty($data['user_id']) ? (int) $data['user_id'] : null;
+        $forecastReason = trim((string) ($data['delivery_forecast_reason'] ?? '')) ?: null;
+        $budgetValidUntil = $request->has('budget_valid_until') ? ($data['budget_valid_until'] ?: null) : false;
         $successMessage = 'Ordem atualizada com sucesso';
 
-        $partsSyncResult = null;
         $changes = [];
 
-        DB::transaction(function () use ($order, $data, $isEquipmentOrder, $warrantyDays, $warrantyExpiresAt, $warrantySourceOrder, $oldStatus, $currentPartsSnapshot, &$partsSyncResult, &$changes): void {
+        // OS, técnico, prazo, status, peças/estoque/movimentos, itens, totais, recebível e
+        // comissão em uma única transação: qualquer falha desfaz tudo.
+        DB::transaction(function () use ($order, $data, $isEquipmentOrder, $warrantyDays, $warrantySourceOrder, $oldStatus, $newStatus, $statusReason, $statusChangeKind, $actor, $previousTechnicianId, $newTechnicianId, $nextParts, $submittedDeliveryDate, $forecastReason, $budgetValidUntil, &$changes): void {
+            Order::withoutGlobalScopes()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
             $order->update([
                 'order_type' => $data['order_type'] ?? Order::TYPE_EQUIPMENT,
                 'customer_id' => $data['customer_id'],
                 'equipment_id' => $isEquipmentOrder ? $data['equipment_id'] : null, // equipamento
                 'customer_equipment_id' => $isEquipmentOrder ? ($data['customer_equipment_id'] ?? null) : null,
-                'user_id' => $data['user_id'] ?? null, // técnico responsável
                 'model' => $isEquipmentOrder ? $data['model'] : null,
                 'password' => $isEquipmentOrder ? $data['password'] : null,
                 'defect' => $isEquipmentOrder ? $data['defect'] : ($data['service_type'] ?: ($data['service_details'] ?: 'Serviço externo')),
@@ -975,41 +995,70 @@ class OrderController extends Controller
                 'budget_value' => $data['budget_value'] ?? 0,
                 'budget_link' => $data['budget_link'] ?? null,
                 'services_performed' => $data['services_performed'], // servicos executados
-                'parts_value' => $data['parts_value'] ?? 0,
                 'service_value' => $data['service_value'] ?? 0,
-                'service_cost' => $data['service_cost'] ?? 0, // custo
-                'delivery_date' => $data['delivery_date'], // $data de entrega
+                'manual_parts_value' => $data['manual_parts_value'],
+                'manual_parts_cost' => $data['manual_parts_cost'],
+                'discount_amount' => $data['discount_amount'],
+                'surcharge_amount' => $data['surcharge_amount'],
                 'warranty_days' => $isEquipmentOrder ? $warrantyDays : null,
-                'warranty_expires_at' => $isEquipmentOrder ? $warrantyExpiresAt : null,
                 'is_warranty_return' => (bool) $warrantySourceOrder,
                 'warranty_source_order_id' => $warrantySourceOrder?->id,
                 'service_status' => $oldStatus,
-                'delivery_forecast' => $data['delivery_forecast'], // previsao de entrega
                 'observations' => $data['observations'],
             ]);
             $changes = collect($order->getChanges())
                 ->except(['updated_at'])
                 ->toArray();
 
-            if (isset($data['allparts'])) {
-                $partsToSync = [];
-                foreach ($data['allparts'] as $part) {
-                    $partsToSync[(int) $part['part_id']] = ['quantity' => (int) $part['quantity']];
-                }
-
-                $partsSyncResult = $this->syncOrderPartsStock($order, $partsToSync, $currentPartsSnapshot);
+            // Técnico responsável: só pelo serviço de atribuição, que mantém o histórico temporal.
+            $this->orderTechnicianAssignmentService->assign($order, $newTechnicianId, $actor);
+            if ($previousTechnicianId !== $newTechnicianId) {
+                $changes['user_id'] = $newTechnicianId;
             }
+
+            // Prazo: renegociação vira evento; o prazo original nunca é sobrescrito.
+            $this->orderDeadlineService->changeForecast($order, $data['delivery_forecast'] ?? null, $actor, $forecastReason);
+
+            if ($newStatus !== $oldStatus) {
+                // Entrar em "Entregue" grava a data da entrega; sair preserva a entrega anterior.
+                $this->orderStatusService->transition($order, $newStatus, $actor, $statusReason, $statusChangeKind, [], $submittedDeliveryDate);
+            } elseif ($newStatus === OrderStatus::DELIVERED && $submittedDeliveryDate) {
+                $this->orderDeadlineService->correctDeliveryDate($order, $submittedDeliveryDate, $actor);
+            }
+
+            $addedPartIds = [];
+            if ($nextParts !== null) {
+                $addedPartIds = $this->orderPartsService->sync($order, $nextParts, $this->currentUser()?->id)['added'];
+            }
+
+            $this->orderItemSyncService->sync($order, $addedPartIds);
+            $this->orderTotalsService->recalculate($order);
+
+            // Orçamento versionado: rascunho, envio (status 3), aprovação/recusa (4/5) e novas versões.
+            $this->orderBudgetService->syncFromOrder(
+                $order,
+                $oldStatus,
+                $newStatus,
+                $actor,
+                $budgetValidUntil,
+                $statusReason,
+            );
+
+            // Garantia conta da data real da entrega (preservada mesmo após reabertura).
+            $order->forceFill([
+                'warranty_expires_at' => $isEquipmentOrder && $order->delivery_date && $warrantyDays
+                    ? Carbon::parse($order->delivery_date)->addDays($warrantyDays)
+                    : null,
+            ])->save();
+
+            $fresh = $order->fresh(['orderPayments']);
+            $this->financialReceivableService->syncOrder($fresh);
+            $this->technicianCommissionService->syncOrder($fresh);
         });
 
-        if ($data['service_status'] != $oldStatus) {
-            $currentStatus = (int) $data['service_status'];
+        if ($newStatus !== $oldStatus) {
+            $currentStatus = $newStatus;
             $statusLabel = OrderStatus::label($currentStatus);
-
-            try {
-                $order = $this->orderStatusService->transition($order, $currentStatus, $this->currentUser()?->id);
-            } catch (ValidationException $exception) {
-                return back()->withErrors($exception->errors());
-            }
             $statusChangeData = [
                 'from' => (int) $oldStatus,
                 'from_label' => OrderStatus::label($oldStatus),
@@ -1033,9 +1082,6 @@ class OrderController extends Controller
         }
 
         $order = $order->fresh(['orderPayments']);
-        $this->orderItemSyncService->sync($order);
-        $this->financialReceivableService->syncOrder($order);
-        $this->technicianCommissionService->syncOrder($order);
 
         $currentUser = $this->currentUser();
         if (
@@ -1078,10 +1124,14 @@ class OrderController extends Controller
             );
         }
 
-        $this->financialReceivableService->deleteSource('order', (int) $order->id, (int) $order->tenant_id);
-        $this->technicianCommissionService->deleteForOrder($order);
-        $order->delete();
-        $order->orderParts()->detach();
+        // Estoque devolvido pela camada central (movimento + custo), recebível, comissão e
+        // a própria OS na mesma transação: qualquer falha desfaz tudo.
+        DB::transaction(function () use ($order): void {
+            $this->orderPartsService->returnAll($order, $this->currentUser()?->id);
+            $this->financialReceivableService->deleteSource('order', (int) $order->id, (int) $order->tenant_id);
+            $this->technicianCommissionService->deleteForOrder($order);
+            $order->delete();
+        });
 
         return redirect()->route('app.orders.index')->with('success', 'Ordem excluída com sucesso');
     }
@@ -1099,44 +1149,23 @@ class OrderController extends Controller
         abort_unless($order, 404);
         $this->authorize('update', $order);
 
-        $order->load('orderParts');
-        $part = $order->orderParts->firstWhere('id', (int) $validatedData['part_id']);
-
-        if (! $part) {
-            return back()->with('error', 'A peça informada não está vinculada a esta ordem.');
-        }
-
-        $removedQuantity = (float) ($part->pivot?->quantity ?? 1);
-        $removedTotal = $this->roundMoney((float) ($part->sale_price ?? 0) * $removedQuantity);
-        $nextPartsValue = $this->roundMoney(max(0, (float) ($order->parts_value ?? 0) - $removedTotal));
-        $nextServiceValue = $this->roundMoney((float) ($order->service_value ?? 0));
-        $nextServiceCost = $this->roundMoney($nextPartsValue + $nextServiceValue);
-
-        DB::transaction(function () use ($order, $validatedData, $part, $removedQuantity, $nextPartsValue, $nextServiceCost): void {
-            $stockPart = Part::query()->lockForUpdate()->find($part->id);
-
-            if ($stockPart) {
-                $stockPart->increment('quantity', (int) $removedQuantity);
-                PartMovement::create([
-                    'part_id' => $stockPart->id,
-                    'order_id' => $order->id,
-                    'user_id' => $this->currentUser()?->id,
-                    'movement_type' => PartMovement::TYPE_RETURN,
-                    'quantity' => (int) $removedQuantity,
-                    'reason' => 'Devolução de peça removida da OS '.$order->order_number,
-                ]);
+        // Devolve ao estoque, remove só o item dessa peça e recalcula os totais no servidor,
+        // tudo na mesma transação (sem usar o preço atual do cadastro).
+        $removed = DB::transaction(function () use ($order, $validatedData): bool {
+            if (! $this->orderPartsService->remove($order, (int) $validatedData['part_id'], $this->currentUser()?->id)) {
+                return false;
             }
 
-            $order->orderParts()->detach($validatedData['part_id']);
-            $order->update([
-                'parts_value' => $nextPartsValue,
-                'service_cost' => $nextServiceCost,
-            ]);
+            $this->orderItemSyncService->sync($order);
+            $this->orderTotalsService->recalculate($order);
+            $this->financialReceivableService->syncOrder($order->fresh(['orderPayments']));
+
+            return true;
         });
 
-        $order = $order->fresh(['orderPayments']);
-        $this->orderItemSyncService->sync($order);
-        $this->financialReceivableService->syncOrder($order);
+        if (! $removed) {
+            return back()->with('error', 'A peça informada não está vinculada a esta ordem.');
+        }
 
         return redirect()->route('app.orders.show', $order)->with('success', 'Peça removida e estoque devolvido com sucesso.');
     }
@@ -1148,10 +1177,12 @@ class OrderController extends Controller
 
         $request->merge([
             'amount' => $this->normalizeMoneyFloat($request->input('amount')),
+            'fee_amount' => $this->normalizeMoneyFloat($request->input('fee_amount')),
         ]);
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
+            'fee_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|in:pix,cartao,dinheiro,transferencia,boleto',
             'paid_at' => 'nullable|date',
             'notes' => 'nullable|string|max:500',
@@ -1165,6 +1196,8 @@ class OrderController extends Controller
             'payment_id' => $payment->id,
             'cash_session_id' => $payment->cash_session_id,
             'amount' => (float) $payment->amount,
+            'fee_amount' => (float) $payment->fee_amount,
+            'net_amount' => (float) $payment->net_amount,
             'payment_method' => $validated['payment_method'],
             'paid_at' => $payment->paid_at?->toDateTimeString(),
         ];
@@ -1393,16 +1426,24 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'message' => ['required', 'string', 'max:2000'],
+            'template' => ['nullable', 'string', Rule::in(OrderMessageService::WHATSAPP_TEMPLATES)],
         ]);
 
         $order->loadMissing('customer');
         $phone = $order->customer?->whatsapp;
+        $template = $validated['template'] ?? null;
+        $recipient = WhatsAppPhone::isValid($phone) ? WhatsAppPhone::normalize($phone) : null;
 
         try {
-            $this->whatsAppService->sendText((int) $order->tenant_id, $phone, $validated['message']);
+            $sent = $this->whatsAppService->sendText((int) $order->tenant_id, $phone, $validated['message']);
         } catch (WhatsAppException $exception) {
+            // A mensagem da exceção já é segura para o usuário (sem credenciais do WAHA).
+            $this->orderMessageService->recordFailed($order, OrderMessage::CHANNEL_WHATSAPP, $recipient, $template, 'waha', class_basename($exception), $exception->getMessage(), $this->currentUser()?->id);
+
             return back()->with('error', $exception->getMessage());
         }
+
+        $this->orderMessageService->recordSent($order, OrderMessage::CHANNEL_WHATSAPP, $sent['chat_id'], $template, 'waha', $sent['response'], $this->currentUser()?->id);
 
         return back()->with('success', 'Mensagem enviada pelo WhatsApp com sucesso.');
     }

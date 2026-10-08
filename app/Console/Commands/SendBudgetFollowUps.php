@@ -85,7 +85,7 @@ class SendBudgetFollowUps extends Command
 
             $cooldownDays = $this->cooldownDays($tenantId);
             $customerEmail = trim((string) ($order->customer?->email ?? ''));
-            $daysPending = max(0, ($order->updated_at ?? $order->created_at)?->diffInDays(now()) ?? 0);
+            $daysPending = max(0, ($order->budgetPendingSince() ?? $order->created_at)?->diffInDays(now()) ?? 0);
 
             if ($daysPending < $cooldownDays) {
                 $skipped++;

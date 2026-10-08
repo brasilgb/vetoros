@@ -44,6 +44,7 @@ export default function OrderPaymentsModal({
 
     const paymentForm = useForm({
         amount: '',
+        fee_amount: '',
         payment_method: 'pix',
         paid_at: moment().format('YYYY-MM-DDTHH:mm'),
         notes: '',
@@ -136,7 +137,7 @@ export default function OrderPaymentsModal({
             preserveScroll: true,
             onSuccess: () => {
                 paymentForm.clearErrors();
-                paymentForm.reset('amount', 'notes');
+                paymentForm.reset('amount', 'notes', 'fee_amount');
                 paymentForm.setData('payment_method', 'pix');
                 paymentForm.setData('paid_at', moment().format('YYYY-MM-DDTHH:mm'));
                 loadPaymentsData();
@@ -362,6 +363,18 @@ export default function OrderPaymentsModal({
                         <InputError message={paymentForm.errors.notes} />
                     </div>
 
+                    <div className="grid gap-2">
+                        <Label htmlFor="payment_fee_amount">Taxa cobrada (cartão, gateway etc.)</Label>
+                        <Input
+                            id="payment_fee_amount"
+                            type="text"
+                            value={paymentForm.data.fee_amount ? maskMoney(String(paymentForm.data.fee_amount)) : ''}
+                            onChange={(e) => paymentForm.setData('fee_amount', maskMoneyDot(e.target.value))}
+                            placeholder="Vazio usa a taxa configurada do meio"
+                        />
+                        <InputError message={paymentForm.errors.fee_amount} />
+                    </div>
+
                     <div className="flex justify-end md:col-span-2">
                         <Button type="submit" disabled={paymentForm.processing || remaining <= 0 || !isCashierOpen}>
                             Registrar pagamento
@@ -381,6 +394,13 @@ export default function OrderPaymentsModal({
                                     <span className="text-muted-foreground text-xs">
                                         {payment.payment_method} • {payment.paid_at ? moment(payment.paid_at).format('DD/MM/YYYY HH:mm') : '-'}
                                     </span>
+                                    {payment.fee_amount !== null && payment.fee_amount !== undefined ? (
+                                        <span className="text-muted-foreground text-xs">
+                                            Taxa {maskMoney(String(payment.fee_amount))} • líquido {maskMoney(String(payment.net_amount))}
+                                        </span>
+                                    ) : (
+                                        <span className="text-muted-foreground text-xs">Taxa não informada</span>
+                                    )}
                                     {payment.notes ? <span className="text-muted-foreground text-xs">{payment.notes}</span> : null}
                                 </div>
                                 <Button

@@ -73,6 +73,8 @@ class OrderRequest extends FormRequest
             'state_conservation' => 'nullable|string|max:500',
             'accessories' => 'nullable|string|max:500',
             'service_status' => ['required', 'integer', Rule::in(OrderStatus::values())],
+            'status_reason' => 'nullable|string|max:500',
+            'status_change_kind' => ['nullable', 'string', Rule::in([OrderStatus::KIND_REGRESSION, OrderStatus::KIND_CORRECTION, OrderStatus::KIND_REOPEN])],
             'warranty_days' => 'nullable|integer|min:0|max:3650',
             'is_warranty_return' => 'nullable|boolean',
             'warranty_source_order_id' => [
@@ -101,6 +103,12 @@ class OrderRequest extends FormRequest
                 },
             ],
             'budget_link' => 'nullable|string|max:2048',
+            'manual_parts_value' => ['nullable', $this->nonNegativeMoney()],
+            'manual_parts_cost' => ['nullable', $this->nonNegativeMoney()],
+            'discount_amount' => ['nullable', $this->nonNegativeMoney()],
+            'surcharge_amount' => ['nullable', $this->nonNegativeMoney()],
+            'delivery_forecast_reason' => 'nullable|string|max:500',
+            'budget_valid_until' => 'nullable|date',
 
             'user_id' => 'nullable|exists:users,id',
             'schedule_id' => 'nullable|exists:schedules,id',
@@ -108,6 +116,21 @@ class OrderRequest extends FormRequest
             'delivery_forecast' => 'required|date',
             'observations' => 'nullable|string|max:500',
         ];
+    }
+
+    /**
+     * Aceita "1.234,56", "1234.56" ou número; recusa negativo e texto não numérico.
+     */
+    private function nonNegativeMoney(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            $raw = trim((string) $value);
+            $normalized = str_contains($raw, ',') ? str_replace(',', '.', str_replace('.', '', $raw)) : $raw;
+
+            if ($raw !== '' && (! is_numeric($normalized) || (float) $normalized < 0)) {
+                $fail('Informe um valor válido, maior ou igual a zero.');
+            }
+        };
     }
 
     public function attributes(): array
@@ -129,6 +152,14 @@ class OrderRequest extends FormRequest
             'state_conservation' => 'estado de conservação',
             'accessories' => 'acessórios',
             'user_id' => 'técnico',
+            'manual_parts_value' => 'peças avulsas',
+            'manual_parts_cost' => 'custo das peças avulsas',
+            'discount_amount' => 'desconto',
+            'surcharge_amount' => 'acréscimo',
+            'delivery_forecast_reason' => 'motivo da alteração do prazo',
+            'budget_valid_until' => 'validade do orçamento',
+            'status_reason' => 'motivo da alteração de status',
+            'status_change_kind' => 'tipo da alteração de status',
             'schedule_id' => 'agendamento',
             'delivery_date' => 'data de entrega',
             'warranty_days' => 'garantia em dias',

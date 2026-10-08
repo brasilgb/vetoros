@@ -285,7 +285,10 @@ class FollowUpController extends Controller
         $totalOrder = round((float) ($order->service_cost ?? 0), 2);
         $totalPaid = round((float) ($order->total_paid ?? 0), 2);
         $remaining = round(max(0, $totalOrder - $totalPaid), 2);
-        $referenceDate = $order->delivery_date ?? $order->updated_at ?? $order->created_at;
+        // Orçamento: desde o envio; pagamento: desde a entrega (fallbacks anteriores preservados).
+        $referenceDate = (int) $order->service_status === OrderStatus::BUDGET_GENERATED
+            ? $order->budgetPendingSince()
+            : ($order->delivery_date ?? $order->updated_at ?? $order->created_at);
         $daysPending = $referenceDate ? max(0, (int) floor(Carbon::parse($referenceDate)->diffInDays(now(), true))) : 0;
 
         $order->setAttribute('remaining_amount', $remaining);
@@ -764,9 +767,9 @@ class FollowUpController extends Controller
                 'logs as budget_contact_count' => fn ($query) => $query->where('action', 'budget_follow_up_sent'),
             ])
             ->where('service_status', OrderStatus::BUDGET_GENERATED)
-            ->where('updated_at', '<=', now()->subDays($thresholdDays))
+            ->whereBudgetPendingBefore(now()->subDays($thresholdDays))
             ->orderBy('budget_contact_count')
-            ->orderBy('updated_at');
+            ->orderByRaw(Order::budgetPendingSinceSql());
         $budgetQuery = $this->applyActiveFollowUpRules($budgetQuery, 'budget');
         $budgetQuery = $this->applyResponseFilter($budgetQuery, $request, 'budget');
 
@@ -915,7 +918,7 @@ class FollowUpController extends Controller
 
         $budgetOrders = (clone $this->baseQuery($request))
             ->where('service_status', OrderStatus::BUDGET_GENERATED)
-            ->where('updated_at', '<=', now()->subDays($thresholdDays));
+            ->whereBudgetPendingBefore(now()->subDays($thresholdDays));
         $budgetOrders = $this->applyActiveFollowUpRules($budgetOrders, 'budget')
             ->get()
             ->map(fn (Order $order) => $this->appendFollowUpData($order));

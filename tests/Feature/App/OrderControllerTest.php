@@ -425,6 +425,7 @@ class OrderControllerTest extends TestCase
         $response = $this->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $customer, $equipment, [
             'user_id' => null,
             'service_status' => OrderStatus::CANCELLED,
+            'status_reason' => 'Cliente desistiu do reparo',
         ]));
 
         $response->assertRedirect(route('app.orders.show', ['order' => $order->id]));
@@ -644,12 +645,22 @@ class OrderControllerTest extends TestCase
             'service_cost' => '0,00',
             'delivery_date' => null,
             'service_status' => OrderStatus::OPEN,
+            'status_reason' => 'Orçamento será refeito após nova análise',
             'delivery_forecast' => now()->addDays(7)->toDateString(),
             'observations' => null,
         ]);
 
         $response->assertRedirect(route('app.orders.show', $order));
         $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('order_events', [
+            'order_id' => $order->id,
+            'event_type' => 'status_changed',
+            'from_status' => OrderStatus::BUDGET_APPROVED,
+            'to_status' => OrderStatus::OPEN,
+            'transition_kind' => OrderStatus::KIND_REGRESSION,
+            'reason' => 'Orçamento será refeito após nova análise',
+        ]);
 
         $this->assertDatabaseHas('order_status_history', [
             'order_id' => $order->id,
@@ -797,11 +808,19 @@ class OrderControllerTest extends TestCase
 
         $budgetResponse->assertRedirect(route('app.orders.show', ['order' => $order->id]));
 
+        // VETOR-INTEL-03: a resposta pública cita a versão do orçamento que o cliente viu.
         $approveResponse = $this->post(route('orders.budget.status', $order->tracking_token), [
             'status' => OrderStatus::BUDGET_APPROVED,
+            'budget_version' => 1,
         ]);
 
         $approveResponse->assertSessionHas('success', 'Status do orçamento atualizado com sucesso.');
+        $this->assertDatabaseHas('order_budgets', [
+            'order_id' => $order->id,
+            'version' => 1,
+            'status' => 'approved',
+            'approved_by_type' => 'customer',
+        ]);
 
         $serviceCompletedResponse = $this->put(route('app.orders.update', $order->fresh()), [
             'customer_id' => $customer->id,
@@ -959,7 +978,7 @@ class OrderControllerTest extends TestCase
         );
     }
 
-    public function test_it_clears_delivery_date_when_status_is_not_delivered(): void
+    public function test_it_preserves_delivery_date_when_order_leaves_delivered_status(): void
     {
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
         $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
@@ -977,15 +996,28 @@ class OrderControllerTest extends TestCase
             'delivery_date' => now()->toDateTimeString(),
             'warranty_days' => 90,
             'service_status' => OrderStatus::SERVICE_COMPLETED,
+            'status_change_kind' => OrderStatus::KIND_CORRECTION,
+            'status_reason' => 'Entrega marcada por engano',
         ]));
 
         $response->assertRedirect(route('app.orders.show', ['order' => $order->id]));
 
         $freshOrder = $order->fresh();
 
-        $this->assertNull($freshOrder->delivery_date);
-        $this->assertNull($freshOrder->warranty_expires_at);
+        // VETOR-INTEL-02: a entrega é fato histórico; sair de "Entregue" não a apaga
+        // (antes a data e a garantia eram zeradas).
+        $this->assertSame($order->delivery_date->toDateTimeString(), $freshOrder->delivery_date->toDateTimeString());
+        $this->assertSame(
+            $order->delivery_date->copy()->addDays(90)->toDateTimeString(),
+            $freshOrder->warranty_expires_at->toDateTimeString()
+        );
         $this->assertSame(OrderStatus::SERVICE_COMPLETED, (int) $freshOrder->service_status);
+        $this->assertDatabaseHas('order_events', [
+            'order_id' => $order->id,
+            'from_status' => OrderStatus::DELIVERED,
+            'to_status' => OrderStatus::SERVICE_COMPLETED,
+            'transition_kind' => OrderStatus::KIND_CORRECTION,
+        ]);
     }
 
     public function test_it_decrements_stock_when_parts_are_added_to_order(): void
