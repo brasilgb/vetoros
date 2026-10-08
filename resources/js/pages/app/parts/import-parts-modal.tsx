@@ -99,7 +99,7 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
 
     return (
         <div
-            className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
             role="dialog"
             aria-modal="true"
             aria-labelledby="import-parts-title"

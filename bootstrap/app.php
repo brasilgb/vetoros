@@ -7,11 +7,13 @@ use App\Http\Middleware\Cors;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RootAdminOnly;
+use App\Http\Middleware\StartSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Session\Middleware\StartSession as BaseStartSession;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpFoundation\Response;
@@ -66,7 +68,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.subscription' => CheckSubscriptionStatus::class,
             'root.admin' => RootAdminOnly::class,
         ]);
-        $middleware->web(append: [
+        $middleware->web(replace: [
+            BaseStartSession::class => StartSession::class,
+        ], append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
@@ -86,8 +90,16 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             if ($response->getStatusCode() === 403 && ! $request->expectsJson()) {
+                // Volta para a página anterior; nunca para a própria URL negada (loop).
+                // Endpoints de dados não viram "URL anterior" (App\Http\Middleware\StartSession).
+                $target = url()->previous();
+
+                if (rtrim($target, '/') === rtrim($request->url(), '/') || rtrim($target, '/') === rtrim($request->fullUrl(), '/')) {
+                    $target = Route::has('app.dashboard') && ! $request->routeIs('app.dashboard') ? route('app.dashboard') : url('/');
+                }
+
                 return redirect()
-                    ->back()
+                    ->to($target)
                     ->with('authorization_error', 'Esta ação não é autorizada.');
             }
 

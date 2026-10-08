@@ -164,18 +164,18 @@ export default function EditOrder({
         customer_equipment_id: order?.customer_equipment_id ? String(order.customer_equipment_id) : '',
         user_id: order?.user_id,
         model: order?.model,
-        password: order?.password,
-        defect: order?.defect,
+        password: order?.password ?? '',
+        defect: order?.defect ?? '',
         service_type: '',
         service_details: '',
         materials_used: '',
-        state_conservation: order?.state_conservation, //estado de conservação
-        accessories: order?.accessories,
+        state_conservation: order?.state_conservation ?? '', //estado de conservação
+        accessories: order?.accessories ?? '',
         budget_description: order?.budget_description, // descrição do orçamento
         budget_value: order?.budget_value, // valor do orçamento
         budget_link: order?.budget_link ?? '',
         budget_valid_until: (budgets as OrderBudgetVersion[] | undefined)?.[0]?.valid_until ?? '',
-        services_performed: order.services_performed, // servicos executados
+        services_performed: order.services_performed ?? '', // servicos executados
         parts_value: order.parts_value,
         service_value: order.service_value,
         service_cost: order.service_cost, // total (calculado no servidor)
@@ -193,7 +193,7 @@ export default function EditOrder({
         status_reason: '',
         status_change_kind: '',
         delivery_forecast: order?.delivery_forecast, // previsao de entrega
-        observations: order?.observations,
+        observations: order?.observations ?? '',
         allparts: '',
     });
 
@@ -465,7 +465,8 @@ export default function EditOrder({
                         </div>
 
                         <Tabs defaultValue="details" className="space-y-4">
-                            <TabsList>
+                            {/* Em telas estreitas as abas rolam na horizontal, sem esconder nenhuma. */}
+                            <TabsList className="max-w-full justify-start overflow-x-auto">
                                 <TabsTrigger value="details">Detalhes</TabsTrigger>
                                 <TabsTrigger value="history">Histórico</TabsTrigger>
                                 <TabsTrigger value="budget">Orçamento</TabsTrigger>

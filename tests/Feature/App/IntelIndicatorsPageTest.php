@@ -73,6 +73,30 @@ class IntelIndicatorsPageTest extends TestCase
         $this->getJson(route('app.intel.indicators'))->assertForbidden();
     }
 
+    public function test_forbidden_page_redirects_to_last_page_not_to_data_endpoint(): void
+    {
+        // VETOR-HML-01.1 (D1): o dashboard busca dados em JSON; isso não pode virar o destino do 403.
+        $technician = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_TECHNICIAN]);
+        $this->actingAs($technician);
+
+        $this->get(route('app.dashboard'))->assertOk();
+        $this->getJson(route('app.metricsSystem', ['timerange' => 7]))->assertOk();
+
+        $this->get(route('app.intel.indicators'))
+            ->assertRedirect(route('app.dashboard'))
+            ->assertSessionHas('authorization_error', 'Esta ação não é autorizada.');
+    }
+
+    public function test_forbidden_page_does_not_redirect_to_itself(): void
+    {
+        $technician = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_TECHNICIAN]);
+
+        $this->actingAs($technician)
+            ->withSession(['tenant_id' => $this->tenant->id, '_previous' => ['url' => route('app.intel.indicators')]])
+            ->get(route('app.intel.indicators'))
+            ->assertRedirect(route('app.dashboard'));
+    }
+
     public function test_filters_change_period_and_thresholds(): void
     {
         $order = $this->order(OrderStatus::OPEN);
