@@ -22,9 +22,6 @@ compose.yaml
 /public/storage
 /public/apk/
 /storage/*.key
-/storage/app
-/storage/framework
-/storage/logs
 npm-debug.log
 yarn-debug.log*
 yarn-error.log*
