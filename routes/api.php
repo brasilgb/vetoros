@@ -15,6 +15,7 @@ use App\Http\Controllers\App\WebhookController;
 use App\Http\Controllers\Integration\RegistrationCheckController;
 use App\Http\Controllers\Integration\SpedyWebhookController;
 use App\Http\Controllers\Integration\WahaWebhookController;
+use App\Http\Middleware\EnsureTenantApiUser;
 use App\Http\Middleware\VerifyCrmIntegrationToken;
 use Illuminate\Support\Facades\Route;
 
@@ -41,7 +42,7 @@ Route::post('/webhooks/waha', WahaWebhookController::class)
     ->name('webhook.waha');
 Route::post('/loginuser', [UserController::class, 'loginuser'])->name('loginuser');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', EnsureTenantApiUser::class])->group(function () {
     Route::get('/ordercli/{customer}', [OrderController::class, 'getOrderCli'])->name('ordercli');
     Route::get('/allorder', [OrderController::class, 'allOrder'])->name('allorder');
     Route::get('/order/{order}', [OrderController::class, 'getOrder'])->name('order');

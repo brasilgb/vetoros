@@ -21,6 +21,14 @@ use Illuminate\Support\Str;
  */
 class SpedyPayloadBuilder
 {
+    /**
+     * Tamanhos enviados à Spedy. A razão social do emitente não é cortada: acima do limite,
+     * a emissão é bloqueada para que a nota não saia com a identificação truncada.
+     */
+    public const MAX_LEGAL_NAME = 80;
+
+    public const MAX_RECEIVER_NAME = 60;
+
     private const TAX_REGIMES = [
         '1' => 'simplesNacional',
         '2' => 'simplesNacionalExcessoSublimite',
@@ -48,6 +56,8 @@ class SpedyPayloadBuilder
         }
         if ($legalName === '') {
             $problems[] = 'Informe a razão social em Dados da empresa.';
+        } elseif (mb_strlen($legalName) > self::MAX_LEGAL_NAME) {
+            $problems[] = sprintf('A razão social tem %d caracteres; o emissor aceita até %d. Use a forma abreviada do cadastro na Receita em Dados da empresa.', mb_strlen($legalName), self::MAX_LEGAL_NAME);
         }
         foreach (['street' => 'logradouro', 'number' => 'número', 'district' => 'bairro', 'postalCode' => 'CEP'] as $key => $label) {
             if (blank($address[$key] ?? null)) {

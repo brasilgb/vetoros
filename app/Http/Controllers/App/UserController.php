@@ -239,6 +239,14 @@ class UserController extends Controller
                 'result' => [],
             ], 401);
         }
+        // Os apps são da empresa: usuário sem tenant (RootAdmin) não recebe token da API.
+        if ($user->tenant_id === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Acesso disponível apenas para usuários de uma empresa.',
+                'result' => [],
+            ], 403);
+        }
         $token = $user->createToken($user->name.'-AuthToken')->plainTextToken;
         $company = $user->tenant_id
             ? Company::query()

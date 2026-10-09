@@ -35,11 +35,11 @@ class RegisteredUserController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'company' => 'required|string|max:255|unique:tenants,company',
+            'company' => 'required|string|max:150|unique:tenants,company',
             'cnpj' => 'required|string|max:20|unique:tenants,cnpj',
             'phone' => 'required|string|max:20',
             'whatsapp' => 'required|string|max:20',
-            'email' => 'required|string|lowercase|email|max:255|unique:users,email',
+            'email' => 'required|string|lowercase|email|max:150|unique:users,email',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'accepted_terms' => ['accepted'],
         ], [

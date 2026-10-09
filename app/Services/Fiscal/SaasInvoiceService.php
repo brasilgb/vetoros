@@ -12,9 +12,11 @@ use App\Models\Admin\Plan;
 use App\Models\App\FiscalDocument;
 use App\Models\App\Payment;
 use App\Models\Tenant;
+use App\Observers\CompanyIdentityObserver;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyException;
 use App\Services\Fiscal\Spedy\SpedyInvoiceState;
+use App\Services\Fiscal\Spedy\SpedyPayloadBuilder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +58,9 @@ class SaasInvoiceService
             if (blank($issuer->{$field})) {
                 $problems[] = "Informe {$label} do emitente.";
             }
+        }
+        if (mb_strlen(trim((string) $issuer->legal_name)) > SpedyPayloadBuilder::MAX_LEGAL_NAME) {
+            $problems[] = sprintf('A razão social do emitente passa de %d caracteres; use a forma abreviada do cadastro na Receita.', SpedyPayloadBuilder::MAX_LEGAL_NAME);
         }
         if ($issuer->default_iss_rate === null) {
             $problems[] = 'Informe a alíquota de ISS do emitente.';
@@ -440,6 +445,37 @@ class SaasInvoiceService
         return $problems;
     }
 
+    /**
+     * Tomador exatamente como vai para a Spedy, para conferência antes da emissão B2B,
+     * com o aviso de nome cortado e a última mudança de CNPJ/razão social auditada.
+     *
+     * @return array<string, mixed>
+     */
+    public function receiverPreview(Tenant $tenant): array
+    {
+        $receiver = $this->receiver($tenant);
+        $fullName = trim((string) ($tenant->company ?: $tenant->name));
+        $lastChange = FiscalAdminAudit::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('action', CompanyIdentityObserver::ACTION)
+            ->latest('id')
+            ->with('user:id,name')
+            ->first();
+
+        return [
+            'name' => $receiver['name'] ?? '',
+            'full_name' => $fullName,
+            'name_truncated' => mb_strlen($fullName) > SpedyPayloadBuilder::MAX_RECEIVER_NAME,
+            'federal_tax_number' => $receiver['federalTaxNumber'] ?? '',
+            'email' => $receiver['email'] ?? null,
+            'address' => $receiver['address'] ?? null,
+            'problems' => $this->receiverProblems($tenant),
+            'identity_changed_at' => $lastChange?->created_at?->toIso8601String(),
+            'identity_changed_by' => $lastChange?->user?->name,
+            'identity_changes' => $lastChange ? array_keys((array) data_get($lastChange->data, 'changes', [])) : [],
+        ];
+    }
+
     private function receiver(Tenant $tenant): array
     {
         $address = array_filter([
@@ -451,7 +487,7 @@ class SaasInvoiceService
         ]);
 
         return array_filter([
-            'name' => Str::limit(trim((string) ($tenant->company ?: $tenant->name)), 60, ''),
+            'name' => Str::limit(trim((string) ($tenant->company ?: $tenant->name)), SpedyPayloadBuilder::MAX_RECEIVER_NAME, ''),
             'federalTaxNumber' => $this->digits($tenant->cnpj),
             'email' => $tenant->email ?: null,
             'address' => filled($tenant->street) && filled($tenant->zip_code) ? $address : null,

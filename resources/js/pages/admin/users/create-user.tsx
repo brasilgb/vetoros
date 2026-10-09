@@ -48,7 +48,12 @@ export default function CreateUser({ tenants }: any) {
         status: false,
         password: '',
         password_confirmation: '',
+        admin_password: '',
     });
+
+    // RootSystem é o único papel sem empresa; concedê-lo exige a senha de quem cadastra.
+    const isRootSystem = String(data.roles) === '99';
+    const grantsRootSystem = isRootSystem;
 
     const handleSubmit = (e: any) => {
         e.preventDefault();
@@ -60,11 +65,12 @@ export default function CreateUser({ tenants }: any) {
     };
 
     const changeRoles = (selected: any) => {
-        setData('roles', selected?.value);
+        const roles = selected?.value ?? '';
+        setData((current) => ({ ...current, roles, tenant_id: String(roles) === '99' ? '' : current.tenant_id }));
     };
 
     const changeCompany = (selected: any) => {
-        setData('tenant_id', selected?.value);
+        setData('tenant_id', selected?.value ?? '');
     };
 
     return (
@@ -173,18 +179,21 @@ export default function CreateUser({ tenants }: any) {
                                 <Label htmlFor="recipient">Empresa</Label>
                                 <Select
                                     options={newCompany}
+                                    value={newCompany?.find((option: any) => String(option.value) === String(data.tenant_id)) ?? null}
                                     onChange={changeCompany}
-                                    placeholder="Selecione a empresa"
+                                    isDisabled={isRootSystem}
+                                    placeholder={isRootSystem ? 'RootSystem não pertence a uma empresa' : 'Selecione a empresa'}
                                     className="h-9 rounded-md border border-gray-300 p-0 text-gray-700 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                     styles={selectStyles}
                                 />
-                                <InputError className="mt-2" message={errors.roles} />
+                                <InputError className="mt-2" message={errors.tenant_id} />
                             </div>
 
                             <div className="grid gap-2">
                                 <Label htmlFor="recipient">Funções do usuário</Label>
                                 <Select
                                     options={rolesUser}
+                                    value={rolesUser.find((option) => option.value === String(data.roles)) ?? null}
                                     onChange={changeRoles}
                                     placeholder="Selecione a função"
                                     className="min-w-0"
@@ -193,6 +202,19 @@ export default function CreateUser({ tenants }: any) {
                                 <InputError className="mt-2" message={errors.roles} />
                             </div>
                         </div>
+                        {grantsRootSystem && (
+                            <div className="grid gap-2 md:max-w-sm">
+                                <Label htmlFor="admin_password">Sua senha (para conceder o acesso de RootSystem)</Label>
+                                <Input
+                                    id="admin_password"
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={data.admin_password}
+                                    onChange={(e) => setData('admin_password', e.target.value)}
+                                />
+                                <InputError className="mt-2" message={errors.admin_password} />
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label htmlFor="status">Status do usuário</Label>
                             <Switch id="status" checked={data.status} onCheckedChange={(checked: any) => setData('status', checked)} />

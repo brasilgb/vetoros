@@ -107,6 +107,7 @@ class SaasInvoiceController extends Controller
                 'subscription_status' => $tenant->subscription_status,
                 'expires_at' => $tenant->expires_at?->toIso8601String(),
                 'receiver_problems' => $this->service->receiverProblems($tenant),
+                'receiver' => $this->service->receiverPreview($tenant),
             ] : null,
             'payments' => $payments,
             'documents' => $documents,

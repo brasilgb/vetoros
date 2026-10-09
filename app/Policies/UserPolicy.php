@@ -20,7 +20,7 @@ class UserPolicy
     {
         $role = (int) $role;
 
-        if (is_null($actor->tenant_id) && $actor->isRoot()) {
+        if ($actor->isRootAdmin()) {
             return true;
         }
 

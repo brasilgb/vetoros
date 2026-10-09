@@ -48,7 +48,13 @@ export default function CreateUser({ user, tenants }: any) {
         status: user?.status,
         password: '',
         password_confirmation: '',
+        admin_password: '',
     });
+
+    // RootSystem é o único papel sem empresa; promover alguém a ele exige a senha de quem edita.
+    const isRootSystem = String(data.roles) === '99';
+    const wasRootAdmin = (Number(user?.roles) === 99 || Number(user?.roles) === 9) && user?.tenant_id == null;
+    const grantsRootSystem = isRootSystem && !wasRootAdmin;
 
     const handleSubmit = (e: any) => {
         e.preventDefault();
@@ -59,15 +65,13 @@ export default function CreateUser({ user, tenants }: any) {
         });
     };
 
-    const defaultRoles = rolesUser?.filter((o: any) => o.value == user?.roles).map((opt: any) => ({ value: opt.label, label: opt.label }));
-    const defaultTenants = newTenant?.filter((o: any) => o.value == user?.tenant_id).map((opt: any) => ({ value: opt.label, label: opt.label }));
-
     const changeRoles = (selected: any) => {
-        setData('roles', selected?.value);
+        const roles = selected?.value ?? '';
+        setData((current) => ({ ...current, roles, tenant_id: String(roles) === '99' ? null : current.tenant_id }));
     };
 
     const changeTenant = (selected: any) => {
-        setData('tenant_id', selected?.value);
+        setData('tenant_id', selected?.value ?? null);
     };
 
     return (
@@ -176,10 +180,11 @@ export default function CreateUser({ user, tenants }: any) {
                             <div className="grid gap-2">
                                 <Label htmlFor="recipient">Empresa</Label>
                                 <Select
-                                    defaultValue={defaultTenants}
                                     options={newTenant}
+                                    value={newTenant?.find((option: any) => String(option.value) === String(data.tenant_id)) ?? null}
                                     onChange={changeTenant}
-                                    placeholder="Selecione a empresa"
+                                    isDisabled={isRootSystem}
+                                    placeholder={isRootSystem ? 'RootSystem não pertence a uma empresa' : 'Selecione a empresa'}
                                     className="h-9 rounded-md border border-gray-300 p-0 text-gray-700 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                     styles={selectStyles}
                                 />
@@ -189,8 +194,8 @@ export default function CreateUser({ user, tenants }: any) {
                             <div className="grid gap-2">
                                 <Label htmlFor="recipient">Funções do usuário</Label>
                                 <Select
-                                    defaultValue={defaultRoles}
                                     options={rolesUser}
+                                    value={rolesUser.find((option) => option.value === String(data.roles)) ?? null}
                                     onChange={changeRoles}
                                     placeholder="Selecione a função"
                                     className="min-w-0"
@@ -199,6 +204,19 @@ export default function CreateUser({ user, tenants }: any) {
                                 <InputError className="mt-2" message={errors.roles} />
                             </div>
                         </div>
+                        {grantsRootSystem && (
+                            <div className="grid gap-2 md:max-w-sm">
+                                <Label htmlFor="admin_password">Sua senha (para conceder o acesso de RootSystem)</Label>
+                                <Input
+                                    id="admin_password"
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={data.admin_password}
+                                    onChange={(e) => setData('admin_password', e.target.value)}
+                                />
+                                <InputError className="mt-2" message={errors.admin_password} />
+                            </div>
+                        )}
                         <div className="grid gap-2">
                             <Label htmlFor="status">Status do usuário</Label>
                             <Switch id="status" checked={data.status} onCheckedChange={(checked: any) => setData('status', checked)} />

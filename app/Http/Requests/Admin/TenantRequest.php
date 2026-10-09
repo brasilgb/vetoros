@@ -27,17 +27,17 @@ class TenantRequest extends FormRequest
 
         return [
             'name' => 'required',
-            'company' => 'required',
+            'company' => 'required|string|max:150',
             'cnpj' => ($this->getMethod() == 'POST') ? 'required|cpf_ou_cnpj|unique:tenants' : 'required|cpf_ou_cnpj|unique:tenants,cnpj,'.$tenantId,
             'email' => 'required',
             'phone' => 'required',
             'whatsapp' => 'nullable|string|max:255',
             'zip_code' => 'nullable|string|max:50',
             'state' => 'nullable|string|max:50',
-            'city' => 'nullable|string|max:50',
-            'district' => 'nullable|string|max:50',
-            'street' => 'nullable|string|max:50',
-            'complement' => 'nullable|string|max:50',
+            'city' => 'nullable|string|max:100',
+            'district' => 'nullable|string|max:100',
+            'street' => 'nullable|string|max:150',
+            'complement' => 'nullable|string|max:100',
             'number' => 'nullable|string|max:50',
             'plan_id' => 'required|exists:plans,id',
             'period_id' => [

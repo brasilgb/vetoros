@@ -115,6 +115,26 @@ export type SaasIssuer = Record<string, string | number | boolean | null | strin
     production_released_at: string | null;
 };
 
+/** Tomador da NFS-e do SaaS exatamente como vai para a Spedy. */
+export type SaasReceiver = {
+    name: string;
+    full_name: string;
+    name_truncated: boolean;
+    federal_tax_number: string;
+    email: string | null;
+    address: {
+        street?: string;
+        number?: string;
+        district?: string;
+        postalCode?: string;
+        city?: { name?: string; state?: string };
+    } | null;
+    problems: string[];
+    identity_changed_at: string | null;
+    identity_changed_by: string | null;
+    identity_changes: string[];
+};
+
 export type SaasProps = {
     issuer: SaasIssuer;
     tenants: TenantOption[];
@@ -126,6 +146,7 @@ export type SaasProps = {
         subscription_status: string | null;
         expires_at: string | null;
         receiver_problems: string[];
+        receiver: SaasReceiver;
     } | null;
     payments: SaasPayment[];
     documents: SaasDocument[];

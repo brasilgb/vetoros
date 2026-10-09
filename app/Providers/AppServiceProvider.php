@@ -27,6 +27,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -45,6 +46,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Model::unguard();
+
+        // Com APP_URL em HTTPS, toda URL gerada (inclusive em filas, agendador e e-mails,
+        // fora de uma requisição) sai em HTTPS, sem depender de APP_ENV nem de proxy.
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
 
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);

@@ -119,6 +119,15 @@ class User extends Authenticatable
         return in_array($this->roles, [self::ROLE_ROOT_SYSTEM, self::ROLE_ROOT_APP], true);
     }
 
+    /**
+     * RootAdmin da plataforma: usuário sem tenant e com papel root. É a única política
+     * de acesso a /admin e /admin/fiscal (AdminAccessMiddleware e RootAdminOnly).
+     */
+    public function isRootAdmin(): bool
+    {
+        return $this->tenant_id === null && $this->isRoot();
+    }
+
     public function isAdministrator(): bool
     {
         return $this->roles === self::ROLE_ADMIN;

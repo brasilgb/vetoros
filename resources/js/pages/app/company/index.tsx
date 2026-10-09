@@ -230,9 +230,13 @@ export default function Company({ company }: any) {
                                     type="text"
                                     id="companyname"
                                     value={data.companyname}
+                                    maxLength={150}
                                     disabled={!canManageCompany}
                                     onChange={(e) => setData('companyname', e.target.value)}
                                 />
+                                <p className="text-muted-foreground text-xs">
+                                    Igual ao cadastro na Receita (até 150 caracteres). Na emissão automática de notas, o emissor aceita até 80.
+                                </p>
                                 {errors.companyname && <div className="text-sm text-red-500">{errors.companyname}</div>}
                             </div>
                         </div>

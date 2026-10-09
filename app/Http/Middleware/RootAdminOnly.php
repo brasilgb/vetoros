@@ -17,7 +17,7 @@ class RootAdminOnly
     {
         $user = $request->user();
 
-        if (! $user || $user->tenant_id !== null || ! $user->isRoot()) {
+        if (! $user?->isRootAdmin()) {
             return $request->expectsJson()
                 ? response()->json(['message' => 'Acesso restrito ao RootAdmin.'], 403)
                 : response('Acesso restrito ao RootAdmin.', 403);

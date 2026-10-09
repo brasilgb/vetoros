@@ -97,7 +97,7 @@ class CompanyControllerTest extends TestCase
         File::put(public_path('storage/logos/old.png'), 'old-logo');
 
         $this->put(route('app.company.update', $this->company), [
-            'shortname' => str_repeat('x', 51),
+            'shortname' => str_repeat('x', 151),
             'email' => 'invalid-email',
         ])->assertSessionHasErrors(['shortname', 'email']);
 

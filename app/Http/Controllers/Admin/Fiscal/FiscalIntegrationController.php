@@ -10,6 +10,7 @@ use App\Models\App\FiscalSetting;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyException;
 use App\Services\Fiscal\Spedy\SpedyPlatformConfig;
+use App\Support\PublicUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -168,8 +169,9 @@ class FiscalIntegrationController extends Controller
 
         $url = route('webhook.spedy');
 
-        if (app()->isProduction() && ! str_starts_with($url, 'https://')) {
-            return back()->with('error', 'A URL do webhook precisa ser HTTPS em produção.');
+        // Pelo host, não por APP_ENV: produção rodando como "local" também exige HTTPS.
+        if (! PublicUrl::isSecureOrLocal($url)) {
+            return back()->with('error', 'A URL do webhook precisa ser HTTPS. Confira o APP_URL e o acesso pelo domínio com certificado.');
         }
 
         try {

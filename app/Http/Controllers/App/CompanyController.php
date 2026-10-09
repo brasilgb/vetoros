@@ -63,21 +63,21 @@ class CompanyController extends Controller
         }
 
         $data = $request->validate([
-            'shortname' => ['nullable', 'string', 'max:50'],
-            'companyname' => ['nullable', 'string', 'max:50'],
+            'shortname' => ['nullable', 'string', 'max:150'],
+            'companyname' => ['nullable', 'string', 'max:150'],
             'cnpj' => ['nullable', 'string', 'max:18'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'zip_code' => ['nullable', 'string', 'max:20'],
             'state' => ['nullable', 'string', 'size:2'],
-            'city' => ['nullable', 'string', 'max:50'],
-            'district' => ['nullable', 'string', 'max:50'],
-            'street' => ['nullable', 'string', 'max:50'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'district' => ['nullable', 'string', 'max:100'],
+            'street' => ['nullable', 'string', 'max:150'],
             'number' => ['nullable', 'string', 'max:20'],
-            'complement' => ['nullable', 'string', 'max:50'],
+            'complement' => ['nullable', 'string', 'max:100'],
             'telephone' => ['nullable', 'string', 'max:30'],
             'whatsapp' => ['nullable', 'string', 'max:30'],
-            'site' => ['nullable', 'string', 'max:50'],
-            'email' => ['nullable', 'email', 'max:50'],
+            'site' => ['nullable', 'string', 'max:150'],
+            'email' => ['nullable', 'email', 'max:150'],
         ]);
         $storePath = public_path('storage/logos');
         $oldLogo = $company->logo;

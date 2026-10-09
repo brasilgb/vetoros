@@ -11,7 +11,7 @@ import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { FiscalHeader, formatDate, money, SaasDocument, SaasPayment, SaasProps, statusLabels } from './fiscal-tabs';
+import { FiscalHeader, formatDate, money, SaasDocument, SaasPayment, SaasProps, SaasReceiver, statusLabels } from './fiscal-tabs';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: route('admin.dashboard') },
@@ -52,6 +52,40 @@ const taxationTypes = [
     ['nonIncidence', 'Não incidência'],
 ];
 
+const identityLabels: Record<string, string> = { cnpj: 'CNPJ', legal_name: 'razão social' };
+
+/** Dados do tomador enviados à Spedy, para conferência antes de emitir. */
+function ReceiverPreview({ receiver }: { receiver: SaasReceiver }) {
+    const address = receiver.address;
+    const city = [address?.city?.name, address?.city?.state].filter(Boolean).join('/');
+
+    return (
+        <div className="space-y-1 rounded-md border p-3">
+            <p className="font-medium">Tomador da nota (como será enviado ao emissor)</p>
+            <p>
+                {receiver.name || '-'} · CPF/CNPJ {receiver.federal_tax_number || '-'} · {receiver.email || 'sem e-mail'}
+            </p>
+            <p className="text-muted-foreground">
+                {address
+                    ? `${address.street ?? ''}, ${address.number ?? 'S/N'} · ${address.district ?? ''} · ${city} · CEP ${address.postalCode ?? '-'}`
+                    : 'Endereço não enviado (logradouro ou CEP ausente no cadastro do cliente).'}
+            </p>
+            {receiver.name_truncated && (
+                <p className="text-amber-700 dark:text-amber-400">
+                    O nome completo ({receiver.full_name}) passa do limite do emissor e será enviado cortado.
+                </p>
+            )}
+            {receiver.identity_changed_at && (
+                <p className="text-amber-700 dark:text-amber-400">
+                    {receiver.identity_changes.map((field) => identityLabels[field] ?? field).join(' e ')} alterado(s) em{' '}
+                    {formatDate(receiver.identity_changed_at)}
+                    {receiver.identity_changed_by ? ` por ${receiver.identity_changed_by}` : ''}. Confira antes de emitir.
+                </p>
+            )}
+        </div>
+    );
+}
+
 export default function SaasInvoices({ issuer, tenants, selectedTenant, payments, documents }: SaasProps) {
     const { data, setData, put, processing, errors } = useForm({
         ...Object.fromEntries(issuerFields.map(([key]) => [key, issuer[key] ?? ''])),
@@ -78,7 +112,12 @@ export default function SaasInvoices({ issuer, tenants, selectedTenant, payments
 
     const emit = (payment: SaasPayment) => {
         const period = periods[payment.id] ?? { start: payment.suggested_start, end: payment.suggested_end ?? '' };
-        if (!window.confirm(`Emitir NFS-e de ${money(payment.amount)} para ${selectedTenant?.name}, referência ${period.start} a ${period.end}?`))
+        const receiver = selectedTenant?.receiver;
+        if (
+            !window.confirm(
+                `Emitir NFS-e de ${money(payment.amount)} para ${receiver?.name || selectedTenant?.name} (CPF/CNPJ ${receiver?.federal_tax_number || '-'}), referência ${period.start} a ${period.end}?`,
+            )
+        )
             return;
         router.post(
             route('admin.fiscal.saas.emit', payment.id),
@@ -296,6 +335,7 @@ export default function SaasInvoices({ issuer, tenants, selectedTenant, payments
                             {selectedTenant.receiver_problems.length > 0 && (
                                 <p className="text-destructive">{selectedTenant.receiver_problems.join(' ')}</p>
                             )}
+                            <ReceiverPreview receiver={selectedTenant.receiver} />
                             <Table>
                                 <TableHeader>
                                     <TableRow>

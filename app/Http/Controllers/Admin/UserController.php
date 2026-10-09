@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\UserRequest;
+use App\Http\Requests\Admin\AdminUserRequest;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\TenantSequence;
@@ -47,17 +47,14 @@ class UserController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(UserRequest $request): RedirectResponse
+    public function store(AdminUserRequest $request): RedirectResponse
     {
-        $data = $request->all();
-        $request->validated();
-        $tenantId = ! empty($data['tenant_id']) ? (int) $data['tenant_id'] : null;
+        $data = $request->userData();
         $data['user_number'] = TenantSequence::next(
             User::class,
             'user_number',
-            $tenantId
+            $data['tenant_id']
         );
-        $data['password'] = Hash::make($request->password);
         Model::reguard();
         User::create($data);
         Model::unguard();
@@ -86,11 +83,15 @@ class UserController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UserRequest $request, User $user): RedirectResponse
+    public function update(AdminUserRequest $request, User $user): RedirectResponse
     {
-        $data = $request->all();
-        $request->validated();
-        $data['password'] = $request->password ? Hash::make($request->password) : $user->password;
+        $data = $request->userData();
+
+        // O RootAdmin não pode tirar o próprio acesso (troca de função ou de empresa).
+        if ($user->is($request->user()) && ($data['tenant_id'] !== null || ! in_array($data['roles'], [User::ROLE_ROOT_SYSTEM, User::ROLE_ROOT_APP], true))) {
+            return back()->withErrors(['roles' => 'Você não pode remover o seu próprio acesso de RootAdmin.']);
+        }
+
         Model::reguard();
         $user->update($data);
         Model::unguard();
@@ -101,8 +102,16 @@ class UserController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
+        if ($user->is($request->user())) {
+            return back()->with('error', 'Você não pode excluir o seu próprio usuário.');
+        }
+
+        if ($user->isRootAdmin() && User::query()->whereNull('tenant_id')->whereIn('roles', [User::ROLE_ROOT_SYSTEM, User::ROLE_ROOT_APP])->count() <= 1) {
+            return back()->with('error', 'Não é possível excluir o último RootAdmin.');
+        }
+
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('success', 'Usuário excluido com sucesso!');
