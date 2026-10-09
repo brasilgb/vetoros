@@ -461,8 +461,8 @@
             <p>Manual do cliente com foco operacional, financeiro e de configuração do sistema.</p>
 
             <div class="meta">
-                <div><strong>Versão do manual</strong>2.2</div>
-                <div><strong>Atualizado em</strong>23 de julho de 2026</div>
+                <div><strong>Versão do manual</strong>2.3</div>
+                <div><strong>Atualizado em</strong>9 de outubro de 2026</div>
                 <div><strong>Formato</strong>HTML navegável</div>
             </div>
 
@@ -508,7 +508,9 @@
                 <a href="#comissoes-tecnicos">29. Comissão por técnico</a>
                 <a href="#ajustes-avaliacoes-ajuda">30. Ajustes, avaliações e ajuda</a>
                 <a href="#assinatura-plano">31. Plano e assinatura</a>
-                <a href="#suporte">32. Suporte</a>
+                <a class="group-start" href="#compras">32. Compras e fornecedores</a>
+                <a href="#indicadores">33. Indicadores</a>
+                <a href="#suporte">34. Suporte</a>
             </nav>
         </aside>
 
@@ -535,14 +537,23 @@
                     regras de visibilidade entre perfis, liberação de Técnico master para visualizar todas as ordens,
                     central de aplicativos auxiliares com APKs Android, app técnico para atendimento em campo,
                     notificações de agendamento, mensagens amigáveis em falhas de operação e confirmação visual após
-                    pagamento de assinatura. O fluxo fiscal foi simplificado para registrar manualmente NF-e nas
-                    vendas e NFS-e nas ordens, sem contratação obrigatória de API dentro do VetorOS.
+                    pagamento de assinatura. O registro manual de NF-e nas vendas e de NFS-e nas ordens continua disponível para empresas
+                    que emitem as notas fora do sistema.
                 </div>
                 <div class="callout">
                     Novidades operacionais desta versão: painel com prioridades do dia, filtros rápidos de ordens,
                     tempo no status, conferência orientativa na entrada do equipamento, aviso de possível OS duplicada,
-                    alerta de estoque baixo, ações secundárias agrupadas e linha do tempo recolhível. As telas respeitam
-                    os temas claro e escuro configurados pelo usuário.
+                    alerta de estoque baixo e ações secundárias agrupadas. As telas respeitam os temas claro e escuro
+                    configurados pelo usuário.
+                </div>
+                <div class="callout">
+                    <strong>Novidades da versão 2.3 do manual:</strong> emissão automática de NF-e, NFC-e e NFS-e pelo
+                    próprio sistema; módulo de Compras com fornecedores e ordens de compra; equipamentos cadastrados
+                    por cliente; conexão do WhatsApp da empresa por QR Code, com envio direto e registro da
+                    comunicação na OS; orçamento com versões e validade; novos status Em diagnóstico, Aguardando peça
+                    e Aguardando cliente; motivo obrigatório para cancelar, regredir ou reabrir uma OS; prazo original
+                    de entrega; desconto e acréscimo na OS; taxas dos meios de pagamento; custo médio das peças;
+                    importação de produtos por CSV; tela Indicadores; e atalhos de Caixa, PDV e Calendário no painel.
                 </div>
 
                 <section id="introducao">
@@ -577,22 +588,33 @@
                         </div>
                         <div class="card">
                             <strong>Financeiro</strong>
-                            Pagamentos de ordens, vendas, despesas, caixa diário, relatórios financeiros e emissão
-                            fiscal opcional.
+                            Pagamentos de ordens, vendas e PDV, despesas, caixa diário, contas a pagar, comissões e
+                            relatórios financeiros.
                         </div>
                         <div class="card">
                             <strong>Cadastro e controle</strong>
-                            Peças, produtos, estoque, equipamentos, checklists, usuários e permissões.
+                            Peças, produtos, estoque, fornecedores, ordens de compra, equipamentos dos clientes,
+                            checklists, usuários e permissões.
                         </div>
                         <div class="card">
                             <strong>Comunicação</strong>
-                            WhatsApp, e-mails automáticos por status, lembretes de cobrança, notificações do app técnico
-                            e teste SMTP.
+                            WhatsApp conectado da empresa, e-mails automáticos por status, lembretes de cobrança,
+                            notificações do app técnico e teste SMTP.
                         </div>
                         <div class="card">
                             <strong>Aplicativos auxiliares</strong>
                             Downloads dos apps Android Vetor Imagem, Vetor Atendimento e Vetor Técnico para apoiar
                             rotinas fora da tela principal.
+                        </div>
+                        <div class="card">
+                            <strong>Fiscal</strong>
+                            Emissão automática de NF-e, NFC-e e NFS-e pelo sistema ou registro manual das notas
+                            emitidas fora dele.
+                        </div>
+                        <div class="card">
+                            <strong>Indicadores</strong>
+                            OS paradas e atrasadas, conversão de orçamentos, cumprimento de prazo, produtividade
+                            técnica e rentabilidade conhecida.
                         </div>
                     </div>
                 </section>
@@ -604,18 +626,24 @@
                         recibos, comprovantes, impressões e comunicações.</p>
                     <h4>3.2 Tipos de equipamento</h4>
                     <p>Cadastre os tipos atendidos, como celular, notebook, impressora, televisão, tablet e outros
-                        equipamentos.</p>
+                        equipamentos. Cada tipo pode receber uma categoria (<strong>Mobile</strong>, <strong>PC</strong>
+                        ou <strong>Outro</strong>) e ser marcado para aparecer no gráfico de equipamentos do painel.
+                        Os tipos também podem ser gerenciados direto no formulário da OS, sem sair do atendimento.</p>
                     <h4>3.3 Checklists</h4>
                     <p>Cadastre checklists por tipo de equipamento para padronizar a conferência de entrada e saída.</p>
                     <h4>3.4 Mensagens padrão</h4>
                     <p>Configure mensagens de WhatsApp para os cenários usados pela empresa, como orçamento, atualização
-                        de status e retirada.</p>
+                        de status e retirada. Para enviar as mensagens direto pelo sistema, conecte o WhatsApp da
+                        empresa na aba <strong>Conexão</strong> de <strong>Configurações → Mensagens do
+                        WhatsApp</strong> (seção 13.4).</p>
                     <h4>3.5 Impressões e etiquetas</h4>
                     <p>Ajuste os textos usados em recibos, comprovantes e etiquetas para manter o padrão visual da
                         operação.</p>
                     <h4>3.6 Módulos opcionais</h4>
                     <p>Em <strong>Configurações → Sistema e módulos</strong>, é possível habilitar ou desabilitar recursos como orçamentos,
-                        peças/estoque, vendas e partes do menu operacional conforme a necessidade da empresa.</p>
+                        peças/estoque, vendas e partes do menu operacional conforme a necessidade da empresa. O quadro
+                        <strong>Módulos financeiros</strong> reúne <strong>Financeiro da assistência</strong>,
+                        <strong>Vendas / PDV</strong> e <strong>Compras / Fornecedores</strong>.</p>
                     <h4>3.7 Configuração de e-mail</h4>
                     <p>Para usar e-mails automáticos, configure SMTP com host, porta, usuário, senha, criptografia,
                         endereço remetente e nome do remetente. O sistema também possui envio de e-mail de teste para
@@ -623,21 +651,28 @@
                     <p>Quando o SMTP está configurado corretamente, o sistema pode enviar e-mails de criação de ordem,
                         atualização de status, acompanhamento de orçamento e cobrança pendente.</p>
                     <h4>3.8 Documentos fiscais</h4>
-                    <p>O VetorOS mantém o controle fiscal de forma manual. Emita a NF-e ou NFS-e no sistema oficial ou
-                        serviço escolhido pela empresa e depois registre no VetorOS o número, a chave, a data, os links
-                        dos arquivos e as observações. Não é necessário contratar uma API fiscal para usar esse registro.</p>
+                    <p>O VetorOS oferece dois caminhos. Na <strong>emissão automática</strong>, a NF-e, a NFC-e e a
+                        NFS-e são emitidas pelo próprio sistema depois que a empresa emissora é cadastrada, o
+                        certificado digital A1 é enviado e os dados tributários são confirmados com a contabilidade.
+                        No <strong>registro manual</strong>, a nota é emitida fora do VetorOS e depois registrada com
+                        número, chave, data, links e observações. Os detalhes estão na seção 24.</p>
                     <h4>3.9 Abas de configurações</h4>
                     <p>A página <strong>Sistema e módulos</strong> está dividida em três abas. Em <strong>Sistema e SMTP</strong> ficam
-                        os habilitadores gerais e os dados do servidor de e-mail. Em <strong>Fiscal</strong> ficam os
-                        habilitadores para registro manual de NF-e e NFS-e. Em <strong>Operacionais</strong> ficam metas,
-                        indicadores, visibilidade de menus e regras de acompanhamento.</p>
+                        os habilitadores gerais e os dados do servidor de e-mail. Em <strong>Fiscal</strong> ficam o módulo
+                        fiscal, os tipos de nota usados pela empresa e o botão <strong>Configurar emissão
+                        fiscal</strong>, que abre a tela da emissão automática. Em <strong>Operacionais</strong> ficam metas,
+                        indicadores, visibilidade de menus e regras de acompanhamento. Na mesma página fica o quadro
+                        <strong>Taxas dos meios de pagamento</strong> (seção 7.5).</p>
                     <h4>3.10 Ordem de implantação sugerida</h4>
                     <ol>
                         <li>Configurar dados da empresa e validar os textos de recibo.</li>
                         <li>Configurar SMTP e usar o botão de teste de e-mail.</li>
                         <li>Definir tipos de equipamento, checklists e mensagens padrão.</li>
                         <li>Decidir quais módulos ficarão ativos: peças, vendas, acompanhamentos e qualidade.</li>
-                        <li>Definir com a contabilidade onde a empresa emitirá suas notas e registrar os documentos no VetorOS.</li>
+                        <li>Definir com a contabilidade se as notas serão emitidas automaticamente pelo VetorOS ou fora dele; no caso automático, testar em homologação antes de pedir a liberação de produção.</li>
+                        <li>Conectar o WhatsApp da empresa por QR Code e revisar os modelos de mensagem.</li>
+                        <li>Cadastrar fornecedores e importar peças e produtos por CSV quando houver uma base anterior.</li>
+                        <li>Informar as taxas cobradas por cartão, boleto e demais meios de pagamento.</li>
                         <li>Baixar e instalar os aplicativos auxiliares usados pela operação, quando houver equipe móvel.</li>
                         <li>Revisar metas, prazo de avaliação e intervalo de acompanhamento automático.</li>
                     </ol>
@@ -685,13 +720,22 @@
                         ação da equipe. Cada item é clicável e abre a listagem já filtrada.</p>
                     <ul>
                         <li><strong>Prazo vencido:</strong> OS abertas com previsão de entrega anterior ao dia atual.</li>
-                        <li><strong>Aguardando aprovação:</strong> orçamentos enviados que ainda estão no status de orçamento gerado.</li>
+                        <li><strong>Vencendo hoje / Vencendo amanhã:</strong> OS abertas com previsão de entrega para hoje ou para amanhã.</li>
+                        <li><strong>Aguardando aprovação:</strong> orçamentos enviados ao cliente, ainda dentro da validade e sem resposta.</li>
+                        <li><strong>Orçamento vencido:</strong> orçamentos cuja validade terminou sem resposta do cliente. Altere ou reenvie o orçamento para gerar uma nova versão.</li>
                         <li><strong>Aguardando retirada:</strong> serviços concluídos em que o cliente já foi avisado.</li>
                         <li><strong>Sem técnico:</strong> ordens ativas ainda sem responsável definido.</li>
                         <li><strong>Estoque baixo:</strong> peças ou produtos cuja quantidade chegou ao estoque mínimo configurado.</li>
                     </ul>
                     <p>O vermelho é reservado para prazos efetivamente vencidos. Os demais itens usam cores neutras
-                        para facilitar a leitura sem transformar o painel em uma tela de alertas.</p>
+                        para facilitar a leitura sem transformar o painel em uma tela de alertas. Quando não há nenhuma
+                        pendência, a faixa mostra <strong>Operação em dia</strong>. Os itens respeitam o escopo do
+                        usuário: o técnico vê somente as próprias OS.</p>
+                    <p>Junto das prioridades ficam os <strong>Atalhos rápidos</strong>: <strong>Caixa</strong>, que
+                        informa se o caixa está aberto ou fechado e, quando fechado, leva à abertura;
+                        <strong>PDV</strong>, para registrar uma venda; e <strong>Calendário</strong>, com os
+                        agendamentos. Em telas largas os atalhos ficam à direita da faixa; em telas menores aparecem
+                        logo abaixo dela.</p>
                     <h4>4.2 O que analisar todos os dias</h4>
                     <ul>
                         <li><strong>Ordens em atraso:</strong> ajudam a priorizar atendimento, peças pendentes e retorno ao cliente.</li>
@@ -715,6 +759,15 @@
                     <p>Nos indicadores financeiros operacionais, os valores de faturamento, serviços e peças são
                         apresentados com formatação monetária em reais. Isso facilita a conferência visual dos KPIs e
                         evita leitura ambígua de valores sem o prefixo <strong>R$</strong>.</p>
+                    <h4>4.5 Dashboard de compras</h4>
+                    <p>Com o módulo <strong>Compras / Fornecedores</strong> ativo, o painel ganha a visão de compras:
+                        total comprado no período, ticket médio das ordens de compra recebidas, ordens de compra em
+                        aberto, peças com estoque abaixo do mínimo, compras por mês nos últimos seis meses e os
+                        fornecedores com maior volume.</p>
+                    <h4>4.6 Painel e Indicadores</h4>
+                    <p>O painel mostra a rotina do dia de cada usuário. Para uma leitura gerencial da empresa inteira,
+                        com períodos e regras de cálculo explícitas, use a tela <strong>Indicadores</strong>
+                        (seção 33).</p>
                 </section>
 
                 <section id="clientes">
@@ -727,6 +780,7 @@
                         <li>Consultar ordens e agendamentos vinculados.</li>
                         <li>Visualizar total de ordens, total pago e saldo pendente por cliente.</li>
                         <li>Enviar mensagem via WhatsApp.</li>
+                        <li>Cadastrar os equipamentos de cada cliente.</li>
                     </ul>
                     <h4>5.1 Fluxo recomendado</h4>
                     <ol>
@@ -739,7 +793,7 @@
                         <li><strong>Novo cliente:</strong> abre o formulário de cadastro.</li>
                         <li><strong>Editar:</strong> atualiza dados cadastrais e observações.</li>
                         <li><strong>Excluir:</strong> remove o cadastro quando não houver vínculo impeditivo.</li>
-                        <li><strong>WhatsApp:</strong> abre o fluxo de contato rápido com o cliente.</li>
+                        <li><strong>Enviar WhatsApp:</strong> envia a mensagem pelo WhatsApp conectado da empresa, a partir de um modelo ou de texto livre.</li>
                         <li><strong>Pesquisar:</strong> filtra por nome, documento ou informação relevante.</li>
                     </ul>
                     <p>O saldo pendente do cliente considera ordens entregues ao cliente que ainda possuem valor em
@@ -767,6 +821,16 @@
                         <strong>Assinatura no app para entrada de equipamentos</strong> em uma OS já aberta.
                         Ele usa o mesmo ambiente do VetorOS e ajuda a equipe de recepção a reduzir tempo em tarefas
                         simples da rotina.</p>
+                    <h4>5.7 Equipamentos do cliente</h4>
+                    <p>Na edição do cliente, a aba <strong>Equipamentos</strong> lista os aparelhos daquele cliente
+                        com tipo, marca, modelo, número de série, IMEI, acessórios, observações e situação. Use
+                        <strong>Novo equipamento</strong> para cadastrar e <strong>Editar equipamento</strong> para
+                        corrigir os dados.</p>
+                    <ul>
+                        <li>Na abertura da OS, o campo <strong>Equipamento do cliente</strong> mostra somente os equipamentos ativos do cliente selecionado. Se o aparelho ainda não existe, use <strong>Cadastrar equipamento do cliente</strong> no próprio formulário; ele já fica selecionado na OS.</li>
+                        <li>A busca aceita marca, modelo, número de série e IMEI.</li>
+                        <li>Um equipamento com OS vinculada não pode ser excluído. Desmarque <strong>Equipamento ativo</strong> para que ele deixe de aparecer em novas OS sem perder o histórico.</li>
+                    </ul>
                 </section>
 
                 <section id="ordens">
@@ -851,9 +915,27 @@
                                 <td>Entregue ao cliente</td>
                                 <td>Encerramento do atendimento com entrega final.</td>
                             </tr>
+                            <tr>
+                                <td>13</td>
+                                <td>Em diagnóstico</td>
+                                <td>Equipamento em avaliação técnica antes do orçamento.</td>
+                            </tr>
+                            <tr>
+                                <td>14</td>
+                                <td>Aguardando peça</td>
+                                <td>Atendimento parado à espera de peça ou material.</td>
+                            </tr>
+                            <tr>
+                                <td>15</td>
+                                <td>Aguardando cliente</td>
+                                <td>Atendimento parado à espera de resposta, documento ou ação do cliente.</td>
+                            </tr>
                         </tbody>
                     </table>
 
+                    <p><strong>Ordem cancelada</strong> e <strong>Entregue ao cliente</strong> encerram a OS. Os status
+                        de espera (Aguardando peça e Aguardando cliente) podem ser usados em qualquer etapa do
+                        atendimento ativo.</p>
                     <p>Se o SMTP estiver configurado e o cliente tiver e-mail válido, o sistema pode enviar e-mail
                         automático na criação da ordem e sempre que houver atualização de status.</p>
                     <p>Ao entregar uma OS, informe a quantidade de dias de garantia. Essa OS passa a ser a
@@ -867,7 +949,8 @@
                         <li><strong>Adicionar pagamento:</strong> abre o registro financeiro da ordem.</li>
                         <li><strong>Enviar acompanhamento:</strong> dispara contato manual de orçamento.</li>
                         <li><strong>Enviar lembrete de cobrança:</strong> registra e envia uma cobrança manual ao cliente.</li>
-                        <li><strong>Registrar fiscal:</strong> salva dados do comprovante ou documento fiscal vinculado à OS.</li>
+                        <li><strong>Nota fiscal:</strong> emite a NFS-e da OS pelo sistema, quando a emissão automática está liberada, ou registra manualmente a nota emitida fora do VetorOS.</li>
+                        <li><strong>Enviar atualização ao cliente:</strong> publica um recado no acompanhamento público da OS e, se o cliente tiver e-mail válido e o SMTP estiver configurado, envia o recado por e-mail.</li>
                         <li><strong>Imprimir recibo:</strong> abre a versão de impressão do comprovante da ordem.</li>
                         <li><strong>Visualizar detalhes:</strong> exibe histórico, pagamentos e dados operacionais.</li>
                         <li><strong>Mais ações:</strong> reúne acompanhamento público, recibo, imagens, cobrança de
@@ -951,11 +1034,18 @@
                     <p>Ao lado do status, o sistema informa há quantos dias a ordem permanece naquela etapa. Passe o
                         cursor sobre a informação para consultar a data e hora da última mudança. Esse indicador ajuda
                         a encontrar gargalos, mas não altera automaticamente o status da OS.</p>
-                    <h4>6.11 Linha do tempo</h4>
-                    <p>A linha do tempo reúne mudanças de status, pagamentos, peças, imagens, documentos fiscais,
-                        comunicações e outras ações registradas. Para manter a tela limpa, são mostrados inicialmente
-                        os eventos mais recentes. Use <strong>Ver histórico completo</strong> para expandir e
-                        <strong>Mostrar somente os recentes</strong> para recolher novamente.</p>
+                    <h4>6.11 Abas da OS</h4>
+                    <p>A edição da OS é dividida em abas. Em telas estreitas, a barra de abas rola na horizontal.</p>
+                    <ul>
+                        <li><strong>Detalhes:</strong> cliente, equipamento, defeito, status, valores, peças e prazos.</li>
+                        <li><strong>Histórico:</strong> atendimentos anteriores do mesmo equipamento, reincidência, quantidade de ocorrências com o mesmo defeito e situação da garantia.</li>
+                        <li><strong>Orçamento:</strong> versões do orçamento com envio, resposta do cliente e validade (seção 8.5).</li>
+                        <li><strong>Comunicação:</strong> mensagens de WhatsApp e e-mail enviadas ao cliente sobre a OS, com o modelo usado e a situação de cada envio (seção 13.5).</li>
+                    </ul>
+                    <p>Por trás das telas, o VetorOS mantém uma trilha permanente da OS: cada abertura, mudança de
+                        status, reabertura e troca de técnico fica registrada com data, autor (usuário, cliente ou
+                        sistema) e motivo, quando houver. Essa trilha não pode ser editada e alimenta a tela
+                        Indicadores.</p>
                     <h4>6.12 Assinatura no app para entrada de equipamentos</h4>
                     <p>A entrada do equipamento e a abertura da ordem continuam sendo cadastradas normalmente no
                         sistema web. A assinatura do cliente não aparece nesse formulário e deve ser coletada
@@ -973,6 +1063,33 @@
                         recibo de entrada emitido pelo sistema web, mas não pode ser capturada ou alterada pelo
                         formulário web de abertura da OS.
                     </div>
+                    <h4>6.13 Mudanças de status e motivo obrigatório</h4>
+                    <p>Avançar a OS no fluxo normal não exige justificativa. Em alguns casos, o campo
+                        <strong>Motivo da alteração de status</strong> passa a ser obrigatório:</p>
+                    <ul>
+                        <li><strong>Cancelar a OS</strong> ou marcar <strong>Serviço não executado</strong>.</li>
+                        <li><strong>Voltar a uma etapa anterior</strong>, por exemplo de Serviço concluído para Reparo em andamento. Escolha o tipo da alteração: <strong>Retorno de etapa</strong> ou <strong>Correção de lançamento</strong>.</li>
+                        <li><strong>Alterar uma OS encerrada</strong> (cancelada ou entregue). Escolha <strong>Reabertura (novo atendimento da OS)</strong> ou <strong>Correção de lançamento</strong> e informe o motivo.</li>
+                    </ul>
+                    <p>Ao sair de Entregue ao cliente, a data da entrega anterior é preservada como fato histórico.</p>
+                    <h4>6.14 Valores da OS</h4>
+                    <ul>
+                        <li><strong>Peças do estoque:</strong> entram pelo preço praticado no momento em que foram adicionadas. Mudanças posteriores no preço da peça não alteram OS já lançadas.</li>
+                        <li><strong>Peças e materiais avulsos:</strong> itens comprados para o atendimento, fora do estoque, com o respectivo custo.</li>
+                        <li><strong>Desconto e acréscimo:</strong> ajustam o total da OS.</li>
+                        <li><strong>Valor total:</strong> serviço + peças + acréscimo − desconto. O sistema recalcula o total ao salvar; o valor digitado na tela é apenas uma prévia.</li>
+                    </ul>
+                    <p>Ao excluir uma OS, as peças do estoque usadas nela voltam ao estoque. OS com nota fiscal
+                        emitida não pode ser excluída.</p>
+                    <h4>6.15 Previsão de entrega e prazo original</h4>
+                    <p>A <strong>Previsão de entrega</strong> é obrigatória. A primeira previsão informada fica
+                        guardada como <strong>prazo original</strong>. Se a data for renegociada depois, a OS passa a
+                        usar o novo prazo, mas o prazo original continua registrado. A tela Indicadores mede o
+                        cumprimento contra a promessa original e mostra quantas OS tiveram o prazo renegociado.</p>
+                    <h4>6.16 Permissões do técnico na OS</h4>
+                    <p>Usuários sem permissão de clientes veem o cliente e o equipamento da OS somente para leitura.
+                        Eles continuam atualizando diagnóstico, status, peças e demais dados técnicos da própria OS,
+                        mas não podem trocar o cliente, o equipamento do cliente ou o tipo de equipamento.</p>
                 </section>
 
                 <section id="pagamentos-ordens">
@@ -1000,8 +1117,8 @@
                     </div>
                     <p>Quando o financeiro de OS está ativo, a ordem já foi entregue ao cliente, ainda há saldo pendente
                         e o e-mail do cliente está válido, o sistema pode enviar lembrete de cobrança por e-mail.</p>
-                    <p>Depois de emitir uma NFS-e fora do VetorOS, registre manualmente seus dados na ordem para manter
-                        o histórico fiscal junto do atendimento.</p>
+                    <p>A NFS-e da ordem pode ser emitida pelo próprio VetorOS, quando a emissão automática está liberada,
+                        ou emitida fora dele e registrada manualmente na OS (seção 24).</p>
                     <h4>7.1 Botões e comportamentos</h4>
                     <ul>
                         <li><strong>Registrar pagamento:</strong> grava valor, data, forma de pagamento e observações.</li>
@@ -1029,6 +1146,16 @@
                         <li>Selecionar a forma de pagamento correta.</li>
                         <li>Evitar deixar recebimentos para registrar depois, para não distorcer caixa e relatórios.</li>
                     </ol>
+                    <h4>7.5 Taxas dos meios de pagamento</h4>
+                    <p>Em <strong>Configurações → Sistema e módulos</strong>, o quadro <strong>Taxas dos meios de
+                        pagamento</strong> permite informar, para cartão, boleto, transferência, Pix e dinheiro, um
+                        percentual e um valor fixo por pagamento.</p>
+                    <ul>
+                        <li>Ao registrar um pagamento, o campo <strong>Taxa cobrada (cartão, gateway etc.)</strong> é opcional. Vazio, o sistema usa a taxa configurada para o meio escolhido.</li>
+                        <li>A taxa fica gravada no pagamento. Alterar a configuração depois não muda pagamentos já registrados.</li>
+                        <li>A lista de pagamentos mostra a taxa e o valor líquido de cada lançamento.</li>
+                        <li>Sem taxa informada nem configurada, a taxa daquele pagamento é tratada como desconhecida, e a OS não entra na soma de rentabilidade da tela Indicadores.</li>
+                    </ul>
                 </section>
 
                 <section id="orcamentos">
@@ -1064,6 +1191,20 @@
                     <p>Quando a empresa usa o Vetor Atendimento, a equipe pode consultar informações de orçamento pelo
                         celular. Esse recurso ajuda em atendimentos rápidos, principalmente quando o colaborador precisa
                         localizar uma referência sem abrir a tela completa do sistema web.</p>
+                    <h4>8.5 Versões e validade do orçamento da OS</h4>
+                    <p>O orçamento da OS é guardado em versões. A aba <strong>Orçamento</strong> da OS mostra cada
+                        versão com valor, validade, data de envio, resposta do cliente e os itens da OS naquela
+                        versão.</p>
+                    <ul>
+                        <li><strong>Rascunho:</strong> enquanto o orçamento não foi liberado ao cliente, as alterações atualizam a mesma versão.</li>
+                        <li><strong>Enviado, aguardando cliente:</strong> o envio acontece quando a OS entra em Orçamento gerado. A partir daí a versão não muda mais.</li>
+                        <li><strong>Substituído por nova versão:</strong> alterar descrição, valor, link ou validade de um orçamento já enviado cria uma nova versão, e a anterior fica no histórico.</li>
+                        <li><strong>Aprovado</strong> ou <strong>Recusado:</strong> a resposta fica ligada à versão que o cliente viu. Só uma versão fica aprovada por OS.</li>
+                        <li><strong>Vencido:</strong> a validade terminou sem resposta. O cliente não consegue mais aprovar pela área pública; altere ou reenvie o orçamento para gerar uma nova versão.</li>
+                        <li><strong>Anterior ao versionamento:</strong> orçamento criado antes deste recurso, com datas de envio e resposta desconhecidas.</li>
+                    </ul>
+                    <p>Informe a <strong>Validade do orçamento</strong> ao gerar a proposta. O painel avisa quando há
+                        orçamento vencido, e a tela Indicadores mostra os orçamentos que vencem nos próximos dias.</p>
                 </section>
 
                 <section id="agendamentos">
@@ -1149,7 +1290,7 @@
                         retirada do equipamento e deixar avaliação com nota em 5 estrelas e opinião textual.</p>
                     <h4>10.1 Ações públicas do cliente</h4>
                     <ul>
-                        <li><strong>Aprovar orçamento:</strong> move a OS para orçamento aprovado quando a etapa permitir.</li>
+                        <li><strong>Aprovar orçamento:</strong> move a OS para orçamento aprovado quando a etapa permitir. Se o orçamento venceu ou foi substituído por uma versão mais nova, o cliente recebe um aviso e precisa ver a versão atual ou pedir uma nova.</li>
                         <li><strong>Reprovar orçamento:</strong> registra reprovação e encerra a proposta.</li>
                         <li><strong>Confirmar aviso:</strong> marca que o cliente recebeu o aviso de conclusão.</li>
                         <li><strong>Confirmar retirada:</strong> só libera a entrega pública se não houver saldo pendente.</li>
@@ -1234,7 +1375,7 @@
                         <li>Usa cron para executar acompanhamentos automáticos de orçamento e cobrança.</li>
                     </ul>
                     <p>A tela de acompanhamentos mostra pendências ativas, não um histórico completo de todos os contatos.
-                        Para consultar o histórico, use os registros e a linha do tempo da própria ordem.</p>
+                        Para consultar o histórico, use as abas Histórico e Comunicação da própria ordem.</p>
                     <h4>11.3 Quando usar cada ação</h4>
                     <ul>
                         <li><strong>Pausar:</strong> quando o cliente pediu prazo, está viajando ou já respondeu por outro canal.</li>
@@ -1319,8 +1460,10 @@
                         usuário, além de separar mensagens lidas e não lidas. Administradores podem ter uma visão mais
                         ampla conforme as permissões da conta.</p>
                     <h4>13.1 Modelos de WhatsApp</h4>
-                    <p>O módulo de mensagens do WhatsApp armazena textos padrão para comunicação com clientes, como
-                        orçamento, cobrança, aviso de conclusão e pedido de feedback.</p>
+                    <p>Em <strong>Configurações → Mensagens do WhatsApp</strong>, a aba <strong>Templates de
+                        mensagem</strong> armazena os textos padrão: orçamento gerado, serviço concluído, feedback ao
+                        cliente, mensagem padrão para os demais status, orçamento parado, cobrança pendente e aviso de
+                        agendamento ao técnico.</p>
                     <ul>
                         <li><strong>Salvar modelo:</strong> atualiza o texto padrão usado pela operação.</li>
                         <li><strong>Restaurar padrão:</strong> volta para o texto sugerido pelo sistema.</li>
@@ -1340,6 +1483,29 @@
                         <li><strong>Administrador:</strong> padroniza mensagens e revisa o tom institucional.</li>
                         <li><strong>Técnico:</strong> consulta instruções internas quando participa do fluxo operacional.</li>
                     </ul>
+                    <h4>13.4 Conexão do WhatsApp da empresa</h4>
+                    <p>As mensagens ao cliente saem do WhatsApp da própria empresa, conectado ao VetorOS. A conexão
+                        fica na aba <strong>Conexão</strong> de <strong>Configurações → Mensagens do WhatsApp</strong>.</p>
+                    <ol>
+                        <li>Clique em <strong>Conectar WhatsApp</strong>. O sistema inicia a sessão e exibe um QR Code.</li>
+                        <li>No celular da empresa, abra o WhatsApp em <strong>Aparelhos conectados → Conectar um aparelho</strong> e escaneie o código.</li>
+                        <li>Aguarde a situação mudar para <strong>Conectado</strong>. O número conectado aparece ao lado.</li>
+                    </ol>
+                    <p>As situações possíveis são <strong>Não conectado</strong>, <strong>Iniciando sessão</strong>,
+                        <strong>Aguardando leitura do QR Code</strong>, <strong>Conectado</strong> e <strong>Falha na
+                        conexão</strong>. Use <strong>Desconectar</strong> para encerrar a sessão, por exemplo ao trocar
+                        o aparelho da empresa.</p>
+                    <p>Com o WhatsApp conectado, o botão <strong>Enviar WhatsApp</strong> da OS, do cliente e do
+                        agendamento envia a mensagem direto pelo sistema. O envio é recusado quando o WhatsApp não está
+                        conectado, quando o telefone cadastrado é inválido ou quando o número não tem WhatsApp; nesses
+                        casos, a tela informa o motivo.</p>
+                    <h4>13.5 Registro da comunicação na OS</h4>
+                    <p>Cada mensagem enviada ao cliente sobre uma OS, por WhatsApp ou e-mail, fica na aba
+                        <strong>Comunicação</strong> da OS com data, canal, modelo usado (abertura da OS, orçamento
+                        gerado, acompanhamento de orçamento, serviço concluído, lembrete de pagamento, pedido de
+                        avaliação e outros) e situação: <strong>Enviada</strong>, <strong>Entregue</strong>,
+                        <strong>Lida</strong> ou <strong>Falhou</strong>. As confirmações de entrega e leitura chegam
+                        automaticamente pelo WhatsApp conectado.</p>
                 </section>
 
                 <section id="estoque">
@@ -1365,6 +1531,31 @@
                         <li>Baixa o estoque quando a peça é consumida em OS ou venda concluída.</li>
                         <li>Pode devolver quantidade ao estoque quando a venda é cancelada.</li>
                         <li>Ajuda a compor valor da ordem e relatórios de produtos.</li>
+                        <li>Devolve ao estoque as peças de uma OS excluída.</li>
+                        <li>Registra cada entrada e saída como movimento de estoque, com quantidade, custo e motivo.</li>
+                    </ul>
+                    <h4>14.3 Custo médio</h4>
+                    <p>O custo da peça é calculado pela média ponderada: a cada recebimento de compra, o sistema
+                        combina o saldo atual e seu custo com a quantidade recebida e o custo pago. O custo da peça
+                        fica gravado na OS no momento em que ela é aplicada, o que permite calcular a margem real
+                        do atendimento.</p>
+                    <h4>14.4 Dados fiscais do produto</h4>
+                    <p>Para emitir NF-e ou NFC-e automaticamente, cada peça ou produto vendido precisa ter
+                        <strong>NCM</strong> (8 dígitos) e <strong>CFOP</strong> (4 dígitos) no cadastro. Esses dados
+                        devem ser conferidos com a contabilidade.</p>
+                    <h4>14.5 Importação de peças e produtos por CSV</h4>
+                    <p>Na tela de peças e produtos, a importação por CSV agiliza a implantação de uma base existente.</p>
+                    <ol>
+                        <li>Clique em <strong>Baixar modelo .csv</strong>. O modelo usa ponto e vírgula como separador e traz uma linha de exemplo, iniciada por <strong>#</strong>, que é ignorada.</li>
+                        <li>Preencha a partir da linha 3 as colunas: codigo, nome, descricao, tipo (peça ou produto), categoria, fabricante, compatibilidade, vendavel, preco_custo, preco_venda, estoque_inicial, estoque_minimo, localizacao, ncm, cfop e ativo. Compatibilidade, localização, NCM e CFOP são opcionais; nas colunas de sim ou não, use sim/não.</li>
+                        <li>Envie o arquivo e clique em <strong>Validar arquivo</strong>. A prévia mostra, linha a linha, os itens <strong>Novos</strong>, os <strong>Duplicados (ignorados)</strong> e os que têm <strong>Erro</strong>. Nada é gravado nessa etapa.</li>
+                        <li>Corrija os erros, se houver, e confirme a importação.</li>
+                    </ol>
+                    <ul>
+                        <li>Um código já cadastrado é ignorado; o produto existente não é alterado.</li>
+                        <li>O estoque inicial entra como movimento oficial de entrada, com o custo informado.</li>
+                        <li>Limite de 2 MB e 2.000 produtos por arquivo. Arquivos salvos no Excel em formato Windows são convertidos automaticamente.</li>
+                        <li>A importação é feita inteira ou não é feita: se outro cadastro gravar o mesmo código durante o processo, nada é importado e o arquivo deve ser enviado de novo.</li>
                     </ul>
                 </section>
 
@@ -1378,7 +1569,8 @@
                         <li>Registro de valor total e valor pago.</li>
                         <li>Status financeiro: pendente, parcial, pago e cancelado.</li>
                         <li>Cancelamento de venda com devolução dos itens ao estoque.</li>
-                        <li>Registro manual dos dados da NF-e emitida no sistema fiscal escolhido pela empresa.</li>
+                        <li>Frente de caixa (PDV) com leitura de código de barras.</li>
+                        <li>Emissão automática de NF-e ou NFC-e, ou registro manual da nota emitida fora do sistema.</li>
                     </ul>
                     <p>O sistema exige caixa aberto para concluir uma venda e não permite valor pago acima do total.</p>
                     <p>Ao cancelar uma venda, o sistema pode devolver o item ao estoque e registrar logs de operação
@@ -1391,7 +1583,19 @@
                         <li><strong>Nova venda:</strong> cria o lançamento comercial e reserva os itens até a conclusão.</li>
                         <li><strong>Finalizar:</strong> grava pagamento, baixa estoque e atualiza o caixa.</li>
                         <li><strong>Cancelar:</strong> encerra a venda e devolve os itens ao estoque quando aplicável.</li>
+                        <li><strong>Emitir NF-e / Emitir NFC-e:</strong> emite a nota da venda pelo sistema, quando a emissão automática está liberada (seção 24).</li>
                         <li><strong>Registrar NF-e:</strong> salva manualmente número, chave, data, links e observações do documento emitido fora do VetorOS.</li>
+                    </ul>
+                    <h4>15.2 Frente de caixa (PDV)</h4>
+                    <p>Em <strong>PDV e vendas</strong>, use <strong>Abrir PDV</strong> para registrar uma venda no
+                        balcão. Adicione produtos pela busca ou digitando/lendo o código de barras e pressionando
+                        Enter. O sistema avisa quando o produto não é encontrado ou quando a quantidade é maior que o
+                        estoque disponível. Sem cliente informado, a venda é registrada como consumidor final.</p>
+                    <h4>15.3 Venda com nota fiscal</h4>
+                    <ul>
+                        <li>A NF-e exige cliente identificado na venda, com CPF ou CNPJ. Para consumidor final no balcão, emita NFC-e.</li>
+                        <li>Uma venda com nota emitida ou em processamento não pode ser cancelada.</li>
+                        <li>Uma venda com histórico de nota emitida não pode ser excluída.</li>
                     </ul>
                 </section>
 
@@ -1516,6 +1720,7 @@
                         <li>Usar Tarefas para distribuir pendências entre os responsáveis.</li>
                         <li>Usar Performance comercial para medir resultado real dos contatos.</li>
                         <li>Usar Garantia/Avaliações para identificar falhas recorrentes e clientes insatisfeitos.</li>
+                        <li>Usar Indicadores (seção 33) para acompanhar OS paradas, prazos, orçamentos e rentabilidade.</li>
                     </ol>
                     <h4>18.5 Quem costuma consultar cada relatório</h4>
                     <ul>
@@ -1531,14 +1736,12 @@
                     <ul>
                         <li>Dados da empresa.</li>
                         <li>Mensagens do WhatsApp.</li>
-                        <li>Impressões de recibos.</li>
-                        <li>Impressão de etiquetas.</li>
-                        <li>Configurações fiscais.</li>
-                        <li>Tipos de equipamento.</li>
-                        <li>Checklists.</li>
+                        <li>Sistema e módulos, incluindo a emissão fiscal e as taxas dos meios de pagamento.</li>
+                        <li>Mensagens do WhatsApp e conexão do WhatsApp da empresa.</li>
+                        <li>Recibos e checklists.</li>
+                        <li>Etiquetas.</li>
                         <li>Aplicativos auxiliares.</li>
                         <li>Ajustes e avaliações.</li>
-                        <li>Sistema e módulos.</li>
                     </ul>
                     <p>Em Sistema e módulos também ficam os parâmetros de SMTP, o habilitador de módulos opcionais,
                         o disparo do e-mail de teste e as regras operacionais do sistema.</p>
@@ -1549,8 +1752,8 @@
                         </div>
                         <div class="card">
                             <strong>Fiscal</strong>
-                            Habilita o registro manual de NF-e de produtos e NFS-e de serviços. A emissão acontece fora
-                            do VetorOS e o comprovante é registrado depois no sistema.
+                            Habilita o módulo fiscal e os tipos de nota. Pelo botão Configurar emissão fiscal, a empresa
+                            prepara a emissão automática; sem ela, as notas podem ser registradas manualmente.
                         </div>
                         <div class="card">
                             <strong>Operacionais</strong>
@@ -1559,8 +1762,7 @@
                         </div>
                         <div class="card">
                             <strong>Menus operacionais</strong>
-                            É possível mostrar ou ocultar Acompanhamentos, Tarefas, Performance comercial e
-                            Garantia/Avaliações.
+                            É possível mostrar ou ocultar Retornos ao cliente e Garantias e avaliações.
                         </div>
                         <div class="card">
                             <strong>Acompanhamento automático</strong>
@@ -1577,10 +1779,8 @@
                     <p>Em Operacionais, é possível decidir se alguns menus devem aparecer ou não para a empresa. Isso
                         ajuda a simplificar a navegação quando um recurso ainda não faz parte da rotina.</p>
                     <ul>
-                        <li>Acompanhamentos.</li>
-                        <li>Tarefas.</li>
-                        <li>Performance comercial.</li>
-                        <li>Garantia/Avaliações.</li>
+                        <li><strong>Retornos ao cliente:</strong> controla o item do menu Relacionamento que reúne a lista de retornos, a Central de pendências e os Resultados dos contatos.</li>
+                        <li><strong>Garantias e avaliações.</strong></li>
                     </ul>
                     <h4>19.2 Regras de acompanhamento</h4>
                     <p>O intervalo de acompanhamento define quantos dias o sistema deve esperar antes de considerar um novo
@@ -1809,43 +2009,95 @@
 
                 <section id="emissao-fiscal">
                     <h3>24. Emissão Fiscal</h3>
-                    <p>O VetorOS não emite notas automaticamente nem exige contratação de API fiscal. A empresa pode
-                        emitir seus documentos pelo sistema oficial, prefeitura, Emissor Nacional ou serviço de sua
-                        preferência e manter os dados registrados junto da operação.</p>
+                    <p>O VetorOS emite notas fiscais de duas formas. Na <strong>emissão automática</strong>, a NF-e e
+                        a NFC-e das vendas e a NFS-e das ordens de serviço são emitidas pelo próprio sistema, sem que a
+                        empresa precise contratar ou acessar outro serviço. No <strong>registro manual</strong>, a nota
+                        é emitida fora do VetorOS e os dados são registrados na venda ou na OS.</p>
+                    <div class="grid">
+                        <div class="card">
+                            <strong>NF-e</strong>
+                            Vendas para cliente identificado, com CPF/CNPJ e endereço.
+                        </div>
+                        <div class="card">
+                            <strong>NFC-e</strong>
+                            Cupom fiscal eletrônico do PDV para consumidor final.
+                        </div>
+                        <div class="card">
+                            <strong>NFS-e</strong>
+                            Nota de serviço emitida a partir dos serviços lançados na ordem de serviço.
+                        </div>
+                    </div>
+                    <h4>24.1 Como liberar a emissão automática</h4>
+                    <p>A emissão automática é liberada em etapas. Enquanto alguma etapa estiver pendente, a tela
+                        mostra o motivo e o registro manual continua disponível.</p>
+                    <ol>
+                        <li>Preencha CNPJ, razão social, inscrições e endereço em <strong>Configurações → Dados da empresa</strong>. A emissão usa esses dados.</li>
+                        <li>Em <strong>Configurações → Sistema e módulos → Fiscal</strong>, ative o <strong>Módulo fiscal</strong> e clique em <strong>Configurar emissão fiscal</strong>.</li>
+                        <li>A liberação da emissão automática para a conta e de cada tipo de nota é feita pela administração do VetorOS. Se a tela mostrar <strong>Emissão automática indisponível</strong>, fale com o suporte.</li>
+                        <li>O cadastro da empresa emissora também é feito pela administração, depois de validar os dados. A situação aparece como <strong>Pendente</strong>, <strong>Cadastrada</strong> ou <strong>Erro no cadastro</strong>.</li>
+                        <li>Envie o <strong>Certificado digital A1</strong> (arquivo .pfx ou .p12) com a senha. O arquivo e a senha são repassados ao emissor e não ficam armazenados no VetorOS. A tela avisa quando o certificado vence em menos de 30 dias.</li>
+                        <li>Habilite os tipos de nota usados pela empresa e preencha os dados tributários (24.2).</li>
+                        <li>Marque <strong>Confirmo que os dados tributários acima foram validados pela contabilidade</strong>. Sem essa confirmação a emissão fica bloqueada, e ela é desfeita sempre que algum dado tributário é alterado.</li>
+                        <li>Emita notas de teste em <strong>Homologação (testes, sem validade fiscal)</strong>. A troca para <strong>Produção (com validade fiscal)</strong> só é aceita depois que a administração aprova a produção para a empresa.</li>
+                    </ol>
+                    <p>Quando tudo estiver pronto, a <strong>Situação da emissão</strong> mostra <strong>Pronta para
+                        emitir</strong>.</p>
+                    <h4>24.2 Dados tributários</h4>
+                    <p>O VetorOS não presume CFOP, CST, alíquotas nem tipo de tributação. Todos esses dados devem ser
+                        informados pela empresa e conferidos com a contabilidade.</p>
+                    <ul>
+                        <li><strong>Gerais:</strong> regime tributário (Simples Nacional, Simples Nacional com excesso de sublimite, Regime Normal ou MEI).</li>
+                        <li><strong>Produtos (NF-e e NFC-e):</strong> séries, unidade, origem do ICMS, CSOSN/CST de ICMS, CST de PIS e CST de COFINS. Para NFC-e, informe também o ID do CSC e o CSC obtidos na SEFAZ. NCM e CFOP vêm do cadastro de cada peça ou produto (seção 14.4).</li>
+                        <li><strong>Serviços (NFS-e):</strong> padrão da NFS-e e provedor do município, código IBGE do município, item da lista de serviços (LC 116), alíquota de ISS, série do RPS/DPS e tipo de tributação (por exemplo, tributado no município, isento, imune ou exportação de serviço).</li>
+                    </ul>
+                    <div class="callout">
+                        <strong>Limites da emissão automática:</strong> CST de ICMS que exija base e alíquota (use 40,
+                        41, 50 ou 60), CST de PIS/COFINS com alíquota e venda com total maior que a soma dos itens
+                        (acréscimo) ainda não são suportados. Nesses casos, emita a nota fora do sistema e use o
+                        registro manual.
+                    </div>
+                    <h4>24.3 Como emitir</h4>
+                    <ul>
+                        <li><strong>Venda:</strong> abra a nota fiscal da venda e use <strong>Emitir NF-e</strong> (cliente identificado com CPF ou CNPJ) ou <strong>Emitir NFC-e</strong> (consumidor final). O desconto da venda é distribuído entre os itens.</li>
+                        <li><strong>Ordem de serviço:</strong> abra a nota fiscal da OS e use <strong>Emitir NFS-e</strong>. A nota usa o valor dos serviços da OS, com o desconto aplicado como desconto incondicionado. A OS precisa ter cliente com CPF ou CNPJ, valor de serviço e descrição dos serviços prestados.</li>
+                    </ul>
+                    <p>Antes de enviar, o sistema confere os dados e lista o que falta, como CNPJ da empresa, NCM ou
+                        CFOP de um produto, CPF/CNPJ do cliente ou alíquota de ISS. Depois do envio, a nota pode ser
+                        autorizada na hora ou ficar <strong>Em processamento</strong>; o resultado aparece em instantes
+                        em <strong>Notas fiscais</strong>.</p>
+                    <h4>24.4 Notas fiscais: consulta, arquivos e cancelamento</h4>
+                    <p>O menu <strong>Fiscal → Notas fiscais</strong> lista NF-e, NFC-e e NFS-e emitidas ou
+                        registradas, com tipo, número, vínculo (venda ou OS), origem e status.</p>
+                    <ul>
+                        <li><strong>Status:</strong> Em processamento, Autorizada, Rejeitada, Denegada, Cancelada, Em contingência, Falhou ou Registrada (registro manual).</li>
+                        <li><strong>Origem:</strong> Emissão automática, Emissão automática (homologação), Emissão assistida, Registrada ou Integração anterior.</li>
+                        <li><strong>Atualizar status:</strong> consulta o resultado da nota no emissor. O sistema também atualiza as notas sozinho, por aviso do emissor e por uma verificação periódica.</li>
+                        <li><strong>Abrir PDF</strong> e <strong>Baixar XML:</strong> disponíveis para notas autorizadas. Os arquivos ficam guardados no VetorOS depois da autorização.</li>
+                        <li><strong>Cancelar nota:</strong> disponível para notas autorizadas e emitidas pelo sistema. Exige justificativa de 15 a 255 caracteres.</li>
+                        <li><strong>Nota rejeitada:</strong> corrija o dado apontado na mensagem e emita novamente pela venda ou pela OS.</li>
+                    </ul>
+                    <h4>24.5 Registro manual</h4>
+                    <p>Quando a emissão automática não estiver liberada ou não atender ao caso, emita a nota fora do
+                        VetorOS e registre os dados.</p>
+                    <ol>
+                        <li>Emita a NFS-e no Emissor Nacional ou no emissor do município, ou a NF-e no software da empresa, emissor autorizado ou solução indicada pela SEFAZ estadual.</li>
+                        <li>Abra a OS ou a venda correspondente e use a opção de registro da nota.</li>
+                        <li>Informe número, chave ou código de verificação, data de emissão, links do DANFE, XML ou consulta e observações.</li>
+                        <li>Salve e confira se o documento ficou vinculado ao registro correto.</li>
+                    </ol>
                     <div class="callout">
                         <strong>Links oficiais:</strong> para serviços, o botão abre o Emissor Nacional da NFS-e. Para
                         produtos, o Portal Nacional da NF-e é oficial para informações e consultas, mas não funciona
-                        como emissor web nacional. A NF-e deve ser emitida pelo software da empresa, emissor autorizado
-                        ou solução indicada pela SEFAZ estadual.
+                        como emissor web nacional.
                     </div>
-                    <h4>24.1 Como registrar uma NFS-e da ordem</h4>
-                    <ol>
-                        <li>Emita a NFS-e fora do VetorOS pelo emissor utilizado pela empresa.</li>
-                        <li>Abra a ordem de serviço correspondente e escolha a opção de registro manual da nota.</li>
-                        <li>Informe número, chave ou código de verificação, data de emissão, links disponíveis e observações.</li>
-                        <li>Salve e confira se o documento ficou vinculado à ordem correta.</li>
-                    </ol>
-                    <h4>24.2 Como registrar uma NF-e da venda</h4>
-                    <ol>
-                        <li>Emita a NF-e de produtos fora do VetorOS.</li>
-                        <li>Abra a venda correspondente e use a opção de registro manual da NF-e.</li>
-                        <li>Informe os dados do documento e os links do DANFE ou XML, quando disponíveis.</li>
-                        <li>Salve para manter o histórico fiscal associado à venda.</li>
-                    </ol>
-                    <h4>24.3 Consulta e arquivos</h4>
-                    <p>A listagem de notas permite consultar os registros vinculados às ordens e vendas. Como o fluxo é
-                        manual, o VetorOS não transmite, autoriza, cancela ou sincroniza documentos com órgãos fiscais.</p>
-                    <h4>24.4 Permissões e responsabilidade fiscal</h4>
+                    <h4>24.6 Regras e responsabilidade fiscal</h4>
                     <ul>
-                        <li>O registro fica disponível somente para usuários com a permissão correspondente.</li>
-                        <li>Confira o vínculo com a ordem ou venda antes de salvar.</li>
+                        <li>Cada venda ou OS tem uma única nota ativa: não é possível emitir outra enquanto houver nota autorizada ou em processamento, nem emitir automaticamente quando já existe um comprovante registrado manualmente.</li>
+                        <li>Venda com nota emitida ou em processamento não pode ser cancelada; venda ou OS com histórico de nota emitida não pode ser excluída.</li>
+                        <li>Não é possível emitir nota para venda cancelada.</li>
+                        <li>As ações fiscais ficam disponíveis somente para usuários com a permissão correspondente.</li>
                         <li>A responsabilidade pela conferência tributária, alíquotas, códigos fiscais e obrigações legais permanece com a empresa e sua contabilidade.</li>
                     </ul>
-                    <h4>24.5 Configuração do modo manual</h4>
-                    <p>Em <strong>Sistema e módulos &gt; Fiscal</strong>, habilite o módulo fiscal e os tipos de documento
-                        usados pela empresa (NF-e de produtos e/ou NFS-e Nacional de serviços). O modo de emissão é
-                        sempre <strong>Manual com registro de comprovante</strong>: a nota é emitida fora do VetorOS e
-                        depois vinculada à venda ou à ordem de serviço correspondente.</p>
                 </section>
 
                 <section id="botoes">
@@ -1909,10 +2161,40 @@
                                 <td>Log de tarefa concluída.</td>
                             </tr>
                             <tr>
+                                <td>Emitir NF-e / NFC-e / NFS-e</td>
+                                <td>Vendas / OS</td>
+                                <td>Envia a nota fiscal para autorização pela emissão automática.</td>
+                                <td>Nota vinculada à venda ou OS, status, arquivos PDF/XML e usuário.</td>
+                            </tr>
+                            <tr>
                                 <td>Registrar fiscal</td>
                                 <td>OS / Vendas</td>
-                                <td>Salva manualmente os dados de um documento emitido fora da integração.</td>
+                                <td>Salva manualmente os dados de um documento emitido fora do VetorOS.</td>
                                 <td>Número, chave, data e usuário responsável.</td>
+                            </tr>
+                            <tr>
+                                <td>Cancelar nota</td>
+                                <td>Notas fiscais</td>
+                                <td>Pede o cancelamento de uma nota autorizada.</td>
+                                <td>Justificativa, usuário e resultado do cancelamento.</td>
+                            </tr>
+                            <tr>
+                                <td>Enviar WhatsApp</td>
+                                <td>OS / Clientes / Agendamentos</td>
+                                <td>Envia a mensagem pelo WhatsApp conectado da empresa.</td>
+                                <td>Na OS, o envio aparece na aba Comunicação com sua situação.</td>
+                            </tr>
+                            <tr>
+                                <td>Receber</td>
+                                <td>Ordens de compra</td>
+                                <td>Confirma a chegada da compra.</td>
+                                <td>Entrada no estoque, novo custo médio e conta a pagar.</td>
+                            </tr>
+                            <tr>
+                                <td>Validar arquivo</td>
+                                <td>Importação de produtos</td>
+                                <td>Mostra a prévia da importação sem gravar nada.</td>
+                                <td>Nada até a confirmação da importação.</td>
                             </tr>
                             <tr>
                                 <td>Teste de e-mail</td>
@@ -1958,6 +2240,10 @@
                         <li>Usar relatórios para acompanhar desempenho, faturamento e pendências.</li>
                         <li>Revisar diariamente Acompanhamentos, Tarefas e Garantia/Avaliações.</li>
                         <li>Validar o portal do cliente com alguns atendimentos antes de divulgar em massa.</li>
+                        <li>Informar validade em todo orçamento e acompanhar os orçamentos vencidos no painel.</li>
+                        <li>Registrar o motivo real ao cancelar, regredir ou reabrir uma OS; ele fica permanente na trilha da OS.</li>
+                        <li>Testar a emissão automática em homologação e revisar os dados tributários com a contabilidade antes de emitir em produção.</li>
+                        <li>Manter o WhatsApp da empresa conectado e conferir a aba Comunicação da OS quando o cliente disser que não recebeu a mensagem.</li>
                         <li>Orientar a equipe sobre o papel de cada app: Vetor Atendimento para cadastros rápidos,
                             orçamentos e assinatura, Vetor Técnico para agenda em campo e Vetor Imagem para documentação visual da OS.</li>
                         <li>Quando aparecer uma mensagem amigável de falha, repetir a ação apenas depois de conferir
@@ -2034,7 +2320,11 @@
                         Antes de editar ou excluir uma conta automática, confira sua origem. Mudanças manuais em uma
                         conta vinculada a comissão podem deixar a conferência diferente dos dados da OS.
                     </div>
-                    <h4>28.4 Acesso</h4>
+                    <h4>28.4 Contas geradas por compras</h4>
+                    <p>Ao receber uma ordem de compra, o VetorOS cria uma conta a pagar com o fornecedor, a categoria
+                        <strong>Compras</strong> e o total da compra. Informe o vencimento combinado com o fornecedor
+                        na própria conta.</p>
+                    <h4>28.5 Acesso</h4>
                     <p>Contas a pagar exige o módulo financeiro habilitado e permissão financeira para administrador,
                         operador ou usuário root. Os registros permanecem isolados por empresa.</p>
                 </section>
@@ -2133,8 +2423,68 @@
                     </ul>
                 </section>
 
+                <section id="compras">
+                    <h3>32. Compras E Fornecedores</h3>
+                    <p>O módulo de compras organiza a reposição de peças e produtos: cadastro de fornecedores, ordens
+                        de compra, entrada no estoque e geração da conta a pagar. Ative-o em <strong>Configurações →
+                        Sistema e módulos → Módulos financeiros → Compras / Fornecedores</strong>. O menu
+                        <strong>Compras</strong> passa a mostrar <strong>Ordens de compra</strong> e
+                        <strong>Fornecedores</strong>.</p>
+                    <h4>32.1 Fornecedores</h4>
+                    <p>Cadastre nome, CNPJ/CPF, telefone, e-mail e observações. Desmarque <strong>Fornecedor
+                        ativo</strong> para deixar de usar um fornecedor sem perder o histórico. A busca aceita nome,
+                        documento ou e-mail.</p>
+                    <h4>32.2 Ordem de compra</h4>
+                    <ol>
+                        <li>Clique em <strong>Nova ordem de compra</strong>, escolha o fornecedor e, se quiser, a previsão de entrega e observações.</li>
+                        <li>Adicione os itens com peça, quantidade e custo unitário. O subtotal e o total são calculados.</li>
+                        <li>Salve. A ordem fica como <strong>Rascunho</strong> e ainda pode ser editada ou excluída.</li>
+                        <li>Use <strong>Enviar</strong> quando o pedido for feito ao fornecedor. A ordem passa a <strong>Enviada</strong> e não pode mais ser editada.</li>
+                        <li>Quando a mercadoria chegar, use <strong>Receber</strong>.</li>
+                    </ol>
+                    <h4>32.3 O que acontece no recebimento</h4>
+                    <ul>
+                        <li>A quantidade de cada item entra no estoque, com movimento de entrada ligado à compra.</li>
+                        <li>O custo da peça é recalculado pela média ponderada (seção 14.3).</li>
+                        <li>Uma conta a pagar é criada com o total da compra (seção 28.4).</li>
+                        <li>A ordem passa a <strong>Recebida</strong>.</li>
+                    </ul>
+                    <h4>32.4 Cancelamento</h4>
+                    <p>Ordens em rascunho ou enviadas podem ser canceladas. Ordens recebidas não podem ser canceladas,
+                        porque o estoque e a conta a pagar já foram gerados; corrija esses registros separadamente,
+                        se necessário.</p>
+                </section>
+
+                <section id="indicadores">
+                    <h3>33. Indicadores</h3>
+                    <p>A tela <strong>Geral → Indicadores</strong> mostra o que está parado, atrasado, aguardando
+                        decisão e quanto as OS realmente rendem. Ela considera a empresa inteira e exige permissão de
+                        relatórios.</p>
+                    <h4>33.1 Filtros</h4>
+                    <p>Escolha o período (padrão: últimos 30 dias, até 366 dias) ou use os atalhos
+                        <strong>Hoje</strong>, <strong>Este mês</strong> e <strong>Mês anterior</strong>. Também é
+                        possível ajustar a partir de quantos dias uma OS é considerada parada e com quantos dias de
+                        antecedência um orçamento aparece como vencendo.</p>
+                    <h4>33.2 O que cada bloco mostra</h4>
+                    <ul>
+                        <li><strong>OS paradas:</strong> OS ativas sem mudança de status acima do limite, das mais antigas para as mais recentes, com cliente, equipamento, status, dias parada e técnico. Cada linha abre a OS.</li>
+                        <li><strong>OS atrasadas (prazo original):</strong> OS ativas cujo prazo original já passou, mesmo que o prazo tenha sido renegociado.</li>
+                        <li><strong>Orçamentos aguardando</strong> e <strong>Orçamentos vencendo:</strong> quantidade, valor e idade dos orçamentos enviados ainda válidos e dos que vencem em breve.</li>
+                        <li><strong>Conversão de orçamentos:</strong> calculada por ciclo de orçamento da OS; renegociações não contam como novos orçamentos. Mostra também o tempo médio de aprovação e as versões por ciclo.</li>
+                        <li><strong>Produtividade técnica:</strong> conclusões, entregas e retornos em garantia atribuídos ao técnico responsável no momento de cada evento. Não é um ranking: compare considerando o tipo de serviço de cada técnico.</li>
+                        <li><strong>Prazo prometido:</strong> OS entregues no prazo original, atrasadas, atraso médio e quantas tiveram o prazo renegociado.</li>
+                        <li><strong>Rentabilidade conhecida:</strong> receita, custo conhecido e margem somente das OS entregues com todos os custos conhecidos (peças, materiais avulsos, comissão e taxas de pagamento).</li>
+                        <li><strong>Qualidade dos dados:</strong> registros que não puderam entrar nos cálculos, como OS ativas sem histórico de status, OS sem prazo original e OS entregues com custos incompletos.</li>
+                    </ul>
+                    <div class="callout">
+                        Nenhum valor desconhecido é tratado como zero. Quando falta informação, o indicador mostra
+                        <strong>—</strong> e o registro é contado em Qualidade dos dados. OS anteriores a este recurso
+                        não têm histórico retroativo e aparecem como desconhecidas.
+                    </div>
+                </section>
+
                 <section id="suporte">
-                    <h3>32. Suporte</h3>
+                    <h3>34. Suporte</h3>
                     <p>Em caso de dúvidas de uso, configuração ou melhoria, mantenha este manual atualizado junto da
                         versão instalada do sistema e utilize o canal de suporte definido pela empresa.</p>
                     <div class="footer-note">
@@ -2142,7 +2492,7 @@
                         que o sistema receber novos fluxos, telas ou automações, o ideal é atualizar também esta página
                         para que o time continue operando com segurança.
                     </div>
-                    <h4>32.1 Informações úteis ao solicitar suporte</h4>
+                    <h4>34.1 Informações úteis ao solicitar suporte</h4>
                     <ul>
                         <li>Informe a tela e a ação que estava executando.</li>
                         <li>Anote a mensagem exibida e o horário aproximado da ocorrência.</li>
