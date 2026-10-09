@@ -1,0 +1,10 @@
+# Achados históricos revisados e sem dado sensível (VETOR-SEC-03):
+# - database/firebird/schema.sql: só estrutura (CREATE TABLE), sem INSERT nem credenciais.
+# - mysql-init/init.sql: só CREATE DATABASE.
+# Os achados reais (dump em backup/ e credenciais no .env.example) NÃO estão aqui de propósito.
+806d4230d6bcf83e41ac29c3ab5632d7e1a69363:mysql-init/init.sql:database-dump-file:0
+412f62158829e01b75aca5fd51fed8cdab94a982:database/firebird/schema.sql:database-dump-file:0
+2b7e5364ba6527883acee7fddb6bc174dead24a8:database/firebird/schema.sql:database-dump-file:0
+6af2f2f53c7731482d28b4a4ff8629f9fb78a2db:database/firebird/schema.sql:database-dump-file:0
+bd6c61ddfe16dffd8ea33921e0e17d6a4cf75a88:database/firebird/schema.sql:database-dump-file:0
+340aa04e24bb122568d2dd6eb125648c2ed552cf:database/firebird/schema.sql:database-dump-file:0

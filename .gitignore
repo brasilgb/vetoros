@@ -29,11 +29,23 @@ yarn-error.log*
 .env.backup
 .env.local
 .env.development
-.env.productionbackup/*.sql
+.env.production
+.env.*.local
+
+# Dumps, backups e certificados nunca entram no git (VETOR-SEC-03).
 backup/
+backups/
+*.sql
+*.sql.gz
+*.dump
+*.bak
+*.sqlite
+*.sqlite3
+*.pfx
+*.p12
+*.pem
 vetor-atendimento
 vetor-tecnico
 vetor-imagem
 .DS_Store
-public_vetoros.zip
 public_vetoros.zip

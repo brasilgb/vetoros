@@ -1,0 +1,11 @@
+#!/bin/sh
+# Bloqueia commits com dumps, certificados, .env reais ou credenciais (VETOR-SEC-03).
+# Ativação (uma vez por clone): git config core.hooksPath scripts/git-hooks
+set -e
+
+php scripts/security/secret-guard.php staged
+
+# Varredura adicional com gitleaks, quando instalado.
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --staged --config .gitleaks.toml --redact --no-banner --exit-code 1
+fi

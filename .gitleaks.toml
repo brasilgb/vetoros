@@ -1,0 +1,53 @@
+# Varredura de segredos do VetorOS (VETOR-SEC-03).
+# Regras padrão do gitleaks + formatos usados pelo projeto que o padrão não cobre
+# (Mercado Pago, APP_KEY do Laravel, variáveis sensíveis preenchidas em arquivos .env)
+# e arquivos que nunca devem ser versionados (dumps de banco e certificados).
+#
+# Uso local: gitleaks git --config .gitleaks.toml --redact    (histórico)
+#            gitleaks dir --config .gitleaks.toml --redact .  (árvore atual)
+
+title = "VetorOS"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "mercadopago-credential"
+description = "Credencial do Mercado Pago (access token ou public key)"
+regex = '''\b(?:APP_USR|TEST)-[0-9A-Za-z][0-9A-Za-z-]{30,}\b'''
+keywords = ["app_usr-", "test-"]
+
+[[rules]]
+id = "laravel-app-key"
+description = "APP_KEY do Laravel (chave de criptografia)"
+regex = '''base64:[A-Za-z0-9+/]{43}='''
+keywords = ["base64:"]
+
+[[rules]]
+id = "dotenv-sensitive-value"
+description = "Variável sensível preenchida em arquivo .env"
+path = '''(?:^|/)\.env(?:\.[A-Za-z0-9_-]+)?$'''
+regex = '''(?m)^[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD)[A-Z0-9_]*[ \t]*=[ \t]*["']?([^\s"'#$][^\s"'#]*)'''
+secretGroup = 1
+entropy = 0.0
+
+  [[rules.allowlists]]
+  regexTarget = "secret"
+  regexes = ['''^(?:null|false|true)$''']
+
+[[rules]]
+id = "database-dump-file"
+description = "Dump ou backup de banco de dados versionado"
+path = '''(?i)(?:^|/)(?:backups?/.+|[^/]+\.(?:sql|sql\.gz|dump|bak|sqlite|sqlite3|db))$'''
+
+[[rules]]
+id = "certificate-or-private-key-file"
+description = "Certificado digital ou chave privada versionado"
+path = '''(?i)(?:^|/)[^/]+\.(?:pfx|p12|pem|key)$'''
+
+# Senhas e chaves fictícias usadas nos testes (ex.: 'senha-do-root-123'). Só a regra genérica
+# é dispensada em tests/; as regras do projeto acima continuam valendo nessa pasta.
+[[allowlists]]
+description = "Valores fictícios dos testes"
+targetRules = ["generic-api-key"]
+paths = ['''(?:^|/)tests/''']
