@@ -62,6 +62,12 @@ class SaasInvoiceService
         if (mb_strlen(trim((string) $issuer->legal_name)) > SpedyPayloadBuilder::MAX_LEGAL_NAME) {
             $problems[] = sprintf('A razão social do emitente passa de %d caracteres; use a forma abreviada do cadastro na Receita.', SpedyPayloadBuilder::MAX_LEGAL_NAME);
         }
+        if (mb_strlen(trim((string) $issuer->trade_name)) > SpedyPayloadBuilder::MAX_ISSUER_NAME) {
+            $problems[] = sprintf('O nome fantasia do emitente passa de %d caracteres, limite do emissor.', SpedyPayloadBuilder::MAX_ISSUER_NAME);
+        }
+        if (mb_strlen(trim((string) $issuer->email)) > SpedyPayloadBuilder::MAX_ISSUER_EMAIL) {
+            $problems[] = sprintf('O e-mail do emitente passa de %d caracteres, limite do emissor.', SpedyPayloadBuilder::MAX_ISSUER_EMAIL);
+        }
         if ($issuer->default_iss_rate === null) {
             $problems[] = 'Informe a alíquota de ISS do emitente.';
         }
@@ -94,8 +100,8 @@ class SaasInvoiceService
         }
 
         $payload = array_filter([
-            'name' => Str::limit(trim((string) ($issuer->trade_name ?: $issuer->legal_name)), 80, ''),
-            'legalName' => Str::limit(trim((string) $issuer->legal_name), 80, ''),
+            'name' => trim((string) ($issuer->trade_name ?: $issuer->legal_name)),
+            'legalName' => trim((string) $issuer->legal_name),
             'federalTaxNumber' => $this->digits($issuer->cnpj),
             'cityTaxNumber' => $this->digits($issuer->municipal_registration) ?: null,
             'email' => $issuer->email ?: null,
@@ -454,7 +460,6 @@ class SaasInvoiceService
     public function receiverPreview(Tenant $tenant): array
     {
         $receiver = $this->receiver($tenant);
-        $fullName = trim((string) ($tenant->company ?: $tenant->name));
         $lastChange = FiscalAdminAudit::query()
             ->where('tenant_id', $tenant->id)
             ->where('action', CompanyIdentityObserver::ACTION)
@@ -464,8 +469,6 @@ class SaasInvoiceService
 
         return [
             'name' => $receiver['name'] ?? '',
-            'full_name' => $fullName,
-            'name_truncated' => mb_strlen($fullName) > SpedyPayloadBuilder::MAX_RECEIVER_NAME,
             'federal_tax_number' => $receiver['federalTaxNumber'] ?? '',
             'email' => $receiver['email'] ?? null,
             'address' => $receiver['address'] ?? null,
@@ -487,7 +490,8 @@ class SaasInvoiceService
         ]);
 
         return array_filter([
-            'name' => Str::limit(trim((string) ($tenant->company ?: $tenant->name)), SpedyPayloadBuilder::MAX_RECEIVER_NAME, ''),
+            // NFS-e: o contrato da Spedy não limita receiver.name; o nome do tomador vai inteiro.
+            'name' => trim((string) ($tenant->company ?: $tenant->name)),
             'federalTaxNumber' => $this->digits($tenant->cnpj),
             'email' => $tenant->email ?: null,
             'address' => filled($tenant->street) && filled($tenant->zip_code) ? $address : null,

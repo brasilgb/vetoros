@@ -345,7 +345,7 @@ class OrderFinancialIntegrityTest extends TestCase
 
         $event = OrderEvent::query()->where('order_id', $order->id)->where('event_type', OrderEvent::TYPE_DELIVERY_FORECAST_CHANGED)->sole();
         $this->assertSame('Peça atrasou no fornecedor', $event->reason);
-        $this->assertSame(['previous' => '2026-10-10', 'new' => '2026-10-15', 'original' => '2026-10-10', 'original_known' => true], $event->metadata);
+        $this->assertSameMetadata(['previous' => '2026-10-10', 'new' => '2026-10-15', 'original' => '2026-10-10', 'original_known' => true], $event->metadata);
         $this->assertSame((int) $this->user->id, (int) $event->actor_id);
     }
 
@@ -390,7 +390,7 @@ class OrderFinancialIntegrityTest extends TestCase
 
         $this->assertSame('2026-09-30 17:00:00', $order->fresh()->delivery_date->toDateTimeString());
         $event = OrderEvent::query()->where('order_id', $order->id)->where('event_type', OrderEvent::TYPE_DELIVERY_DATE_CHANGED)->sole();
-        $this->assertSame(['previous' => '2026-10-01 10:00:00', 'new' => '2026-09-30 17:00:00'], $event->metadata);
+        $this->assertSameMetadata(['previous' => '2026-10-01 10:00:00', 'new' => '2026-09-30 17:00:00'], $event->metadata);
     }
 
     // ------------------------------------------------------------- comissão
@@ -541,5 +541,20 @@ class OrderFinancialIntegrityTest extends TestCase
             'delivery_forecast' => $order->delivery_forecast,
             'observations' => null,
         ], $overrides), array_flip($without)));
+    }
+
+    /**
+     * Compara metadados de evento com valores e tipos estritos, ignorando só a ordem das
+     * chaves: a coluna JSON do MySQL normaliza a ordem; o SQLite preserva a de gravação.
+     *
+     * @param  array<string, mixed>  $expected
+     * @param  array<string, mixed>|null  $actual
+     */
+    private function assertSameMetadata(array $expected, ?array $actual): void
+    {
+        $this->assertIsArray($actual);
+        ksort($expected);
+        ksort($actual);
+        $this->assertSame($expected, $actual);
     }
 }

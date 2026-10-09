@@ -135,6 +135,20 @@ class CompanyFiscalIdentityTest extends TestCase
         ));
     }
 
+    public function test_saas_issuer_trade_name_and_email_above_the_contract_limit_are_reported(): void
+    {
+        $issuer = new AdminFiscalSetting([
+            'legal_name' => 'ABrasil Sistemas LTDA',
+            'trade_name' => str_repeat('T', SpedyPayloadBuilder::MAX_ISSUER_NAME + 1),
+            'email' => str_repeat('e', 75).'@x.com',
+        ]);
+        $problems = implode(' ', app(SaasInvoiceService::class)->issuerProblems($issuer));
+
+        $this->assertStringContainsString('nome fantasia do emitente', $problems);
+        $this->assertStringContainsString('e-mail do emitente', $problems);
+        $this->assertStringNotContainsString('razão social do emitente passa', $problems);
+    }
+
     public function test_root_admin_sees_the_receiver_exactly_as_sent_before_emitting(): void
     {
         $root = User::factory()->create(['tenant_id' => null, 'user_number' => null, 'roles' => User::ROLE_ROOT_SYSTEM]);
@@ -147,9 +161,8 @@ class CompanyFiscalIdentityTest extends TestCase
         $this->actingAs($root)->get(route('admin.fiscal.saas.index', ['tenant_id' => $this->tenant->id]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('selectedTenant.receiver.name', rtrim(mb_substr(trim($longName), 0, SpedyPayloadBuilder::MAX_RECEIVER_NAME)))
-                ->where('selectedTenant.receiver.full_name', trim($longName))
-                ->where('selectedTenant.receiver.name_truncated', true)
+                // NFS-e: o nome do tomador vai inteiro (sem limite no contrato da Spedy).
+                ->where('selectedTenant.receiver.name', trim($longName))
                 ->where('selectedTenant.receiver.federal_tax_number', '11222333000181')
                 ->where('selectedTenant.receiver.address.postalCode', '90000000')
                 ->where('selectedTenant.receiver.address.city.state', 'RS')

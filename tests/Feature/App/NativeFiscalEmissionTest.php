@@ -706,6 +706,71 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertNotNull(Order::query()->find($order->id));
     }
 
+    /** VETOR-ROOT-FISCAL-02.1: limites comprovados viram validação explícita, sem corte silencioso. */
+    public function test_nfe_receiver_name_above_sefaz_limit_blocks_instead_of_truncating(): void
+    {
+        $setting = $this->fiscalSetting();
+        $sale = $this->sale(['name' => str_repeat('C', SpedyPayloadBuilder::MAX_NFE_RECEIVER_NAME + 1)]);
+
+        try {
+            app(SpedyPayloadBuilder::class)->productInvoice($sale, Company::query()->first(), $setting, 'x');
+            $this->fail('Esperava FiscalValidationException.');
+        } catch (FiscalValidationException $exception) {
+            $this->assertStringContainsString('aceita até 60', $exception->getMessage());
+        }
+
+        $sale->customer->update(['name' => str_repeat('C', SpedyPayloadBuilder::MAX_NFE_RECEIVER_NAME)]);
+        $payload = app(SpedyPayloadBuilder::class)->productInvoice($sale->refresh(), Company::query()->first(), $setting, 'y');
+        $this->assertSame(str_repeat('C', SpedyPayloadBuilder::MAX_NFE_RECEIVER_NAME), $payload['receiver']['name']);
+    }
+
+    public function test_item_description_above_nfe_limit_blocks_instead_of_truncating(): void
+    {
+        $setting = $this->fiscalSetting();
+        $sale = $this->sale();
+        $sale->items->first()->part->update(['name' => str_repeat('P', SpedyPayloadBuilder::MAX_NFE_ITEM_DESCRIPTION + 1)]);
+
+        foreach (['productInvoice', 'consumerInvoice'] as $method) {
+            $sale->refresh();
+            $arguments = $method === 'productInvoice' ? [$sale, Company::query()->first(), $setting, 'x'] : [$sale, $setting, 'x'];
+
+            try {
+                app(SpedyPayloadBuilder::class)->{$method}(...$arguments);
+                $this->fail("Esperava FiscalValidationException em {$method}.");
+            } catch (FiscalValidationException $exception) {
+                $this->assertStringContainsString('passa de 120 caracteres', $exception->getMessage());
+            }
+        }
+    }
+
+    public function test_nfse_receiver_name_is_sent_whole(): void
+    {
+        $setting = $this->fiscalSetting();
+        $order = $this->order();
+        $longName = 'Cliente com Nome Empresarial Bastante Longo para o Tomador da Nota de Servico LTDA';
+        $order->customer->update(['name' => $longName]);
+
+        $payload = app(SpedyPayloadBuilder::class)->serviceInvoice($order->refresh(), $setting, 'z');
+
+        $this->assertGreaterThan(SpedyPayloadBuilder::MAX_NFE_RECEIVER_NAME, mb_strlen($longName));
+        $this->assertSame($longName, $payload['receiver']['name']);
+    }
+
+    public function test_issuer_trade_name_and_email_above_contract_limit_block_registration_payload(): void
+    {
+        $setting = $this->fiscalSetting();
+        $company = Company::query()->first();
+        $company->forceFill(['shortname' => str_repeat('F', SpedyPayloadBuilder::MAX_ISSUER_NAME + 1), 'email' => str_repeat('e', 75).'@x.com']);
+
+        try {
+            app(SpedyPayloadBuilder::class)->company($company, $this->tenant, $setting);
+            $this->fail('Esperava FiscalValidationException.');
+        } catch (FiscalValidationException $exception) {
+            $this->assertStringContainsString('nome curto da empresa', $exception->getMessage());
+            $this->assertStringContainsString('e-mail da empresa', $exception->getMessage());
+        }
+    }
+
     private function fiscalSetting(array $overrides = []): FiscalSetting
     {
         return FiscalSetting::query()->updateOrCreate(['tenant_id' => $this->tenant->id], [

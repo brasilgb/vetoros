@@ -22,12 +22,28 @@ use Illuminate\Support\Str;
 class SpedyPayloadBuilder
 {
     /**
-     * Tamanhos enviados à Spedy. A razão social do emitente não é cortada: acima do limite,
-     * a emissão é bloqueada para que a nota não saia com a identificação truncada.
+     * Limites comprovados de dados fiscais obrigatórios. Nenhum deles é cortado: acima do
+     * limite a emissão é bloqueada com a explicação, para a nota não sair com identificação
+     * ou descrição truncada (VETOR-ROOT-FISCAL-02.1).
+     *
+     * - Emitente: CompanyEditingDto do OpenAPI da Spedy (name, legalName e email, maxLength 80).
+     * - NF-e/NFC-e: layout da SEFAZ (dest/xNome 2–60, det/prod/xProd 1–120); o contrato da
+     *   Spedy não declara tamanho para receiver.name nem items.description.
+     * - NFS-e: sem limite no contrato para receiver.name; o nome vai inteiro e eventual
+     *   recusa do município volta como rejeição explícita da Spedy.
+     *
+     * Endereços continuam limitados aos maxLength do contrato (street/district 100, number 10,
+     * additionalInformation 150), que não são dados de identificação.
      */
     public const MAX_LEGAL_NAME = 80;
 
-    public const MAX_RECEIVER_NAME = 60;
+    public const MAX_ISSUER_NAME = 80;
+
+    public const MAX_ISSUER_EMAIL = 80;
+
+    public const MAX_NFE_RECEIVER_NAME = 60;
+
+    public const MAX_NFE_ITEM_DESCRIPTION = 120;
 
     private const TAX_REGIMES = [
         '1' => 'simplesNacional',
@@ -68,15 +84,24 @@ class SpedyPayloadBuilder
             $problems[] = 'Selecione o regime tributário nas configurações fiscais.';
         }
 
+        $tradeName = trim((string) ($company->shortname ?: $legalName));
+        if (mb_strlen($tradeName) > self::MAX_ISSUER_NAME) {
+            $problems[] = sprintf('O nome curto da empresa tem %d caracteres; o emissor aceita até %d. Ajuste em Dados da empresa.', mb_strlen($tradeName), self::MAX_ISSUER_NAME);
+        }
+        $email = $company->email ?: $tenant->email ?: null;
+        if ($email !== null && mb_strlen($email) > self::MAX_ISSUER_EMAIL) {
+            $problems[] = sprintf('O e-mail da empresa passa de %d caracteres, limite do emissor. Ajuste em Dados da empresa.', self::MAX_ISSUER_EMAIL);
+        }
+
         $this->guard($problems);
 
         return array_filter([
-            'name' => Str::limit(trim((string) ($company->shortname ?: $legalName)), 80, ''),
-            'legalName' => Str::limit($legalName, 80, ''),
+            'name' => $tradeName,
+            'legalName' => $legalName,
             'federalTaxNumber' => $cnpj,
             'stateTaxNumber' => $this->digits($setting->state_registration) ?: null,
             'cityTaxNumber' => $this->digits($setting->municipal_registration) ?: null,
-            'email' => $company->email ?: $tenant->email ?: null,
+            'email' => $email,
             'phone' => $this->digits($company->telephone ?: $tenant->phone) ?: null,
             'mobilePhone' => $this->digits($company->whatsapp ?: $tenant->whatsapp) ?: null,
             'address' => $address,
@@ -143,6 +168,9 @@ class SpedyPayloadBuilder
             $document = $this->digits($customer->cpfcnpj);
             if (! in_array(strlen($document), [11, 14], true)) {
                 $problems[] = 'Informe o CPF ou CNPJ do cliente.';
+            }
+            if (mb_strlen(trim((string) $customer->name)) > self::MAX_NFE_RECEIVER_NAME) {
+                $problems[] = sprintf('O nome do cliente tem %d caracteres; na NF-e o destinatário aceita até %d (layout da SEFAZ). Abrevie o nome no cadastro do cliente.', mb_strlen(trim((string) $customer->name)), self::MAX_NFE_RECEIVER_NAME);
             }
             foreach (['zipcode' => 'CEP', 'state' => 'UF', 'city' => 'cidade', 'district' => 'bairro', 'street' => 'logradouro', 'number' => 'número'] as $field => $label) {
                 if (blank($customer->{$field})) {
@@ -341,6 +369,9 @@ class SpedyPayloadBuilder
             if (strlen($cfop) !== 4) {
                 $problems[] = "Informe o CFOP (4 dígitos) da peça/produto \"{$name}\".";
             }
+            if (mb_strlen($name) > self::MAX_NFE_ITEM_DESCRIPTION) {
+                $problems[] = sprintf('O nome da peça/produto "%s…" passa de %d caracteres (limite da descrição na NF-e/NFC-e). Abrevie no cadastro.', mb_substr($name, 0, 40), self::MAX_NFE_ITEM_DESCRIPTION);
+            }
             if ($interstate && str_starts_with($cfop, '5')) {
                 // Mesma operação, destinatário em outra UF: CFOP 5xxx → 6xxx.
                 $cfop = '6'.substr($cfop, 1);
@@ -354,7 +385,7 @@ class SpedyPayloadBuilder
 
             $items[] = array_filter([
                 'code' => (string) ($part?->part_number ?: $part?->reference_number ?: $part?->id ?: $item->id),
-                'description' => Str::limit($name, 120, ''),
+                'description' => $name,
                 'ncm' => $ncm,
                 'cfop' => (int) $cfop,
                 'unit' => $unit,
@@ -416,7 +447,7 @@ class SpedyPayloadBuilder
     private function receiver(Customer $customer, bool $withAddress): array
     {
         $receiver = array_filter([
-            'name' => Str::limit(trim((string) $customer->name), 60, ''),
+            'name' => trim((string) $customer->name),
             'federalTaxNumber' => $this->digits($customer->cpfcnpj),
             'email' => $customer->email ?: null,
             'phoneNumber' => $this->digits($customer->phone ?: $customer->whatsapp) ?: null,

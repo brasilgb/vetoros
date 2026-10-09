@@ -70,11 +70,6 @@ function ReceiverPreview({ receiver }: { receiver: SaasReceiver }) {
                     ? `${address.street ?? ''}, ${address.number ?? 'S/N'} · ${address.district ?? ''} · ${city} · CEP ${address.postalCode ?? '-'}`
                     : 'Endereço não enviado (logradouro ou CEP ausente no cadastro do cliente).'}
             </p>
-            {receiver.name_truncated && (
-                <p className="text-amber-700 dark:text-amber-400">
-                    O nome completo ({receiver.full_name}) passa do limite do emissor e será enviado cortado.
-                </p>
-            )}
             {receiver.identity_changed_at && (
                 <p className="text-amber-700 dark:text-amber-400">
                     {receiver.identity_changes.map((field) => identityLabels[field] ?? field).join(' e ')} alterado(s) em{' '}

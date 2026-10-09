@@ -118,8 +118,6 @@ export type SaasIssuer = Record<string, string | number | boolean | null | strin
 /** Tomador da NFS-e do SaaS exatamente como vai para a Spedy. */
 export type SaasReceiver = {
     name: string;
-    full_name: string;
-    name_truncated: boolean;
     federal_tax_number: string;
     email: string | null;
     address: {
