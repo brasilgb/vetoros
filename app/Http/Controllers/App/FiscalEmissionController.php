@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\App\AccountReceivable;
 use App\Models\App\FiscalDocument;
 use App\Models\App\Order;
 use App\Models\App\Sale;
@@ -119,6 +120,9 @@ class FiscalEmissionController extends Controller
             $this->authorize('update', $documentable);
         } elseif ($documentable instanceof Sale) {
             abort_unless(Gate::allows('update', $documentable), 403);
+        } elseif ($documentable instanceof AccountReceivable) {
+            $contract = $documentable->maintenanceContract();
+            abort_unless($contract && Gate::allows('update', $contract), 403);
         }
     }
 

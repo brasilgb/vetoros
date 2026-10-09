@@ -7,18 +7,24 @@ use App\Models\App\Company;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\Receipt;
 use App\Models\User;
+use App\Services\Fiscal\NativeFiscalService;
 use App\Services\MaintenanceContractService;
 use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class MaintenanceContractController extends Controller
 {
-    public function __construct(private readonly MaintenanceContractService $maintenanceContractService) {}
+    public function __construct(
+        private readonly MaintenanceContractService $maintenanceContractService,
+        private readonly NativeFiscalService $nativeFiscal,
+    ) {}
 
     private function authorizeAccess(?MaintenanceContract $contract = null, string $ability = 'viewAny'): ?Response
     {
@@ -42,7 +48,8 @@ class MaintenanceContractController extends Controller
     private function rules(): array
     {
         return [
-            'customer_id' => 'required|exists:customers,id',
+            // Cliente do próprio tenant (antes aceitava o id de cliente de outra empresa).
+            'customer_id' => ['required', Rule::exists('customers', 'id')->where('tenant_id', Auth::user()?->tenant_id)],
             'description' => 'required|string|max:255',
             'monthly_amount' => 'required|numeric|min:0.01',
             'billing_day' => 'required|integer|min:1|max:28',
@@ -51,6 +58,30 @@ class MaintenanceContractController extends Controller
             'visit_frequency_days' => 'nullable|integer|min:1|max:365',
             'preferred_technician_id' => 'nullable|exists:users,id',
             'notes' => 'nullable|string|max:500',
+            'auto_issue_invoice' => 'sometimes|boolean',
+            'auto_send_invoice' => 'sometimes|boolean',
+        ];
+    }
+
+    /**
+     * NFS-e automática só pode ser ligada com a emissão fiscal do tenant pronta; o envio
+     * automático depende da emissão automática.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function withInvoiceOptions(array $validated): array
+    {
+        $issue = (bool) ($validated['auto_issue_invoice'] ?? false);
+
+        if ($issue && ($blocker = $this->nativeFiscal->contractInvoiceBlocker((int) Auth::user()->tenant_id))) {
+            throw ValidationException::withMessages(['auto_issue_invoice' => 'Não é possível ativar a emissão automática: '.$blocker]);
+        }
+
+        return [
+            ...$validated,
+            'auto_issue_invoice' => $issue,
+            'auto_send_invoice' => $issue && (bool) ($validated['auto_send_invoice'] ?? false),
         ];
     }
 
@@ -65,7 +96,8 @@ class MaintenanceContractController extends Controller
 
         $query = MaintenanceContract::query()
             ->with(['customer:id,name', 'preferredTechnician:id,name'])
-            ->orderByRaw("FIELD(status, 'active', 'suspended', 'expired', 'cancelled')")
+            // CASE em vez de FIELD(): funciona no MySQL e no SQLite dos testes.
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'suspended' THEN 1 WHEN 'expired' THEN 2 WHEN 'cancelled' THEN 3 ELSE 4 END")
             ->orderBy('next_billing_date');
 
         if ($search !== '') {
@@ -105,6 +137,7 @@ class MaintenanceContractController extends Controller
             'status' => $status,
             'totals' => $totals,
             'technicians' => $technicians,
+            'invoiceBlocker' => $this->nativeFiscal->contractInvoiceBlocker((int) Auth::user()->tenant_id),
         ]);
     }
 
@@ -114,7 +147,7 @@ class MaintenanceContractController extends Controller
             return $response;
         }
 
-        $validated = $request->validate($this->rules());
+        $validated = $this->withInvoiceOptions($request->validate($this->rules()));
 
         $contract = $this->maintenanceContractService->create($validated, (int) Auth::id());
 
@@ -133,7 +166,7 @@ class MaintenanceContractController extends Controller
             return $response;
         }
 
-        $validated = $request->validate($this->rules());
+        $validated = $this->withInvoiceOptions($request->validate($this->rules()));
 
         $this->maintenanceContractService->update($maintenance_contract, $validated, (int) Auth::id());
 

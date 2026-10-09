@@ -38,6 +38,8 @@ class MaintenanceContract extends Model
         'status',
         'notes',
         'created_by',
+        'auto_issue_invoice',
+        'auto_send_invoice',
     ];
 
     protected $casts = [
@@ -46,6 +48,8 @@ class MaintenanceContract extends Model
         'end_date' => 'date',
         'next_billing_date' => 'date',
         'next_schedule_date' => 'date',
+        'auto_issue_invoice' => 'boolean',
+        'auto_send_invoice' => 'boolean',
     ];
 
     public function customer(): BelongsTo
@@ -66,5 +70,12 @@ class MaintenanceContract extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(MaintenanceContractLog::class)->latest();
+    }
+
+    /** Cobranças geradas pelo contrato (contas a receber de origem `maintenance_contract`). */
+    public function receivables(): HasMany
+    {
+        return $this->hasMany(AccountReceivable::class, 'source_id')
+            ->where('source_type', AccountReceivable::SOURCE_MAINTENANCE_CONTRACT);
     }
 }

@@ -64,6 +64,8 @@ class MaintenanceContractService
 
         $this->log($contract, $userId, 'updated', [
             'monthly_amount' => (float) $contract->monthly_amount,
+            'auto_issue_invoice' => (bool) $contract->auto_issue_invoice,
+            'auto_send_invoice' => (bool) $contract->auto_send_invoice,
         ]);
 
         return $contract->fresh();

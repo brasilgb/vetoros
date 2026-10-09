@@ -2,9 +2,11 @@
 
 namespace App\Services\Fiscal\Spedy;
 
+use App\Models\App\AccountReceivable;
 use App\Models\App\Company;
 use App\Models\App\Customer;
 use App\Models\App\FiscalSetting;
+use App\Models\App\MaintenanceContract;
 use App\Models\App\Order;
 use App\Models\App\OrderItem;
 use App\Models\App\Sale;
@@ -270,15 +272,7 @@ class SpedyPayloadBuilder
         } elseif (! in_array(strlen($this->digits($customer->cpfcnpj)), [11, 14], true)) {
             $problems[] = 'Informe o CPF ou CNPJ do cliente (tomador).';
         }
-        if (blank($setting->service_list_item)) {
-            $problems[] = 'Informe o item da lista de serviços (LC 116) nas configurações fiscais.';
-        }
-        if ($setting->default_iss_rate === null) {
-            $problems[] = 'Informe a alíquota de ISS nas configurações fiscais.';
-        }
-        if (blank($setting->nfse_taxation_type)) {
-            $problems[] = 'Informe o tipo de tributação da NFS-e nas configurações fiscais.';
-        }
+        array_push($problems, ...$this->nfseSettingProblems($setting));
 
         $description = $this->serviceDescription($order, $serviceItems);
         if ($description === '') {
@@ -306,6 +300,85 @@ class SpedyPayloadBuilder
         }
 
         return $payload;
+    }
+
+    /**
+     * NFS-e de uma cobrança de contrato de manutenção (VETOR-FISCAL-05): emitente é a empresa do
+     * tenant, tomador é o cliente do contrato e o valor é o total da cobrança quitada. O envio ao
+     * cliente é feito pelo VetorOS (com registro de entregas), por isso sendEmailToCustomer=false.
+     */
+    public function contractServiceInvoice(AccountReceivable $receivable, MaintenanceContract $contract, FiscalSetting $setting, string $integrationId): array
+    {
+        $customer = Customer::query()->withoutGlobalScopes()
+            ->where('tenant_id', $contract->tenant_id)
+            ->find($contract->customer_id);
+        $amount = round((float) $receivable->total_amount, 2);
+        $problems = [];
+
+        if ((int) $receivable->tenant_id !== (int) $contract->tenant_id || (int) $receivable->source_id !== (int) $contract->id) {
+            $problems[] = 'A cobrança não pertence a este contrato.';
+        }
+        if ($amount <= 0) {
+            $problems[] = 'A cobrança não possui valor para a NFS-e.';
+        }
+        if (! $customer) {
+            $problems[] = 'O contrato precisa de um cliente (tomador) para a NFS-e.';
+        } elseif (! in_array(strlen($this->digits($customer->cpfcnpj)), [11, 14], true)) {
+            $problems[] = 'Informe o CPF ou CNPJ do cliente do contrato (tomador).';
+        }
+        array_push($problems, ...$this->nfseSettingProblems($setting));
+
+        $description = trim((string) $contract->description);
+        if ($description === '') {
+            $problems[] = 'Descreva o serviço no contrato de manutenção.';
+        }
+
+        $this->guard($problems);
+
+        $due = $receivable->due_date;
+        $description = sprintf(
+            'Contrato de manutenção nº %s: %s.%s',
+            $contract->contract_number ?: $contract->id,
+            rtrim($description, '.'),
+            $due ? ' Competência '.$due->format('m/Y').', vencimento '.$due->format('d/m/Y').'.' : '',
+        );
+
+        $payload = [
+            'integrationId' => $integrationId,
+            'description' => $description,
+            'federalServiceCode' => trim((string) $setting->service_list_item),
+            'taxationType' => $setting->nfse_taxation_type,
+            'sendEmailToCustomer' => false,
+            'receiver' => $this->receiver($customer, withAddress: filled($customer->zipcode) && filled($customer->street)),
+            'total' => [
+                'invoiceAmount' => $amount,
+                'issRate' => (float) $setting->default_iss_rate,
+            ],
+        ];
+
+        if (filled($setting->service_city_code)) {
+            $payload['location'] = ['code' => (int) $this->digits($setting->service_city_code)];
+        }
+
+        return $payload;
+    }
+
+    /** Configurações obrigatórias de qualquer NFS-e (sem valores presumidos). */
+    private function nfseSettingProblems(FiscalSetting $setting): array
+    {
+        $problems = [];
+
+        if (blank($setting->service_list_item)) {
+            $problems[] = 'Informe o item da lista de serviços (LC 116) nas configurações fiscais.';
+        }
+        if ($setting->default_iss_rate === null) {
+            $problems[] = 'Informe a alíquota de ISS nas configurações fiscais.';
+        }
+        if (blank($setting->nfse_taxation_type)) {
+            $problems[] = 'Informe o tipo de tributação da NFS-e nas configurações fiscais.';
+        }
+
+        return $problems;
     }
 
     /** CSTs de ICMS (Regime Normal) sem destaque de imposto: os únicos suportados sem base/alíquota. */

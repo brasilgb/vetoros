@@ -2,10 +2,14 @@
 
 namespace App\Services\Fiscal;
 
+use App\Jobs\SendFiscalDocumentToCustomer;
 use App\Jobs\StoreFiscalDocumentFiles;
+use App\Models\App\AccountReceivable;
 use App\Models\App\Company;
 use App\Models\App\FiscalDocument;
+use App\Models\App\FiscalDocumentDelivery;
 use App\Models\App\FiscalSetting;
+use App\Models\App\MaintenanceContractLog;
 use App\Models\App\Order;
 use App\Models\App\Sale;
 use App\Models\Tenant;
@@ -41,6 +45,25 @@ class NativeFiscalService
             : (new FiscalSetting)->nativeEmissionBlocker($model, $tenantAllowed);
     }
 
+    /**
+     * O que impede a NFS-e automática dos contratos do tenant (VETOR-FISCAL-05): as mesmas
+     * camadas de liberação da NFS-e e os dados tributários que o payload exige.
+     */
+    public function contractInvoiceBlocker(int $tenantId): ?string
+    {
+        if ($blocker = $this->blocker($tenantId, SpedyClient::MODEL_NFSE)) {
+            return $blocker;
+        }
+
+        $setting = FiscalSetting::query()->withoutGlobalScopes()->where('tenant_id', $tenantId)->first();
+
+        return match (true) {
+            blank($setting?->service_list_item) => 'Informe o item da lista de serviços (LC 116) nas configurações fiscais.',
+            $setting?->default_iss_rate === null => 'Informe a alíquota de ISS nas configurações fiscais.',
+            default => null,
+        };
+    }
+
     public function emitForSale(Sale $sale, string $model, ?int $userId): FiscalDocument
     {
         if (! in_array($model, [SpedyClient::MODEL_NFE, SpedyClient::MODEL_NFCE], true)) {
@@ -62,6 +85,26 @@ class NativeFiscalService
     public function emitForOrder(Order $order, ?int $userId): FiscalDocument
     {
         return $this->emit($order, SpedyClient::MODEL_NFSE, $userId, fn (FiscalSetting $setting, string $integrationId) => $this->payloads->serviceInvoice($order, $setting, $integrationId));
+    }
+
+    /**
+     * NFS-e de uma cobrança de contrato de manutenção quitada (VETOR-FISCAL-05). Usa a mesma
+     * reserva com trava e o mesmo integrationId do emit(): cliques, jobs concorrentes e novas
+     * tentativas não geram duas notas para a mesma cobrança.
+     */
+    public function emitForContractReceivable(AccountReceivable $receivable, ?int $userId): FiscalDocument
+    {
+        $receivable = AccountReceivable::query()->withoutGlobalScopes()->findOrFail($receivable->getKey());
+        $contract = $receivable->maintenanceContract();
+
+        if (! $contract) {
+            throw new FiscalEmissionException('Esta cobrança não pertence a um contrato de manutenção.');
+        }
+        if ($receivable->status !== AccountReceivable::STATUS_PAID) {
+            throw new FiscalEmissionException('A NFS-e do contrato só é emitida para cobrança integralmente quitada.');
+        }
+
+        return $this->emit($receivable, SpedyClient::MODEL_NFSE, $userId, fn (FiscalSetting $setting, string $integrationId) => $this->payloads->contractServiceInvoice($receivable, $contract, $setting, $integrationId));
     }
 
     /** Consulta a Spedy (sem acionar a SEFAZ) e aplica o status atual. */
@@ -181,6 +224,9 @@ class NativeFiscalService
                 && ($previousStatus !== $status || blank($document->xml_path))) {
                 StoreFiscalDocumentFiles::dispatch($document->id)->afterCommit();
             }
+
+            // Depois do job de arquivos: o envio ao cliente usa a cópia guardada do PDF/XML.
+            $this->trackContractReceivable($document, $previousStatus);
 
             return $document;
         });
@@ -331,6 +377,40 @@ class NativeFiscalService
                 'fiscal_issued_at' => null,
                 'fiscal_notes' => $this->appendNote($documentable->fiscal_notes, "Nota {$document->number} cancelada."),
             ])->save();
+        }
+    }
+
+    /**
+     * Cobrança de contrato: registra a mudança de situação fiscal no histórico do contrato e, na
+     * primeira autorização, agenda o envio automático ao cliente (o job confere a opção do contrato).
+     */
+    private function trackContractReceivable(FiscalDocument $document, ?string $previousStatus): void
+    {
+        if ($document->documentable_type !== AccountReceivable::class || $previousStatus === $document->status) {
+            return;
+        }
+
+        $receivable = AccountReceivable::query()->withoutGlobalScopes()->find($document->documentable_id);
+
+        if (! $receivable?->isMaintenanceContract()) {
+            return;
+        }
+
+        MaintenanceContractLog::query()->withoutGlobalScopes()->create([
+            'tenant_id' => $receivable->tenant_id,
+            'maintenance_contract_id' => $receivable->source_id,
+            'user_id' => null,
+            'action' => 'invoice_'.$document->status,
+            'data' => array_filter([
+                'account_receivable_id' => $receivable->id,
+                'fiscal_document_id' => $document->id,
+                'number' => $document->number,
+                'error' => $document->error_message,
+            ], fn ($value) => $value !== null),
+        ]);
+
+        if ($document->status === FiscalDocument::STATUS_AUTHORIZED) {
+            SendFiscalDocumentToCustomer::dispatch($document->id, FiscalDocumentDelivery::ORIGIN_AUTOMATIC)->afterCommit();
         }
     }
 

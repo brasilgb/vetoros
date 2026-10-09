@@ -7,6 +7,8 @@ use App\Tenantable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class AccountReceivable extends Model
 {
@@ -57,5 +59,28 @@ class AccountReceivable extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(AccountReceivablePayment::class)->orderBy('paid_at')->orderBy('id');
+    }
+
+    public function fiscalDocuments(): MorphMany
+    {
+        return $this->morphMany(FiscalDocument::class, 'documentable');
+    }
+
+    public function isMaintenanceContract(): bool
+    {
+        return $this->source_type === self::SOURCE_MAINTENANCE_CONTRACT;
+    }
+
+    /** Contrato de origem (só para cobranças de contrato), sem depender do escopo de tenant da sessão. */
+    public function maintenanceContract(): ?MaintenanceContract
+    {
+        return $this->isMaintenanceContract()
+            ? MaintenanceContract::query()->withoutGlobalScopes()->where('tenant_id', $this->tenant_id)->find($this->source_id)
+            : null;
     }
 }

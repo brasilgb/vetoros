@@ -17,8 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { OptionType } from '@/types';
 import { BreadcrumbItem } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Ban, CalendarClock, Edit, PauseCircle, PlayCircle, Plus, Printer, RefreshCcw, Wallet } from 'lucide-react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Ban, CalendarClock, Edit, PauseCircle, PlayCircle, Plus, Printer, ReceiptText, RefreshCcw, Wallet } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
 
@@ -45,6 +45,8 @@ type Contract = {
     customer?: { id: number; name: string } | null;
     preferred_technician_id?: number | null;
     preferred_technician?: { id: number; name: string } | null;
+    auto_issue_invoice?: boolean;
+    auto_send_invoice?: boolean;
 };
 
 type Technician = { id: number; name: string };
@@ -59,6 +61,8 @@ type ContractForm = {
     visit_frequency_days: string;
     preferred_technician_id: string;
     notes: string;
+    auto_issue_invoice: boolean;
+    auto_send_invoice: boolean;
 };
 
 const statusMeta: Record<Contract['status'], { label: string; className: string }> = {
@@ -88,7 +92,7 @@ function parseCurrencyMask(value: string) {
     return Number.isFinite(amount) ? amount.toFixed(2) : '';
 }
 
-export default function MaintenanceContracts({ contracts, search, status, totals, technicians }: any) {
+export default function MaintenanceContracts({ contracts, search, status, totals, technicians, invoiceBlocker }: any) {
     const { flash, auth } = usePage().props as any;
     const canManage = auth?.role !== 'technician' && auth?.permissions?.includes('finance');
 
@@ -111,6 +115,8 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         visit_frequency_days: '',
         preferred_technician_id: '',
         notes: '',
+        auto_issue_invoice: false,
+        auto_send_invoice: false,
     });
 
     const renewForm = useForm({ duration_months: '' });
@@ -145,6 +151,8 @@ export default function MaintenanceContracts({ contracts, search, status, totals
             visit_frequency_days: contract.visit_frequency_days ? String(contract.visit_frequency_days) : '',
             preferred_technician_id: contract.preferred_technician_id ? String(contract.preferred_technician_id) : '',
             notes: contract.notes ?? '',
+            auto_issue_invoice: !!contract.auto_issue_invoice,
+            auto_send_invoice: !!contract.auto_send_invoice,
         });
         setAmountDisplay(Number(contract.monthly_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         setSelectedCustomer(contract.customer ? { value: contract.customer.id, label: contract.customer.name } : null);
@@ -350,9 +358,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                                 ? moment(contract.next_schedule_date).format('DD/MM/YYYY')
                                                 : '-'}
                                         </TableCell>
-                                        <TableCell>
-                                            {contract.end_date ? moment(contract.end_date).format('DD/MM/YYYY') : 'Indeterminada'}
-                                        </TableCell>
+                                        <TableCell>{contract.end_date ? moment(contract.end_date).format('DD/MM/YYYY') : 'Indeterminada'}</TableCell>
                                         <TableCell>
                                             <Badge className={statusMeta[contract.status].className} variant="outline">
                                                 {statusMeta[contract.status].label}
@@ -402,6 +408,12 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                                             <Ban className="h-4 w-4" />
                                                         </Button>
                                                     )}
+                                                    <Button size="sm" variant="outline" asChild title="Cobranças, recebimentos e notas fiscais">
+                                                        <Link href={route('app.maintenance-contracts.charges', contract.id)}>
+                                                            <ReceiptText className="h-4 w-4" />
+                                                            Cobranças
+                                                        </Link>
+                                                    </Button>
                                                     <Button size="icon" variant="outline" asChild title="Imprimir contrato">
                                                         <a
                                                             href={route('app.maintenance-contracts.printing', contract.id)}
@@ -579,11 +591,55 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                         />
                                         <InputError message={form.errors.visit_frequency_days} />
                                         <p className="text-muted-foreground text-xs">
-                                            O sistema gera automaticamente a ordem de serviço e o agendamento com 1 dia de antecedência da
-                                            visita.
+                                            O sistema gera automaticamente a ordem de serviço e o agendamento com 1 dia de antecedência da visita.
                                         </p>
                                     </div>
                                 )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardTitle className="border-b px-6 pb-4">Nota fiscal de serviço</CardTitle>
+                            <CardContent className="space-y-3 pt-6">
+                                <div className="flex items-start gap-2">
+                                    <Checkbox
+                                        id="auto_issue_invoice"
+                                        checked={form.data.auto_issue_invoice}
+                                        disabled={!!invoiceBlocker && !form.data.auto_issue_invoice}
+                                        onCheckedChange={(checked) =>
+                                            form.setData((current) => ({
+                                                ...current,
+                                                auto_issue_invoice: checked === true,
+                                                auto_send_invoice: checked === true ? current.auto_send_invoice : false,
+                                            }))
+                                        }
+                                    />
+                                    <div className="grid gap-1">
+                                        <Label htmlFor="auto_issue_invoice">Emitir nota fiscal automaticamente após recebimento</Label>
+                                        <p className="text-muted-foreground text-xs">
+                                            A NFS-e é emitida quando a cobrança do contrato fica integralmente quitada. O vencimento sozinho não emite
+                                            nota.
+                                        </p>
+                                        {invoiceBlocker && (
+                                            <p className="text-xs text-amber-700 dark:text-amber-400">Indisponível: {invoiceBlocker}</p>
+                                        )}
+                                        <InputError message={form.errors.auto_issue_invoice} />
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <Checkbox
+                                        id="auto_send_invoice"
+                                        checked={form.data.auto_send_invoice}
+                                        disabled={!form.data.auto_issue_invoice}
+                                        onCheckedChange={(checked) => form.setData('auto_send_invoice', checked === true)}
+                                    />
+                                    <div className="grid gap-1">
+                                        <Label htmlFor="auto_send_invoice">Enviar nota fiscal automaticamente ao cliente</Label>
+                                        <p className="text-muted-foreground text-xs">
+                                            Depois da autorização, o PDF e o XML vão para o e-mail do cliente pelo SMTP da empresa.
+                                        </p>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
 
