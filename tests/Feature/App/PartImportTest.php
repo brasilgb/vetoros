@@ -227,6 +227,135 @@ class PartImportTest extends TestCase
         $this->assertSame(0, PartMovement::withoutGlobalScopes()->count());
     }
 
+    // ------------------------------------------------------------ VETOR-IMPORT-CSV-02
+
+    public function test_quantity_parser_accepts_spreadsheet_formats_and_never_rounds(): void
+    {
+        foreach ([
+            '0' => 0, '12' => 12, ' 12 ' => 12, "\u{00A0}7\u{00A0}" => 7, "1\u{202F}234" => 1234, '1 234' => 1234,
+            '1.234' => 1234, '12,0' => 12, '12,00' => 12, '12.0' => 12, '12.00' => 12, '1.234,00' => 1234, "\t5" => 5,
+        ] as $input => $expected) {
+            $this->assertSame([$expected, null], PartImportService::parseQuantity((string) $input), json_encode($input));
+        }
+
+        foreach ([
+            '1,5' => 'casas decimais', '1.5' => 'casas decimais', '2,50' => 'casas decimais', '0,1' => 'casas decimais',
+            '-1' => 'negativo', '-0' => 'negativo', '1E+03' => 'notação científica', '1,5e2' => 'notação científica',
+            'abc' => 'não é um número inteiro', '12 un' => 'não é um número inteiro', '1000001' => 'máximo',
+        ] as $input => $reason) {
+            [$value, $message] = PartImportService::parseQuantity((string) $input);
+            $this->assertNull($value, (string) $input);
+            $this->assertStringContainsString($reason, (string) $message, (string) $input);
+        }
+
+        // Antes, "1.5" virava 15 porque todos os pontos eram removidos.
+        $this->assertNull(PartImportService::quantity('1.5'));
+    }
+
+    public function test_empty_minimum_stock_becomes_zero_and_valid_values_are_kept(): void
+    {
+        $csv = $this->csv([
+            'EM-VAZIO;Sem mínimo;Desc;peca;Cat;Fab;;sim;10,00;20,00;3;;;;;sim',
+            'EM-ZERO;Mínimo zero;Desc;peca;Cat;Fab;;sim;10,00;20,00;3;0;;;;sim',
+            'EM-POS;Mínimo positivo;Desc;peca;Cat;Fab;;sim;10,00;20,00;3; 4 ;;;;sim',
+            'EM-DEC0;Mínimo 2,00;Desc;peca;Cat;Fab;;sim;10,00;20,00;3;2,00;;;;sim',
+        ]);
+
+        $preview = $this->upload('preview', $csv)->assertOk()->json();
+        $this->assertSame(4, $preview['summary']['new']);
+        $this->assertSame(0, $preview['summary']['errors']);
+
+        $this->upload('store', $csv)->assertOk();
+        $this->assertSame(
+            ['EM-DEC0' => 2, 'EM-POS' => 4, 'EM-VAZIO' => 0, 'EM-ZERO' => 0],
+            Part::query()->orderBy('reference_number')->pluck('minimum_stock_level', 'reference_number')->map(fn ($v) => (int) $v)->all(),
+        );
+    }
+
+    public function test_invalid_minimum_stock_reports_line_column_and_value_without_importing(): void
+    {
+        $lines = [];
+        foreach (range(1, 45) as $i) {
+            $lines[] = "P-{$i};Produto {$i};Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1;;;;sim";
+        }
+        $lines[] = '47;Produto 47;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1,5;;;;sim';   // linha 47 do arquivo
+        $lines[] = '48;Produto 48;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;-2;;;;sim';    // linha 48
+        $lines[] = '49;Produto 49;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;dois;;;;sim';  // linha 49
+
+        $preview = $this->upload('preview', $this->csv($lines))->assertOk()->json();
+        $rows = collect($preview['rows'])->keyBy('line');
+
+        $this->assertSame('47', $rows[47]['codigo']);
+        $this->assertSame(['estoque_minimo: valor "1,5" tem casas decimais (o valor não é arredondado); informe um número inteiro maior ou igual a zero.'], $rows[47]['messages']);
+        $this->assertStringContainsString('valor "-2" não pode ser negativo', $rows[48]['messages'][0]);
+        $this->assertStringContainsString('valor "dois" não é um número inteiro válido', $rows[49]['messages'][0]);
+        $this->assertSame(3, $preview['summary']['errors']);
+
+        $this->upload('store', $this->csv($lines))->assertOk();
+        $this->assertSame(0, Part::query()->whereIn('reference_number', ['47', '48', '49'])->count());
+        $this->assertSame(45, Part::query()->count());
+    }
+
+    public function test_line_numbers_are_physical_even_with_multiline_cells(): void
+    {
+        $csv = $this->csv([
+            "ML-1;Produto;\"Descrição em\r\nduas linhas\";peca;Cat;Fab;;sim;10,00;20,00;1;1;;;;sim",
+            'ML-2;Produto;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1,5;;;;sim',
+        ]);
+
+        $rows = collect($this->upload('preview', $csv)->assertOk()->json('rows'))->keyBy('codigo');
+
+        $this->assertSame(2, $rows['ML-1']['line']);
+        $this->assertSame(4, $rows['ML-2']['line'], 'a linha 3 do arquivo é a continuação da descrição');
+    }
+
+    public function test_libreoffice_and_excel_exports_are_accepted(): void
+    {
+        // LibreOffice: UTF-8 sem BOM, aspas em todo texto, espaço estreito no milhar e casas decimais nos inteiros.
+        $libre = self::HEADER."\n"
+            .'"LO-1";"Tela";"Desc";"peca";"Telas";"Samsung";"";"sim";"1'."\u{202F}".'234,50";"2'."\u{202F}".'499,90";"1'."\u{202F}".'000";"2,00";"";"85177099";"5102";"sim"'."\n";
+        // Excel pt-BR: Windows-1252, CRLF, NBSP vindo de célula formatada, estoque mínimo vazio.
+        $excel = mb_convert_encoding(self::HEADER."\r\nXL-1;Película;Descrição;produto;Acessórios;Genérica;;nao;3,50;19,90;10"."\u{00A0}".";;;;;sim\r\n", 'Windows-1252', 'UTF-8');
+
+        $this->upload('store', $libre)->assertOk();
+        $this->upload('store', $excel)->assertOk();
+
+        $lo = Part::query()->where('reference_number', 'LO-1')->sole();
+        $this->assertSame(1000, (int) $lo->quantity);
+        $this->assertSame(2, (int) $lo->minimum_stock_level);
+        $this->assertSame(1234.5, (float) $lo->cost_price);
+        $xl = Part::query()->where('reference_number', 'XL-1')->sole();
+        $this->assertSame(10, (int) $xl->quantity);
+        $this->assertSame(0, (int) $xl->minimum_stock_level);
+    }
+
+    public function test_other_numeric_fields_report_the_invalid_value(): void
+    {
+        $preview = $this->upload('preview', $this->csv([
+            'NUM-1;Produto;Desc;peca;Cat;Fab;;sim;10,999;-5;1.5;1;;1234;51;sim',
+        ]))->assertOk()->json();
+
+        $messages = implode(' ', $preview['rows'][0]['messages']);
+        $this->assertStringContainsString('preco_custo: valor "10,999" inválido', $messages);
+        $this->assertStringContainsString('preco_venda: valor "-5" inválido', $messages);
+        $this->assertStringContainsString('estoque_inicial: valor "1.5" tem casas decimais', $messages);
+        $this->assertStringContainsString('ncm: valor "1234" inválido', $messages);
+        $this->assertStringContainsString('cfop: valor "51" inválido', $messages);
+        $this->assertStringNotContainsString('estoque_minimo', $messages);
+    }
+
+    public function test_template_example_is_valid_when_used_as_data(): void
+    {
+        $template = $this->get(route('app.parts.import.template'))->assertOk()->getContent();
+        // A linha de exemplo começa com "#" (ignorada); sem o "#" ela precisa ser válida.
+        $asData = str_replace('#EXEMPLO-', 'EXEMPLO-', $template);
+
+        $preview = $this->upload('preview', $asData)->assertOk()->json();
+        $this->assertSame(['found' => 1, 'new' => 1, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0], $preview['summary']);
+        $this->assertSame(2, $preview['rows'][0]['data']['minimum_stock_level']);
+        $this->assertSame(5, $preview['rows'][0]['data']['quantity']);
+    }
+
     private function csv(array $lines): string
     {
         return "\xEF\xBB\xBF".self::HEADER."\r\n".implode("\r\n", $lines)."\r\n";

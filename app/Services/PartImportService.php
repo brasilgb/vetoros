@@ -44,7 +44,8 @@ class PartImportService
         'preco_custo' => [true, null],
         'preco_venda' => [true, null],
         'estoque_inicial' => [true, null],
-        'estoque_minimo' => [true, null],
+        // Vazio = 0 (coluna parts.minimum_stock_level é unsigned, default 0).
+        'estoque_minimo' => [false, null],
         'localizacao' => [false, 255],
         'ncm' => [false, null],
         'cfop' => [false, null],
@@ -59,6 +60,9 @@ class PartImportService
     private const FORMULA_PREFIXES = ['=', '+', '-', '@', "\t", "\r"];
 
     private const MAX_STOCK = 1_000_000;
+
+    /** Espaços que planilhas inserem em números: normal, NBSP, estreito (LibreOffice), de figura e tabulação. */
+    private const NUMBER_SPACES = [' ', "\u{00A0}", "\u{202F}", "\u{2007}", "\t"];
 
     private const MAX_MONEY = 99_999_999.99;
 
@@ -252,6 +256,9 @@ class PartImportService
         rewind($stream);
 
         $header = fgetcsv($stream, 0, self::DELIMITER, '"', '');
+        // Linha física do arquivo (como a planilha mostra): uma célula entre aspas pode ter
+        // quebras de linha, então conta as quebras realmente lidas, não os registros.
+        $physicalLine = 1 + substr_count(substr($content, 0, (int) ftell($stream)), "\n");
         $header = array_map(fn ($cell) => mb_strtolower(trim((string) $cell)), $header ?: []);
         $expected = array_keys(self::COLUMNS);
 
@@ -268,10 +275,17 @@ class PartImportService
         }
 
         $records = [];
-        $line = 1;
 
-        while (($cells = fgetcsv($stream, 0, self::DELIMITER, '"', '')) !== false) {
-            $line++;
+        while (true) {
+            $start = (int) ftell($stream);
+            $cells = fgetcsv($stream, 0, self::DELIMITER, '"', '');
+
+            if ($cells === false) {
+                break;
+            }
+
+            $line = $physicalLine;
+            $physicalLine += substr_count(substr($content, $start, (int) ftell($stream) - $start), "\n");
 
             if ($cells === [null] || implode('', array_map('trim', array_map('strval', $cells))) === '') {
                 continue;
@@ -342,22 +356,28 @@ class PartImportService
 
         foreach (['preco_custo', 'preco_venda'] as $column) {
             if (($values[$column] ?? '') !== '' && self::money($values[$column]) === null) {
-                $errors[] = "{$column}: valor inválido (ex.: 1.234,56), maior ou igual a zero e com até 2 casas.";
+                $errors[] = sprintf('%s: valor %s inválido; use maior ou igual a zero com até 2 casas (ex.: 1.234,56).', $column, self::displayValue($values[$column]));
             }
         }
 
         foreach (['estoque_inicial', 'estoque_minimo'] as $column) {
-            if (($values[$column] ?? '') !== '' && self::quantity($values[$column]) === null) {
-                $errors[] = "{$column}: informe um número inteiro maior ou igual a zero.";
+            if (($values[$column] ?? '') === '') {
+                continue;
+            }
+
+            [, $reason] = self::parseQuantity($values[$column]);
+
+            if ($reason !== null) {
+                $errors[] = sprintf('%s: valor %s %s; informe um número inteiro maior ou igual a zero.', $column, self::displayValue($values[$column]), $reason);
             }
         }
 
         if (($values['ncm'] ?? '') !== '' && ! preg_match('/^\d{8}$/', preg_replace('/\D+/', '', $values['ncm']) ?? '')) {
-            $errors[] = 'ncm: informe 8 dígitos.';
+            $errors[] = 'ncm: valor '.self::displayValue($values['ncm']).' inválido; informe 8 dígitos.';
         }
 
         if (($values['cfop'] ?? '') !== '' && ! preg_match('/^\d{4}$/', preg_replace('/\D+/', '', $values['cfop']) ?? '')) {
-            $errors[] = 'cfop: informe 4 dígitos.';
+            $errors[] = 'cfop: valor '.self::displayValue($values['cfop']).' inválido; informe 4 dígitos.';
         }
 
         return $errors;
@@ -383,7 +403,7 @@ class PartImportService
             'cost_price' => self::money($values['preco_custo']),
             'sale_price' => self::money($values['preco_venda']),
             'quantity' => self::quantity($values['estoque_inicial']),
-            'minimum_stock_level' => self::quantity($values['estoque_minimo']),
+            'minimum_stock_level' => ($values['estoque_minimo'] ?? '') === '' ? 0 : self::quantity($values['estoque_minimo']),
             'location' => $optional('localizacao'),
             'ncm' => $optional('ncm') === null ? null : preg_replace('/\D+/', '', $values['ncm']),
             'cfop' => $optional('cfop') === null ? null : preg_replace('/\D+/', '', $values['cfop']),
@@ -396,7 +416,7 @@ class PartImportService
      */
     public static function money(string $value): ?float
     {
-        $raw = trim(str_ireplace(['R$', ' ', "\u{00A0}"], '', $value));
+        $raw = trim(str_ireplace(['R$', ...self::NUMBER_SPACES], '', $value));
 
         if (str_contains($raw, ',')) {
             $raw = str_replace(['.', ','], ['', '.'], $raw);
@@ -413,13 +433,57 @@ class PartImportService
 
     public static function quantity(string $value): ?int
     {
-        $raw = str_replace('.', '', trim($value));
+        return self::parseQuantity($value)[0];
+    }
 
-        if (! preg_match('/^\d+$/', $raw) || (int) $raw > self::MAX_STOCK) {
-            return null;
+    /**
+     * Inteiro maior ou igual a zero nos formatos que Excel/LibreOffice exportam: "12", " 12 ",
+     * "1.234" e "1 234" (milhar), "12,0", "12,00" e "12.0" (fração zero). Nunca arredonda: fração
+     * diferente de zero ("1,5", "1.5"), negativo, notação científica e texto são recusados com o
+     * motivo. Antes, "1.5" virava 15 porque todos os pontos eram removidos.
+     *
+     * @return array{0: ?int, 1: ?string} [valor, motivo da recusa]
+     */
+    public static function parseQuantity(string $value): array
+    {
+        $raw = str_replace(self::NUMBER_SPACES, '', trim($value));
+
+        $integer = match (true) {
+            $raw === '' => null,
+            str_starts_with($raw, '-') => 'não pode ser negativo',
+            (bool) preg_match('/^\d+([.,]\d+)?e[+-]?\d+$/i', $raw) => 'está em notação científica (formate a coluna como número sem decimais)',
+            (bool) preg_match('/^\d+$/', $raw) => $raw,
+            // Milhar pt-BR com ponto: 1.234 / 12.345.678
+            (bool) preg_match('/^\d{1,3}(\.\d{3})+$/', $raw) => str_replace('.', '', $raw),
+            // Decimal com vírgula (milhar opcional com ponto) ou com ponto (1 ou 2 casas).
+            (bool) preg_match('/^(\d{1,3}(?:\.\d{3})+|\d+),(\d+)$/', $raw, $match),
+            (bool) preg_match('/^(\d+)\.(\d{1,2})$/', $raw, $match) => rtrim($match[2], '0') === ''
+                ? str_replace('.', '', $match[1])
+                : 'tem casas decimais (o valor não é arredondado)',
+            default => 'não é um número inteiro válido',
+        };
+
+        if ($integer === null) {
+            return [null, 'está vazio'];
         }
 
-        return (int) $raw;
+        if (! ctype_digit($integer)) {
+            return [null, $integer];
+        }
+
+        if ((int) $integer > self::MAX_STOCK) {
+            return [null, 'passa do máximo de '.number_format(self::MAX_STOCK, 0, ',', '.')];
+        }
+
+        return [(int) $integer, null];
+    }
+
+    /** Valor da célula para mensagens: sem caracteres de controle e limitado, entre aspas. */
+    private static function displayValue(string $value): string
+    {
+        $clean = preg_replace('/[\x00-\x1F\x7F]/u', '', $value) ?? '';
+
+        return '"'.(mb_strlen($clean) > 30 ? mb_substr($clean, 0, 30).'…' : $clean).'"';
     }
 
     /**

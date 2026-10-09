@@ -117,7 +117,8 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
                 <form onSubmit={validate}>
                     <div className="mb-4">
                         <p className="pb-1 text-sm text-red-400 italic">
-                            Use o modelo: separador ponto e vírgula ( ; ), valores como 1.234,56. Produtos com código já cadastrado são ignorados.
+                            Use o modelo: separador ponto e vírgula ( ; ), valores como 1.234,56 e estoques como números inteiros (estoque mínimo
+                            vazio vira 0). Produtos com código já cadastrado são ignorados.
                         </p>
                         <label htmlFor="import-parts-file" className="mb-2 block text-sm font-medium text-gray-700">
                             Selecione o arquivo .csv
@@ -162,7 +163,8 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
                                             <span className={row.status === 'error' ? 'font-medium text-red-600' : 'font-medium text-amber-700'}>
                                                 Linha {row.line} · {STATUS_LABEL[row.status]}
                                             </span>
-                                            {row.codigo ? ` · ${row.codigo}` : ''}: {row.messages.join(' ')}
+                                            {/* Rótulo explícito: o código do produto não é outro número de linha. */}
+                                            {row.codigo ? ` · código ${row.codigo}` : ''}: {row.messages.join(' ')}
                                         </li>
                                     ))}
                                 </ul>
