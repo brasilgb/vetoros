@@ -51,7 +51,7 @@ class PartImportTest extends TestCase
         ]);
 
         $preview = $this->upload('preview', $csv)->assertOk()->json();
-        $this->assertSame(['found' => 2, 'new' => 2, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0], $preview['summary']);
+        $this->assertSame(['found' => 2, 'new' => 2, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0, 'rejected' => 0, 'normalized' => 0], $preview['summary']);
         $this->assertSame(0, Part::query()->count(), 'a prévia não grava nada');
 
         $result = $this->upload('store', $csv)->assertOk()->json();
@@ -240,7 +240,7 @@ class PartImportTest extends TestCase
 
         foreach ([
             '1,5' => 'casas decimais', '1.5' => 'casas decimais', '2,50' => 'casas decimais', '0,1' => 'casas decimais',
-            '-1' => 'negativo', '-0' => 'negativo', '1E+03' => 'notação científica', '1,5e2' => 'notação científica',
+            '-1' => 'negativo', '-0' => 'negativo', '-1,5' => 'casas decimais', '-x' => 'não é um número inteiro', '1E+03' => 'notação científica', '1,5e2' => 'notação científica',
             'abc' => 'não é um número inteiro', '12 un' => 'não é um número inteiro', '1000001' => 'máximo',
         ] as $input => $reason) {
             [$value, $message] = PartImportService::parseQuantity((string) $input);
@@ -279,7 +279,7 @@ class PartImportTest extends TestCase
             $lines[] = "P-{$i};Produto {$i};Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1;;;;sim";
         }
         $lines[] = '47;Produto 47;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1,5;;;;sim';   // linha 47 do arquivo
-        $lines[] = '48;Produto 48;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;-2;;;;sim';    // linha 48
+        $lines[] = '48;Produto 48;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;-2,5;;;;sim';  // linha 48: decimal negativo
         $lines[] = '49;Produto 49;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;dois;;;;sim';  // linha 49
 
         $preview = $this->upload('preview', $this->csv($lines))->assertOk()->json();
@@ -287,7 +287,7 @@ class PartImportTest extends TestCase
 
         $this->assertSame('47', $rows[47]['codigo']);
         $this->assertSame(['estoque_minimo: valor "1,5" tem casas decimais (o valor não é arredondado); informe um número inteiro maior ou igual a zero.'], $rows[47]['messages']);
-        $this->assertStringContainsString('valor "-2" não pode ser negativo', $rows[48]['messages'][0]);
+        $this->assertStringContainsString('valor "-2,5" tem casas decimais', $rows[48]['messages'][0]);
         $this->assertStringContainsString('valor "dois" não é um número inteiro válido', $rows[49]['messages'][0]);
         $this->assertSame(3, $preview['summary']['errors']);
 
@@ -351,9 +351,115 @@ class PartImportTest extends TestCase
         $asData = str_replace('#EXEMPLO-', 'EXEMPLO-', $template);
 
         $preview = $this->upload('preview', $asData)->assertOk()->json();
-        $this->assertSame(['found' => 1, 'new' => 1, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0], $preview['summary']);
+        $this->assertSame(['found' => 1, 'new' => 1, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0, 'rejected' => 0, 'normalized' => 0], $preview['summary']);
         $this->assertSame(2, $preview['rows'][0]['data']['minimum_stock_level']);
         $this->assertSame(5, $preview['rows'][0]['data']['quantity']);
+    }
+
+    // ------------------------------------------------------------ VETOR-IMPORT-CSV-02.1
+
+    public function test_negative_minimum_stock_is_adjusted_to_zero_with_a_warning(): void
+    {
+        $lines = [];
+        foreach (range(1, 52) as $i) {
+            $lines[] = "OK-{$i};Produto {$i};Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1;;;;sim";
+        }
+        $lines[] = '53;Menos um;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;-1;;;;sim';        // linha 54
+        $lines[] = 'NEG-2;Menos dois;Desc;peca;Cat;Fab;;sim;10,00;20,00;1; -2 ;;;;sim';  // linha 55
+        $lines[] = 'NEG-6;Menos seis;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;-6;;;;sim';    // linha 56
+        $lines[] = 'NEG-0;Menos zero;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;-0;;;;sim';    // linha 57: já é zero
+        $lines[] = 'VAZIO;Vazio;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;;;;;sim';           // linha 58
+        $lines[] = 'CINCO;Cinco;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;5;;;;sim';          // linha 59
+        $lines[] = 'DEZ;Dez;Desc;peca;Cat;Fab;;sim;10,00;20,00;1; 10 ;;;;sim';           // linha 60
+        $lines[] = 'DEC;Decimal;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;1,5;;;;sim';        // linha 61
+        $lines[] = 'TXT;Texto;Desc;peca;Cat;Fab;;sim;10,00;20,00;1;abc;;;;sim';          // linha 62
+        $csv = $this->csv($lines);
+
+        $preview = $this->upload('preview', $csv)->assertOk()->json();
+        $rows = collect($preview['rows'])->keyBy('line');
+
+        $this->assertSame('new', $rows[54]['status']);
+        $this->assertSame([], $rows[54]['messages']);
+        $this->assertSame(['estoque_minimo: valor -1 ajustado automaticamente para 0.'], $rows[54]['warnings']);
+        $this->assertSame(['estoque_minimo: valor -2 ajustado automaticamente para 0.'], $rows[55]['warnings']);
+        $this->assertSame(['estoque_minimo: valor -6 ajustado automaticamente para 0.'], $rows[56]['warnings']);
+        $this->assertSame([], $rows[57]['warnings']);
+        $this->assertSame([], $rows[58]['warnings']);
+        $this->assertSame('error', $rows[61]['status']);
+        $this->assertSame('error', $rows[62]['status']);
+        $this->assertSame(['found' => 61, 'new' => 59, 'duplicates' => 0, 'errors' => 2, 'ignored' => 0, 'rejected' => 2, 'normalized' => 3], $preview['summary']);
+
+        $result = $this->upload('store', $csv)->assertOk()->json();
+        $this->assertSame(59, $result['summary']['imported']);
+        $this->assertSame(2, $result['summary']['rejected']);
+        $this->assertSame(3, $result['summary']['normalized']);
+
+        $this->assertSame(
+            ['53' => 0, 'CINCO' => 5, 'DEZ' => 10, 'NEG-0' => 0, 'NEG-2' => 0, 'NEG-6' => 0, 'VAZIO' => 0],
+            Part::query()->whereIn('reference_number', ['53', 'NEG-2', 'NEG-6', 'NEG-0', 'VAZIO', 'CINCO', 'DEZ'])
+                ->orderBy('reference_number')->pluck('minimum_stock_level', 'reference_number')->map(fn ($v) => (int) $v)->all(),
+        );
+        $this->assertSame(0, Part::query()->whereIn('reference_number', ['DEC', 'TXT'])->count());
+    }
+
+    public function test_only_minimum_stock_is_adjusted(): void
+    {
+        // Estoque inicial negativo continua recusado; custos e preços negativos também.
+        $preview = $this->upload('preview', $this->csv([
+            'SO-MIN;Produto;Desc;peca;Cat;Fab;;sim;-1,00;-2,00;-3;-4;;;;sim',
+        ]))->assertOk()->json();
+
+        $row = $preview['rows'][0];
+        $this->assertSame('error', $row['status']);
+        $messages = implode(' ', $row['messages']);
+        $this->assertStringContainsString('preco_custo: valor "-1,00" inválido', $messages);
+        $this->assertStringContainsString('preco_venda: valor "-2,00" inválido', $messages);
+        $this->assertStringContainsString('estoque_inicial: valor "-3" não pode ser negativo', $messages);
+        $this->assertStringNotContainsString('estoque_minimo', $messages);
+        // Linha recusada não conta valor normalizado: nada dela será gravado.
+        $this->assertSame([], $row['warnings']);
+        $this->assertSame(0, $preview['summary']['normalized']);
+    }
+
+    public function test_preview_and_import_report_the_same_rows(): void
+    {
+        $csv = $this->csv([
+            'IG-1;Negativo;Desc;peca;Cat;Fab;;sim;1,00;2,00;1;-3;;;;sim',
+            'IG-2;Decimal;Desc;peca;Cat;Fab;;sim;1,00;2,00;1;0,5;;;;sim',
+            'IG-3;Normal;Desc;peca;Cat;Fab;;sim;1,00;2,00;1;2;;;;sim',
+        ]);
+
+        $preview = $this->upload('preview', $csv)->assertOk()->json();
+        $result = $this->upload('store', $csv)->assertOk()->json();
+
+        $this->assertSame($preview['rows'], $result['rows']);
+        $this->assertSame($preview['summary'], array_diff_key($result['summary'], ['imported' => true]));
+        $this->assertSame(2, $result['summary']['imported']);
+    }
+
+    public function test_spreadsheet_exports_with_negative_minimum_stock(): void
+    {
+        // LibreOffice: UTF-8, aspas, NBSP antes do sinal. Excel: Windows-1252, CRLF.
+        $libre = self::HEADER."\n".'"LO-NEG";"Tela";"Desc";"peca";"Telas";"Samsung";"";"sim";"10,00";"20,00";"1";"'."\u{00A0}".'-1";"";"";"";"sim"'."\n";
+        $excel = mb_convert_encoding(self::HEADER."\r\nXL-NEG;Película;Descrição;produto;Acessórios;Genérica;;nao;3,50;19,90;10;-2;;;;sim\r\n", 'Windows-1252', 'UTF-8');
+
+        $this->assertSame(['estoque_minimo: valor -1 ajustado automaticamente para 0.'], $this->upload('store', $libre)->assertOk()->json('rows.0.warnings'));
+        $this->assertSame(['estoque_minimo: valor -2 ajustado automaticamente para 0.'], $this->upload('store', $excel)->assertOk()->json('rows.0.warnings'));
+        $this->assertSame(0, (int) Part::query()->where('reference_number', 'LO-NEG')->sole()->minimum_stock_level);
+        $this->assertSame(0, (int) Part::query()->where('reference_number', 'XL-NEG')->sole()->minimum_stock_level);
+    }
+
+    public function test_adjustment_respects_tenant_isolation(): void
+    {
+        $other = Tenant::factory()->create();
+        Part::factory()->forTenant($other->id)->create(['reference_number' => 'ISO-1', 'minimum_stock_level' => 7]);
+
+        $result = $this->upload('store', $this->csv(['ISO-1;Peça;Desc;peca;Cat;Fab;;sim;1,00;2,00;2;-5;;;;sim']))->assertOk()->json();
+
+        $this->assertSame(1, $result['summary']['imported']);
+        $this->assertSame(1, $result['summary']['normalized']);
+        $this->assertSame(0, (int) Part::query()->where('reference_number', 'ISO-1')->sole()->minimum_stock_level);
+        $this->assertSame(7, (int) Part::withoutGlobalScopes()->where('tenant_id', $other->id)->sole()->minimum_stock_level);
     }
 
     private function csv(array $lines): string

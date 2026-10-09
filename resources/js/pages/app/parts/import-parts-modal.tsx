@@ -17,11 +17,21 @@ interface PreviewRow {
     codigo: string;
     nome: string;
     messages: string[];
+    warnings: string[];
 }
 
 interface ImportResult {
     rows: PreviewRow[];
-    summary: { found: number; new: number; duplicates: number; errors: number; ignored: number; imported?: number };
+    summary: {
+        found: number;
+        new: number;
+        duplicates: number;
+        errors: number;
+        ignored: number;
+        rejected: number;
+        normalized: number;
+        imported?: number;
+    };
 }
 
 const STATUS_LABEL: Record<RowStatus, string> = { new: 'Novo', duplicate: 'Duplicado (ignorado)', error: 'Erro' };
@@ -95,7 +105,21 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
     };
 
     const summary = result?.summary ?? preview?.summary;
-    const problems = (result ?? preview)?.rows.filter((row) => row.status !== 'new') ?? [];
+    // Uma linha por aviso ou recusa: "Linha 54 · Aviso · estoque_minimo: ...". Sem o código do
+    // produto, que também é um número e se confundia com a linha.
+    const notices = ((result ?? preview)?.rows ?? []).flatMap((row) =>
+        row.status === 'new'
+            ? row.warnings.map((text, index) => ({ key: `${row.line}-w${index}`, line: row.line, label: 'Aviso', tone: 'text-amber-700', text }))
+            : [
+                  {
+                      key: `${row.line}-${row.status}`,
+                      line: row.line,
+                      label: STATUS_LABEL[row.status],
+                      tone: row.status === 'error' ? 'text-red-600' : 'text-amber-700',
+                      text: row.messages.join(' '),
+                  },
+              ],
+    );
 
     return (
         <div
@@ -118,7 +142,7 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
                     <div className="mb-4">
                         <p className="pb-1 text-sm text-red-400 italic">
                             Use o modelo: separador ponto e vírgula ( ; ), valores como 1.234,56 e estoques como números inteiros (estoque mínimo
-                            vazio vira 0). Produtos com código já cadastrado são ignorados.
+                            vazio ou negativo vira 0). Produtos com código já cadastrado são ignorados.
                         </p>
                         <label htmlFor="import-parts-file" className="mb-2 block text-sm font-medium text-gray-700">
                             Selecione o arquivo .csv
@@ -146,25 +170,34 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
                     {summary && (
                         <div className="mb-4 rounded-md border border-gray-200 p-3 text-sm text-gray-800" aria-live="polite">
                             {result ? (
-                                <p className="font-semibold text-green-700">{summary.imported} produto(s) importado(s).</p>
+                                <>
+                                    <p className="font-semibold text-green-700">Importação concluída</p>
+                                    <ul className="mt-1 text-xs">
+                                        <li>Produtos importados: {summary.imported}</li>
+                                        <li>Produtos rejeitados: {summary.rejected}</li>
+                                        <li>Valores normalizados: {summary.normalized}</li>
+                                    </ul>
+                                </>
                             ) : (
-                                <p className="font-semibold">Prévia: nada foi gravado ainda.</p>
+                                <>
+                                    <p className="font-semibold">Prévia: nada foi gravado ainda.</p>
+                                    <ul className="mt-1 grid grid-cols-2 gap-x-4 text-xs">
+                                        <li>Encontrados: {summary.found}</li>
+                                        <li>Novos: {summary.new}</li>
+                                        <li>Duplicados: {summary.duplicates}</li>
+                                        <li>Com erro: {summary.errors}</li>
+                                        <li>Valores normalizados: {summary.normalized}</li>
+                                    </ul>
+                                </>
                             )}
-                            <ul className="mt-1 grid grid-cols-2 gap-x-4 text-xs">
-                                <li>Encontrados: {summary.found}</li>
-                                <li>Novos: {summary.new}</li>
-                                <li>Duplicados: {summary.duplicates}</li>
-                                <li>Com erro: {summary.errors}</li>
-                            </ul>
-                            {problems.length > 0 && (
+                            {notices.length > 0 && (
                                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto border-t pt-2 text-xs">
-                                    {problems.map((row) => (
-                                        <li key={row.line}>
-                                            <span className={row.status === 'error' ? 'font-medium text-red-600' : 'font-medium text-amber-700'}>
-                                                Linha {row.line} · {STATUS_LABEL[row.status]}
-                                            </span>
-                                            {/* Rótulo explícito: o código do produto não é outro número de linha. */}
-                                            {row.codigo ? ` · código ${row.codigo}` : ''}: {row.messages.join(' ')}
+                                    {notices.map((notice) => (
+                                        <li key={notice.key}>
+                                            <span className={`font-medium ${notice.tone}`}>
+                                                Linha {notice.line} · {notice.label}
+                                            </span>{' '}
+                                            · {notice.text}
                                         </li>
                                     ))}
                                 </ul>

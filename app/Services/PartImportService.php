@@ -84,7 +84,7 @@ class PartImportService
     /**
      * Lê e valida o arquivo sem gravar nada.
      *
-     * @return array{rows: list<array<string, mixed>>, summary: array{found: int, new: int, duplicates: int, errors: int, ignored: int}}
+     * @return array{rows: list<array<string, mixed>>, summary: array{found: int, new: int, duplicates: int, errors: int, ignored: int, rejected: int, normalized: int}}
      */
     public function preview(int $tenantId, string $content): array
     {
@@ -102,7 +102,7 @@ class PartImportService
 
         $seen = [];
         $rows = [];
-        $summary = ['found' => 0, 'new' => 0, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0];
+        $summary = ['found' => 0, 'new' => 0, 'duplicates' => 0, 'errors' => 0, 'ignored' => 0, 'rejected' => 0, 'normalized' => 0];
 
         foreach ($records as $record) {
             $values = $record['values'];
@@ -115,6 +115,7 @@ class PartImportService
             }
 
             $summary['found']++;
+            [$values, $warnings] = $this->adjust($values);
             $errors = $record['errors'] ?: $this->validate($values);
             $key = mb_strtolower($code);
 
@@ -135,12 +136,17 @@ class PartImportService
                 $summary['new']++;
             }
 
+            // Avisos só valem para o que será gravado; linha recusada mostra apenas o motivo.
+            $warnings = $status === 'new' ? $warnings : [];
+            $summary['normalized'] += count($warnings);
+
             $rows[] = [
                 'line' => $record['line'],
                 'status' => $status,
                 'codigo' => $code,
                 'nome' => (string) ($values['nome'] ?? ''),
                 'messages' => $errors,
+                'warnings' => $warnings,
                 'data' => $status === 'new' ? $this->normalize($values) : null,
             ];
         }
@@ -149,13 +155,15 @@ class PartImportService
             throw ValidationException::withMessages(['arquivo' => 'O arquivo só tem a linha de exemplo do modelo. Preencha os produtos a partir da linha 3.']);
         }
 
+        $summary['rejected'] = $summary['errors'] + $summary['duplicates'];
+
         return ['rows' => $rows, 'summary' => $summary];
     }
 
     /**
      * Revalida o arquivo (nunca confia na prévia do navegador) e grava os registros novos.
      *
-     * @return array{rows: list<array<string, mixed>>, summary: array{found: int, new: int, duplicates: int, errors: int, ignored: int, imported: int}}
+     * @return array{rows: list<array<string, mixed>>, summary: array{found: int, new: int, duplicates: int, errors: int, ignored: int, rejected: int, normalized: int, imported: int}}
      */
     public function import(int $tenantId, ?int $userId, string $content): array
     {
@@ -174,7 +182,7 @@ class PartImportService
     }
 
     /**
-     * @return array{rows: list<array<string, mixed>>, summary: array{found: int, new: int, duplicates: int, errors: int, ignored: int, imported: int}}
+     * @return array{rows: list<array<string, mixed>>, summary: array{found: int, new: int, duplicates: int, errors: int, ignored: int, rejected: int, normalized: int, imported: int}}
      */
     private function importValidRows(int $tenantId, int $userId, string $content): array
     {
@@ -317,6 +325,29 @@ class PartImportService
     }
 
     /**
+     * Ajustes automáticos aplicados antes da validação (VETOR-IMPORT-CSV-02.1), iguais na prévia e
+     * na importação porque a importação refaz a prévia. Só o estoque mínimo é ajustado: inteiro
+     * negativo vira 0 com aviso. Decimal e texto continuam recusados; estoque inicial, custos e
+     * preços nunca são alterados.
+     *
+     * @param  array<string, string>  $values
+     * @return array{0: array<string, string>, 1: list<string>} [valores, avisos]
+     */
+    private function adjust(array $values): array
+    {
+        $raw = str_replace(self::NUMBER_SPACES, '', trim($values['estoque_minimo'] ?? ''));
+
+        if (! str_starts_with($raw, '-') || ! ctype_digit(self::unsignedDigits(substr($raw, 1)))) {
+            return [$values, []];
+        }
+
+        $values['estoque_minimo'] = '0';
+
+        // "-0" já é zero: nada a avisar. O valor exibido só tem sinal, dígitos e separadores.
+        return [$values, (int) self::unsignedDigits(substr($raw, 1)) === 0 ? [] : ["estoque_minimo: valor {$raw} ajustado automaticamente para 0."]];
+    }
+
+    /**
      * @param  array<string, string>  $values
      * @return list<string>
      */
@@ -448,9 +479,33 @@ class PartImportService
     {
         $raw = str_replace(self::NUMBER_SPACES, '', trim($value));
 
-        $integer = match (true) {
-            $raw === '' => null,
-            str_starts_with($raw, '-') => 'não pode ser negativo',
+        if ($raw === '') {
+            return [null, 'está vazio'];
+        }
+
+        if (str_starts_with($raw, '-')) {
+            $digits = self::unsignedDigits(substr($raw, 1));
+
+            return [null, ctype_digit($digits) ? 'não pode ser negativo' : $digits];
+        }
+
+        $digits = self::unsignedDigits($raw);
+
+        if (! ctype_digit($digits)) {
+            return [null, $digits];
+        }
+
+        if ((int) $digits > self::MAX_STOCK) {
+            return [null, 'passa do máximo de '.number_format(self::MAX_STOCK, 0, ',', '.')];
+        }
+
+        return [(int) $digits, null];
+    }
+
+    /** Dígitos do inteiro (sem sinal e sem espaços) ou o motivo da recusa. */
+    private static function unsignedDigits(string $raw): string
+    {
+        return match (true) {
             (bool) preg_match('/^\d+([.,]\d+)?e[+-]?\d+$/i', $raw) => 'está em notação científica (formate a coluna como número sem decimais)',
             (bool) preg_match('/^\d+$/', $raw) => $raw,
             // Milhar pt-BR com ponto: 1.234 / 12.345.678
@@ -462,20 +517,6 @@ class PartImportService
                 : 'tem casas decimais (o valor não é arredondado)',
             default => 'não é um número inteiro válido',
         };
-
-        if ($integer === null) {
-            return [null, 'está vazio'];
-        }
-
-        if (! ctype_digit($integer)) {
-            return [null, $integer];
-        }
-
-        if ((int) $integer > self::MAX_STOCK) {
-            return [null, 'passa do máximo de '.number_format(self::MAX_STOCK, 0, ',', '.')];
-        }
-
-        return [(int) $integer, null];
     }
 
     /** Valor da célula para mensagens: sem caracteres de controle e limitado, entre aspas. */
