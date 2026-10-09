@@ -205,25 +205,32 @@ export default function ImportPartsModal({ isOpen, onClose }: Props) {
                         </div>
                     )}
 
-                    <div className="flex flex-wrap justify-end gap-2">
-                        <Button variant={'destructive'} type="button" asChild>
-                            <a href={route('app.parts.import.template')}>Baixar modelo .csv</a>
-                        </Button>
-                        <Button variant={'secondary'} type="button" onClick={close} className="px-4 py-2 text-sm">
-                            {result ? 'Fechar' : 'Cancelar'}
-                        </Button>
-                        {preview && preview.summary.new > 0 ? (
-                            <Button variant={'default'} type="button" onClick={confirm} disabled={processing} className="px-4 py-2 text-sm">
-                                {processing ? 'Importando...' : `Confirmar Importação (${preview.summary.new})`}
+                    {result ? (
+                        // Importação concluída: a única ação que resta é fechar (e recarregar a lista).
+                        <div className="flex justify-end">
+                            <Button variant={'default'} type="button" onClick={close} autoFocus className="px-4 py-2 text-sm">
+                                Fechar
                             </Button>
-                        ) : (
-                            !result && (
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <Button variant={'destructive'} type="button" asChild>
+                                <a href={route('app.parts.import.template')}>Baixar modelo .csv</a>
+                            </Button>
+                            <Button variant={'secondary'} type="button" onClick={close} className="px-4 py-2 text-sm">
+                                Cancelar
+                            </Button>
+                            {preview && preview.summary.new > 0 ? (
+                                <Button variant={'default'} type="button" onClick={confirm} disabled={processing} className="px-4 py-2 text-sm">
+                                    {processing ? 'Importando...' : `Confirmar Importação (${preview.summary.new})`}
+                                </Button>
+                            ) : (
                                 <Button variant={'default'} type="submit" disabled={processing || !arquivo} className="px-4 py-2 text-sm">
                                     {processing ? 'Validando...' : 'Validar arquivo'}
                                 </Button>
-                            )
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </form>
             </div>
         </div>
