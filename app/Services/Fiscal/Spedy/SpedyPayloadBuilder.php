@@ -335,12 +335,17 @@ class SpedyPayloadBuilder
 
         $this->guard($problems);
 
+        // Competência gravada na cobrança (período da prestação); o vencimento é só a data de pagamento.
         $due = $receivable->due_date;
+        $competenceStart = $receivable->competence_start ?? $due?->copy()->startOfMonth();
+        $competenceEnd = $receivable->competence_end ?? $due?->copy()->endOfMonth();
         $description = sprintf(
-            'Contrato de manutenção nº %s: %s.%s',
+            'Contrato de manutenção nº %s, ciclo %d: %s.%s%s',
             $contract->contract_number ?: $contract->id,
+            (int) $receivable->installment_number,
             rtrim($description, '.'),
-            $due ? ' Competência '.$due->format('m/Y').', vencimento '.$due->format('d/m/Y').'.' : '',
+            $competenceStart ? sprintf(' Competência %s (%s a %s).', $competenceStart->format('m/Y'), $competenceStart->format('d/m/Y'), $competenceEnd->format('d/m/Y')) : '',
+            $due ? ' Vencimento '.$due->format('d/m/Y').'.' : '',
         );
 
         $payload = [

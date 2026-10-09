@@ -22,6 +22,8 @@ use App\Policies\PurchaseOrderPolicy;
 use App\Policies\SalePolicy;
 use App\Policies\SchedulePolicy;
 use App\Policies\UserPolicy;
+use App\Services\Payments\ManualOnlyPaymentChannel;
+use App\Services\Payments\ReceivablePaymentChannel;
 use App\Support\TenantMailConfig;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Database\Eloquent\Model;
@@ -37,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Sem gateway de pagamento para contratos: recebimento manual (VETOR-FISCAL-05.3).
+        $this->app->bind(ReceivablePaymentChannel::class, ManualOnlyPaymentChannel::class);
         //
     }
 

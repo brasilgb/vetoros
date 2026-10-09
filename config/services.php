@@ -52,6 +52,11 @@ return [
 
     // Emissão fiscal nativa. A conta Spedy é da plataforma: a chave da empresa
     // titular cadastra cada tenant como empresa emissora e nunca é exibida a ele.
+    // Links assinados de PDF/XML de NFS-e enviados ao cliente final (VETOR-FISCAL-05.3).
+    'fiscal_links' => [
+        'days' => (int) env('FISCAL_SHARED_LINK_DAYS', 30),
+    ],
+
     'spedy' => [
         'environment' => env('SPEDY_ENVIRONMENT', 'sandbox'),
         'base_urls' => [

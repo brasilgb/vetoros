@@ -59,6 +59,13 @@ type Charge = {
     payments: Payment[];
     invoice: Invoice | null;
     can_emit: boolean;
+    payment_state: 'pay' | 'pay_balance' | 'awaiting_automatic' | 'paid' | 'cancelled';
+    automatic_channel: string | null;
+    overdue: boolean;
+    competence: string | null;
+    fiscal_scheduled_for: string | null;
+    fiscal_state: string;
+    delivery_state: 'none' | 'awaiting_authorization' | 'pending' | 'sent' | 'failed';
 };
 
 type HistoryEntry = { id: number; action: string; data: Record<string, unknown> | null; user: string | null; created_at: string | null };
@@ -71,6 +78,7 @@ type Props = {
         status: string;
         auto_issue_invoice: boolean;
         auto_send_invoice: boolean;
+        invoice_competence: 'due_month' | 'previous_month';
         customer: { id: number; name: string; email: string | null; cpfcnpj: string | null } | null;
     };
     charges: Charge[];
@@ -88,12 +96,22 @@ const financialStatus: Record<Charge['status'], { label: string; className: stri
 };
 
 const invoiceStatus: Record<string, string> = {
+    not_issued: 'Não emitida',
+    scheduled: 'Programada',
     processing: 'Em processamento',
     contingency: 'Em contingência',
     authorized: 'Autorizada',
     rejected: 'Rejeitada',
     denied: 'Denegada',
     cancelled: 'Cancelada',
+    failed: 'Falha de emissão',
+};
+
+const deliveryStatus: Record<Charge['delivery_state'], string> = {
+    none: '-',
+    awaiting_authorization: 'Aguardando autorização',
+    pending: 'Pendente',
+    sent: 'Enviado',
     failed: 'Falhou',
 };
 
@@ -114,6 +132,7 @@ const historyLabels: Record<string, string> = {
     invoice_denied: 'NFS-e denegada',
     invoice_cancelled: 'NFS-e cancelada',
     invoice_contingency: 'NFS-e em contingência',
+    invoice_file_accessed: 'Cliente abriu o documento fiscal',
 };
 
 function money(value: number) {
@@ -166,7 +185,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
         const question =
             charge.status === 'paid'
                 ? `Emitir a NFS-e de ${money(charge.total_amount)} para ${contract.customer?.name ?? 'o cliente'}?`
-                : `Esta cobrança ainda não foi quitada. Emitir a NFS-e de ${money(charge.total_amount)} mesmo assim (obrigação fiscal por competência)? O pagamento continua em aberto.`;
+                : `Emitir agora a NFS-e de ${money(charge.total_amount)} (competência ${charge.competence ?? '-'})? A emissão não marca a cobrança como paga.`;
         if (!window.confirm(question)) return;
         router.post(route('app.maintenance-contracts.charges.invoice', [contract.id, charge.id]), {}, { preserveScroll: true });
     };
@@ -174,14 +193,10 @@ export default function MaintenanceContractCharges({ contract, charges, history,
     const refresh = (invoice: Invoice) => router.post(route('app.fiscal-documents.refresh', invoice.id), {}, { preserveScroll: true });
 
     const send = (invoice: Invoice) => {
-        if (!window.confirm(`Enviar a nota para ${contract.customer?.email ?? 'o e-mail do cliente'}? Nenhuma nova nota será emitida.`)) return;
+        if (!window.confirm(`Enviar a fatura com a NFS-e para ${contract.customer?.email ?? 'o e-mail do cliente'}? Nenhuma nova nota será emitida.`))
+            return;
         router.post(route('app.maintenance-contracts.invoices.send', [contract.id, invoice.id]), {}, { preserveScroll: true });
     };
-
-    // Nota autorizada numa cobrança que teve recebimento estornado: a contabilidade avalia o cancelamento.
-    const needsReview = charges.filter(
-        (charge) => charge.invoice?.status === 'authorized' && charge.status !== 'paid' && charge.payments.some((payment) => payment.reversed_at),
-    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -210,17 +225,13 @@ export default function MaintenanceContractCharges({ contract, charges, history,
 
             <div className="space-y-4 p-4">
                 <div className="flex flex-wrap gap-2 text-sm">
-                    <Badge variant="outline">Emissão automática: {contract.auto_issue_invoice ? 'ligada' : 'desligada'}</Badge>
-                    <Badge variant="outline">Envio automático ao cliente: {contract.auto_send_invoice ? 'ligado' : 'desligado'}</Badge>
+                    <Badge variant="outline">NFS-e automática por ciclo: {contract.auto_issue_invoice ? 'ligada' : 'desligada'}</Badge>
+                    <Badge variant="outline">Envio automático da fatura: {contract.auto_send_invoice ? 'ligado' : 'desligado'}</Badge>
+                    <Badge variant="outline">
+                        Competência: {contract.invoice_competence === 'previous_month' ? 'mês anterior ao vencimento' : 'mês do vencimento'}
+                    </Badge>
                     {invoiceBlocker && <span className="text-amber-700 dark:text-amber-400">Emissão fiscal indisponível: {invoiceBlocker}</span>}
                 </div>
-
-                {needsReview.length > 0 && (
-                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                        {needsReview.length === 1 ? 'Uma cobrança tem' : `${needsReview.length} cobranças têm`} NFS-e autorizada sem estar quitada
-                        (recebimento estornado). Avalie com a contabilidade se a nota deve ser cancelada em Notas fiscais.
-                    </div>
-                )}
 
                 <Card>
                     <CardTitle className="border-b px-6 pb-4">Cobranças</CardTitle>
@@ -373,7 +384,7 @@ type RowProps = {
 function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, onSend }: RowProps) {
     const invoice = charge.invoice;
     const delivery = invoice?.delivery;
-    const payable = charge.balance_amount > 0 && charge.status !== 'cancelled';
+    const state = charge.payment_state;
 
     return (
         <>
@@ -383,7 +394,7 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                 <TableCell>
                     {/* Pagamento e situação fiscal ficam em colunas separadas. */}
                     <div className="grid justify-items-start gap-1 text-sm">
-                        {charge.status === 'paid' ? (
+                        {state === 'paid' && (
                             <Badge
                                 variant="outline"
                                 className="gap-1 border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
@@ -391,22 +402,35 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 Pago
                             </Badge>
-                        ) : charge.status === 'cancelled' ? (
+                        )}
+                        {state === 'cancelled' && (
                             <Badge variant="outline" className="bg-muted text-muted-foreground">
                                 Cancelada
                             </Badge>
-                        ) : (
-                            payable && (
-                                <Button size="sm" onClick={() => onPay(charge)}>
-                                    <Wallet className="h-4 w-4" />
-                                    Pagar
-                                </Button>
-                            )
+                        )}
+                        {state === 'awaiting_automatic' && (
+                            <Badge variant="outline" title={charge.automatic_channel ?? undefined}>
+                                Aguardando pagamento
+                            </Badge>
+                        )}
+                        {(state === 'pay' || state === 'pay_balance') && (
+                            <Button size="sm" onClick={() => onPay(charge)}>
+                                <Wallet className="h-4 w-4" />
+                                {state === 'pay_balance' ? 'Parcial — Pagar saldo' : 'Pagar'}
+                            </Button>
+                        )}
+                        {charge.overdue && (
+                            <Badge
+                                variant="outline"
+                                className="border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+                            >
+                                Vencida
+                            </Badge>
                         )}
                         {charge.status === 'paid' && charge.last_paid_at && (
                             <span className="text-muted-foreground text-xs">em {date(charge.last_paid_at)}</span>
                         )}
-                        {charge.status === 'partial' && (
+                        {(charge.status === 'partial' || state === 'awaiting_automatic') && charge.paid_amount > 0 && (
                             <span className="text-muted-foreground text-xs">
                                 Recebido {money(charge.paid_amount)} · saldo {money(charge.balance_amount)}
                             </span>
@@ -415,6 +439,7 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                 </TableCell>
                 <TableCell className="text-sm">
                     <div className="grid justify-items-start gap-1">
+                        {charge.competence && <span className="text-muted-foreground text-xs">Competência {charge.competence}</span>}
                         {invoice ? (
                             <>
                                 <span className="font-medium">{invoiceStatus[invoice.status] ?? invoice.status}</span>
@@ -423,6 +448,10 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                                 {invoice.issued_at && <span className="text-muted-foreground text-xs">autorizada em {date(invoice.issued_at)}</span>}
                                 {invoice.error_message && <span className="text-destructive text-xs">{invoice.error_message}</span>}
                             </>
+                        ) : charge.fiscal_state === 'scheduled' ? (
+                            <span className="font-medium">
+                                Programada{charge.fiscal_scheduled_for ? ` para ${date(charge.fiscal_scheduled_for)}` : ''}
+                            </span>
                         ) : (
                             <span className="text-muted-foreground">Não emitida</span>
                         )}
@@ -458,7 +487,7 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                         {delivery ? (
                             <>
                                 <span className={delivery.status === 'sent' ? '' : 'text-destructive'}>
-                                    {delivery.status === 'sent' ? 'Enviada' : 'Falhou'} ({delivery.origin === 'automatic' ? 'automático' : 'reenvio'})
+                                    {delivery.status === 'sent' ? 'Enviado' : 'Falhou'} ({delivery.origin === 'automatic' ? 'automático' : 'reenvio'})
                                 </span>
                                 <span className="text-muted-foreground text-xs">
                                     {delivery.email ?? 'sem e-mail'} · {date(delivery.created_at, true)}
@@ -466,10 +495,12 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                                 {delivery.error && <span className="text-destructive text-xs">{delivery.error}</span>}
                             </>
                         ) : (
-                            <span className="text-muted-foreground">-</span>
+                            <span className={charge.delivery_state === 'none' ? 'text-muted-foreground' : ''}>
+                                {deliveryStatus[charge.delivery_state]}
+                            </span>
                         )}
                         {invoice?.can_send && (
-                            <Button size="sm" variant="outline" title="Reenviar a mesma nota ao cliente" onClick={() => onSend(invoice)}>
+                            <Button size="sm" variant="outline" title="Enviar a fatura com a mesma nota ao cliente" onClick={() => onSend(invoice)}>
                                 <Send className="h-4 w-4" />
                                 {invoice.deliveries_count > 0 ? 'Reenviar' : 'Enviar'}
                             </Button>

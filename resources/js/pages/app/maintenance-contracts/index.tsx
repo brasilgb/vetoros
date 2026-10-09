@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
@@ -47,6 +48,7 @@ type Contract = {
     preferred_technician?: { id: number; name: string } | null;
     auto_issue_invoice?: boolean;
     auto_send_invoice?: boolean;
+    invoice_competence?: 'due_month' | 'previous_month';
 };
 
 type Technician = { id: number; name: string };
@@ -63,6 +65,7 @@ type ContractForm = {
     notes: string;
     auto_issue_invoice: boolean;
     auto_send_invoice: boolean;
+    invoice_competence: 'due_month' | 'previous_month';
 };
 
 const statusMeta: Record<Contract['status'], { label: string; className: string }> = {
@@ -117,6 +120,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         notes: '',
         auto_issue_invoice: false,
         auto_send_invoice: false,
+        invoice_competence: 'due_month',
     });
 
     const renewForm = useForm({ duration_months: '' });
@@ -153,6 +157,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
             notes: contract.notes ?? '',
             auto_issue_invoice: !!contract.auto_issue_invoice,
             auto_send_invoice: !!contract.auto_send_invoice,
+            invoice_competence: contract.invoice_competence ?? 'due_month',
         });
         setAmountDisplay(Number(contract.monthly_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         setSelectedCustomer(contract.customer ? { value: contract.customer.id, label: contract.customer.name } : null);
@@ -615,10 +620,11 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                         }
                                     />
                                     <div className="grid gap-1">
-                                        <Label htmlFor="auto_issue_invoice">Emitir nota fiscal automaticamente após recebimento</Label>
+                                        <Label htmlFor="auto_issue_invoice">Emitir NFS-e automaticamente a cada ciclo</Label>
                                         <p className="text-muted-foreground text-xs">
-                                            A NFS-e é emitida quando a cobrança do contrato fica integralmente quitada. O vencimento sozinho não emite
-                                            nota.
+                                            A NFS-e é emitida na data programada do ciclo (o vencimento), mesmo que o cliente ainda não tenha pago. A
+                                            cobrança continua em aberto até o recebimento. Vale para os ciclos a partir de agora; confirme a regra do
+                                            seu município com a contabilidade.
                                         </p>
                                         {invoiceBlocker && (
                                             <p className="text-xs text-amber-700 dark:text-amber-400">Indisponível: {invoiceBlocker}</p>
@@ -634,11 +640,31 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                         onCheckedChange={(checked) => form.setData('auto_send_invoice', checked === true)}
                                     />
                                     <div className="grid gap-1">
-                                        <Label htmlFor="auto_send_invoice">Enviar nota fiscal automaticamente ao cliente</Label>
+                                        <Label htmlFor="auto_send_invoice">Enviar fatura e nota fiscal automaticamente ao cliente</Label>
                                         <p className="text-muted-foreground text-xs">
-                                            Depois da autorização, o PDF e o XML vão para o e-mail do cliente pelo SMTP da empresa.
+                                            Depois da autorização, o cliente recebe a fatura por e-mail (SMTP da empresa) com links protegidos para o
+                                            PDF e o XML da NFS-e.
                                         </p>
                                     </div>
+                                </div>
+                                <div className="grid gap-2 md:max-w-sm">
+                                    <Label htmlFor="invoice_competence">Competência faturada em cada ciclo</Label>
+                                    <Select
+                                        value={form.data.invoice_competence}
+                                        onValueChange={(value) => form.setData('invoice_competence', value as ContractForm['invoice_competence'])}
+                                    >
+                                        <SelectTrigger id="invoice_competence">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="due_month">Mês do vencimento</SelectItem>
+                                            <SelectItem value="previous_month">Mês anterior ao vencimento (serviço pós-pago)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-muted-foreground text-xs">
+                                        Competência é o período do serviço; o vencimento é a data de pagamento.
+                                    </p>
+                                    <InputError message={form.errors.invoice_competence} />
                                 </div>
                             </CardContent>
                         </Card>

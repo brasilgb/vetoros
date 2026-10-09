@@ -59,6 +59,7 @@ class MaintenanceContractController extends Controller
             'preferred_technician_id' => 'nullable|exists:users,id',
             'notes' => 'nullable|string|max:500',
             'auto_issue_invoice' => 'sometimes|boolean',
+            'invoice_competence' => ['sometimes', Rule::in(MaintenanceContract::COMPETENCES)],
             'auto_send_invoice' => 'sometimes|boolean',
         ];
     }

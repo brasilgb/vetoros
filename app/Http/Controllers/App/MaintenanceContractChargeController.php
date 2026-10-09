@@ -14,6 +14,7 @@ use App\Services\Fiscal\FiscalEmissionException;
 use App\Services\Fiscal\FiscalValidationException;
 use App\Services\Fiscal\NativeFiscalService;
 use App\Services\Fiscal\Spedy\SpedyException;
+use App\Services\Payments\ReceivablePaymentChannel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,6 +37,7 @@ class MaintenanceContractChargeController extends Controller
         private readonly AccountReceivablePaymentService $payments,
         private readonly NativeFiscalService $fiscal,
         private readonly FiscalDocumentDeliveryService $deliveries,
+        private readonly ReceivablePaymentChannel $channels,
     ) {}
 
     public function index(MaintenanceContract $maintenance_contract): Response
@@ -67,10 +69,11 @@ class MaintenanceContractChargeController extends Controller
         $canFiscal = Gate::allows('fiscal-documents.access');
 
         return Inertia::render('app/maintenance-contracts/charges', [
-            'contract' => $contract->only(['id', 'contract_number', 'description', 'monthly_amount', 'status', 'auto_issue_invoice', 'auto_send_invoice']) + [
+            'contract' => $contract->only(['id', 'contract_number', 'description', 'monthly_amount', 'status', 'auto_issue_invoice', 'auto_send_invoice', 'invoice_competence']) + [
                 'customer' => $contract->customer?->only(['id', 'name', 'email', 'cpfcnpj']),
             ],
             'charges' => $receivables->map(fn (AccountReceivable $receivable) => $this->chargePayload(
+                $contract,
                 $receivable,
                 $documents->get($receivable->id, collect())->first(),
                 $deliveries,
@@ -116,9 +119,10 @@ class MaintenanceContractChargeController extends Controller
             return back()->with('success', 'Este pagamento já estava registrado; nada foi alterado.');
         }
 
+        // Recebimento não emite nota: a NFS-e do ciclo segue a programação fiscal do contrato.
         $message = $receivable->status === AccountReceivable::STATUS_PAID
-            ? 'Recebimento registrado. Cobrança quitada'.($maintenance_contract->auto_issue_invoice ? '; a NFS-e foi enviada para emissão.' : '.')
-            : 'Recebimento parcial registrado. Saldo: R$ '.number_format((float) $receivable->balance_amount, 2, ',', '.').'.';
+            ? 'Pagamento registrado. Cobrança quitada.'
+            : 'Pagamento parcial registrado. Saldo: R$ '.number_format((float) $receivable->balance_amount, 2, ',', '.').'.';
 
         return back()->with('success', $message);
     }
@@ -132,9 +136,9 @@ class MaintenanceContractChargeController extends Controller
         $validated = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:255']]);
         $result = $this->payments->reverse($payment, $validated['reason'], (int) Auth::id());
 
-        return $result['invoice_review_required']
-            ? back()->with('success', 'Recebimento estornado. Esta cobrança tem NFS-e autorizada: avalie com a contabilidade se a nota deve ser cancelada.')
-            : back()->with('success', 'Recebimento estornado.');
+        return back()->with('success', $result['has_authorized_invoice']
+            ? 'Recebimento estornado; a cobrança voltou a ficar em aberto. A NFS-e do ciclo continua válida (cancelamento só pelo fluxo fiscal, se a contabilidade orientar).'
+            : 'Recebimento estornado; a cobrança voltou a ficar em aberto.');
     }
 
     public function emitInvoice(MaintenanceContract $maintenance_contract, AccountReceivable $receivable): RedirectResponse
@@ -190,13 +194,48 @@ class MaintenanceContractChargeController extends Controller
         );
     }
 
-    private function chargePayload(AccountReceivable $receivable, ?FiscalDocument $document, $deliveries, bool $canFiscal): array
+    /**
+     * Situações separadas por processo (VETOR-FISCAL-05.3): pagamento ≠ NFS-e ≠ envio.
+     *
+     * - payment_state: pay | pay_balance | awaiting_automatic | paid | cancelled
+     * - fiscal_state: not_issued | scheduled | processing | contingency | authorized | rejected | denied | failed | cancelled
+     * - delivery_state: none | awaiting_authorization | pending | sent | failed
+     */
+    private function chargePayload(MaintenanceContract $contract, AccountReceivable $receivable, ?FiscalDocument $document, $deliveries, bool $canFiscal): array
     {
         $documentDeliveries = $document ? $deliveries->get($document->id, collect()) : collect();
         $lastDelivery = $documentDeliveries->first();
         $files = $canFiscal && $document && in_array($document->status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED], true);
+        $automaticChannel = $receivable->status === AccountReceivable::STATUS_PAID ? null : $this->channels->automaticChannelFor($receivable);
+        $scheduled = ! $document
+            && $contract->auto_issue_invoice
+            && $contract->status === MaintenanceContract::STATUS_ACTIVE
+            && $receivable->status !== AccountReceivable::STATUS_CANCELLED
+            && $receivable->fiscal_scheduled_for !== null
+            && $contract->auto_issue_enabled_at !== null
+            && $receivable->fiscal_scheduled_for->gte($contract->auto_issue_enabled_at->copy()->startOfDay());
 
         return [
+            'payment_state' => match (true) {
+                $receivable->status === AccountReceivable::STATUS_CANCELLED => 'cancelled',
+                $receivable->status === AccountReceivable::STATUS_PAID => 'paid',
+                $automaticChannel !== null => 'awaiting_automatic',
+                $receivable->status === AccountReceivable::STATUS_PARTIAL => 'pay_balance',
+                default => 'pay',
+            },
+            'automatic_channel' => $automaticChannel,
+            'overdue' => ! in_array($receivable->status, [AccountReceivable::STATUS_PAID, AccountReceivable::STATUS_CANCELLED], true)
+                && $receivable->due_date !== null
+                && $receivable->due_date->lt(today()),
+            'competence' => ($receivable->competence_start ?? $receivable->due_date)?->format('m/Y'),
+            'fiscal_scheduled_for' => $receivable->fiscal_scheduled_for?->toDateString(),
+            'fiscal_state' => $document?->status ?? ($scheduled ? 'scheduled' : 'not_issued'),
+            'delivery_state' => match (true) {
+                $lastDelivery !== null => $lastDelivery->status,
+                $document?->status === FiscalDocument::STATUS_AUTHORIZED => 'pending',
+                $contract->auto_send_invoice && ($scheduled || in_array($document?->status, [...FiscalDocument::PENDING_STATUSES], true)) => 'awaiting_authorization',
+                default => 'none',
+            },
             'id' => $receivable->id,
             'description' => $receivable->description,
             'due_date' => $receivable->due_date?->toDateString(),

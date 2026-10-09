@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Events\OrderCreated;
 use App\Events\OrderLifecycleCreated;
+use App\Jobs\EmitMaintenanceContractInvoice;
 use App\Models\App\AccountReceivable;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\MaintenanceContractLog;
@@ -34,6 +35,7 @@ class MaintenanceContractService
 
             $contract = MaintenanceContract::create([
                 ...$data,
+                'auto_issue_enabled_at' => ! empty($data['auto_issue_invoice']) ? now() : null,
                 'contract_number' => TenantSequence::next(MaintenanceContract::class, 'contract_number'),
                 'end_date' => $durationMonths ? $startDate->copy()->addMonthsNoOverflow((int) $durationMonths) : null,
                 'next_billing_date' => $this->nextBillingDate($startDate, $billingDay),
@@ -57,9 +59,13 @@ class MaintenanceContractService
         $startDate = Carbon::parse($data['start_date']);
         $durationMonths = $data['duration_months'] ?? null;
 
+        $issue = (bool) ($data['auto_issue_invoice'] ?? $contract->auto_issue_invoice);
+
         $contract->update([
             ...$data,
             'end_date' => $durationMonths ? $startDate->copy()->addMonthsNoOverflow((int) $durationMonths) : null,
+            // Ligar a emissão automática vale daqui em diante; desligar limpa a data.
+            'auto_issue_enabled_at' => $issue ? ($contract->auto_issue_enabled_at ?? now()) : null,
         ]);
 
         $this->log($contract, $userId, 'updated', [
@@ -138,43 +144,125 @@ class MaintenanceContractService
         return true;
     }
 
+    /**
+     * Gera a cobrança do ciclo vencido (processo A: cobrança recorrente). A trava no contrato
+     * serializa agendadores simultâneos; o ciclo é reconferido dentro dela, então reexecutar não
+     * duplica cobrança. Competência e data fiscal programada ficam gravadas na cobrança.
+     */
     public function processBillingCycle(MaintenanceContract $contract): ?AccountReceivable
     {
-        if (! $contract->next_billing_date || $contract->next_billing_date->isFuture()) {
-            return null;
-        }
+        return DB::transaction(function () use ($contract) {
+            $contract = MaintenanceContract::query()->withoutGlobalScopes()->lockForUpdate()->find($contract->id);
 
-        $installmentNumber = MaintenanceContractLog::query()
-            ->where('maintenance_contract_id', $contract->id)
-            ->where('action', 'billed')
-            ->count() + 1;
+            if (! $contract?->next_billing_date || $contract->next_billing_date->isFuture()) {
+                return null;
+            }
 
-        $receivable = AccountReceivable::create([
-            'tenant_id' => $contract->tenant_id,
-            'customer_id' => $contract->customer_id,
-            'source_type' => AccountReceivable::SOURCE_MAINTENANCE_CONTRACT,
-            'source_id' => $contract->id,
-            'description' => 'Manutenção recorrente #'.$contract->contract_number.' - '.$contract->description,
-            'total_amount' => $contract->monthly_amount,
-            'paid_amount' => 0,
-            'balance_amount' => $contract->monthly_amount,
-            'due_date' => $contract->next_billing_date->toDateString(),
-            'status' => AccountReceivable::STATUS_PENDING,
-            'installment_number' => $installmentNumber,
-            'installments_total' => 1,
-        ]);
+            $dueDate = $contract->next_billing_date->copy();
+            [$competenceStart, $competenceEnd] = $contract->competenceFor($dueDate);
+            $installmentNumber = MaintenanceContractLog::query()->withoutGlobalScopes()
+                ->where('maintenance_contract_id', $contract->id)
+                ->where('action', 'billed')
+                ->count() + 1;
 
-        $contract->update([
-            'next_billing_date' => $contract->next_billing_date->copy()->addMonthNoOverflow(),
-        ]);
+            $receivable = AccountReceivable::create([
+                'tenant_id' => $contract->tenant_id,
+                'customer_id' => $contract->customer_id,
+                'source_type' => AccountReceivable::SOURCE_MAINTENANCE_CONTRACT,
+                'source_id' => $contract->id,
+                'description' => 'Manutenção recorrente #'.$contract->contract_number.' - '.$contract->description.' - competência '.$competenceStart->format('m/Y'),
+                'total_amount' => $contract->monthly_amount,
+                'paid_amount' => 0,
+                'balance_amount' => $contract->monthly_amount,
+                'due_date' => $dueDate->toDateString(),
+                'competence_start' => $competenceStart->toDateString(),
+                'competence_end' => $competenceEnd->toDateString(),
+                'fiscal_scheduled_for' => $contract->fiscalScheduleFor($dueDate)->toDateString(),
+                'status' => AccountReceivable::STATUS_PENDING,
+                'installment_number' => $installmentNumber,
+                'installments_total' => 1,
+            ]);
 
-        $this->log($contract, null, 'billed', [
-            'account_receivable_id' => $receivable->id,
-            'due_date' => $receivable->due_date?->toDateString(),
-            'amount' => (float) $receivable->total_amount,
-        ]);
+            $contract->update([
+                'next_billing_date' => $dueDate->copy()->addMonthNoOverflow(),
+            ]);
 
-        return $receivable;
+            $this->log($contract, null, 'billed', [
+                'account_receivable_id' => $receivable->id,
+                'due_date' => $receivable->due_date?->toDateString(),
+                'competence' => $competenceStart->format('m/Y'),
+                'fiscal_scheduled_for' => $receivable->fiscal_scheduled_for?->toDateString(),
+                'amount' => (float) $receivable->total_amount,
+            ]);
+
+            return $receivable;
+        });
+    }
+
+    /**
+     * Processo B (emissão fiscal recorrente): enfileira a NFS-e dos ciclos cuja data fiscal chegou,
+     * sem olhar o pagamento. Só entram cobranças de contratos ativos com emissão automática, cujo
+     * ciclo foi programado depois de a opção ser ligada (o histórico não é emitido) e que ainda não
+     * têm documento fiscal. A reserva por `fiscal_queued_at` é atômica: execuções repetidas ou
+     * simultâneas não enfileiram duas vezes; uma reserva sem documento após 1 hora é refeita
+     * (reconciliação de job perdido). Rejeição e falha ficam para reprocessamento manual.
+     */
+    public function queueScheduledInvoices(?Carbon $today = null): int
+    {
+        $today = ($today ?? now())->copy()->startOfDay();
+        $queued = 0;
+
+        AccountReceivable::query()->withoutGlobalScopes()
+            ->where('source_type', AccountReceivable::SOURCE_MAINTENANCE_CONTRACT)
+            ->where('status', '!=', AccountReceivable::STATUS_CANCELLED)
+            ->whereNotNull('fiscal_scheduled_for')
+            ->whereDate('fiscal_scheduled_for', '<=', $today->toDateString())
+            ->where(fn ($query) => $query->whereNull('fiscal_queued_at')->orWhere('fiscal_queued_at', '<=', now()->subHour()))
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')
+                ->from('fiscal_documents')
+                ->where('fiscal_documents.documentable_type', AccountReceivable::class)
+                ->whereColumn('fiscal_documents.documentable_id', 'accounts_receivable.id'))
+            ->orderBy('id')
+            ->chunkById(100, function ($receivables) use (&$queued) {
+                foreach ($receivables as $receivable) {
+                    $contract = $receivable->maintenanceContract();
+
+                    if (! $this->isAutomaticallyInvoiceable($contract, $receivable)) {
+                        continue;
+                    }
+
+                    $claimed = AccountReceivable::query()->withoutGlobalScopes()
+                        ->whereKey($receivable->id)
+                        ->where(fn ($query) => $query->whereNull('fiscal_queued_at')->orWhere('fiscal_queued_at', '<=', now()->subHour()))
+                        ->update(['fiscal_queued_at' => now()]);
+
+                    if ($claimed !== 1) {
+                        continue;
+                    }
+
+                    $this->log($contract, null, 'invoice_queued', [
+                        'account_receivable_id' => $receivable->id,
+                        'fiscal_scheduled_for' => $receivable->fiscal_scheduled_for?->toDateString(),
+                    ]);
+                    EmitMaintenanceContractInvoice::dispatch($receivable->id);
+                    $queued++;
+                }
+            });
+
+        return $queued;
+    }
+
+    /** Regras da emissão automática do ciclo (também conferidas de novo pelo job). */
+    public function isAutomaticallyInvoiceable(?MaintenanceContract $contract, AccountReceivable $receivable): bool
+    {
+        return $contract !== null
+            && $contract->status === MaintenanceContract::STATUS_ACTIVE
+            && $contract->auto_issue_invoice
+            && $contract->auto_issue_enabled_at !== null
+            && $receivable->status !== AccountReceivable::STATUS_CANCELLED
+            && $receivable->fiscal_scheduled_for !== null
+            && ! $receivable->fiscal_scheduled_for->isFuture()
+            && $receivable->fiscal_scheduled_for->gte($contract->auto_issue_enabled_at->copy()->startOfDay());
     }
 
     /**

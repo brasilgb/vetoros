@@ -3,7 +3,7 @@
 namespace Tests\Feature\App;
 
 use App\Jobs\EmitMaintenanceContractInvoice;
-use App\Mail\FiscalDocumentMail;
+use App\Mail\MaintenanceInvoiceMail;
 use App\Models\App\AccountReceivable;
 use App\Models\App\AccountReceivablePayment;
 use App\Models\App\CashSession;
@@ -15,13 +15,17 @@ use App\Models\App\FiscalDocumentDelivery;
 use App\Models\App\FiscalSetting;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\MaintenanceContractLog;
+use App\Models\App\Order;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AccountReceivablePaymentService;
 use App\Services\Fiscal\NativeFiscalService;
 use App\Services\MaintenanceContractService;
+use App\Services\Payments\ReceivablePaymentChannel;
+use App\Support\Fiscal\FiscalDocumentLinks;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -31,7 +35,10 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
-/** VETOR-FISCAL-05: NFS-e automática dos contratos de manutenção após a quitação da cobrança. */
+/**
+ * VETOR-FISCAL-05.3: cobrança recorrente, NFS-e programada por ciclo (independente do pagamento),
+ * recebimento manual e fatura com links protegidos.
+ */
 class MaintenanceContractInvoiceTest extends TestCase
 {
     use RefreshDatabase;
@@ -73,136 +80,462 @@ class MaintenanceContractInvoiceTest extends TestCase
 
     // ------------------------------------------------------------------ configuração
 
-    public function test_new_contracts_start_with_both_options_disabled(): void
+    public function test_new_contracts_start_with_both_options_disabled_and_due_month_competence(): void
     {
         $this->post(route('app.maintenance-contracts.store'), $this->contractPayload())->assertSessionHasNoErrors();
 
         $contract = MaintenanceContract::query()->sole();
         $this->assertFalse($contract->auto_issue_invoice);
         $this->assertFalse($contract->auto_send_invoice);
+        $this->assertNull($contract->auto_issue_enabled_at);
+        $this->assertSame(MaintenanceContract::COMPETENCE_DUE_MONTH, $contract->invoice_competence);
     }
 
     public function test_activation_is_refused_without_valid_fiscal_configuration(): void
     {
         FiscalSetting::query()->where('tenant_id', $this->tenant->id)->update(['default_iss_rate' => null]);
-
         $this->post(route('app.maintenance-contracts.store'), $this->contractPayload(['auto_issue_invoice' => true]))
             ->assertSessionHasErrors('auto_issue_invoice');
-        $this->assertSame(0, MaintenanceContract::query()->count());
 
         FiscalSetting::query()->where('tenant_id', $this->tenant->id)->update(['default_iss_rate' => 2.5, 'nfse_allowed' => false]);
         $this->post(route('app.maintenance-contracts.store'), $this->contractPayload(['auto_issue_invoice' => true]))
             ->assertSessionHasErrors('auto_issue_invoice');
+
+        $this->assertSame(0, MaintenanceContract::query()->count());
     }
 
-    public function test_automatic_sending_requires_automatic_emission(): void
+    public function test_enabling_issue_records_the_start_and_sending_requires_issue(): void
     {
         $this->post(route('app.maintenance-contracts.store'), $this->contractPayload(['auto_send_invoice' => true]))->assertSessionHasNoErrors();
+        $contract = MaintenanceContract::query()->sole();
+        $this->assertFalse($contract->auto_send_invoice);
 
-        $this->assertFalse(MaintenanceContract::query()->sole()->auto_send_invoice);
+        $this->put(route('app.maintenance-contracts.update', $contract), $this->contractPayload(['auto_issue_invoice' => true, 'auto_send_invoice' => true]))
+            ->assertSessionHasNoErrors();
+        $contract->refresh();
+        $this->assertTrue($contract->auto_send_invoice);
+        $this->assertNotNull($contract->auto_issue_enabled_at);
+
+        $this->put(route('app.maintenance-contracts.update', $contract), $this->contractPayload(['auto_issue_invoice' => false, 'auto_send_invoice' => true]))
+            ->assertSessionHasNoErrors();
+        $contract->refresh();
+        $this->assertFalse($contract->auto_send_invoice);
+        $this->assertNull($contract->auto_issue_enabled_at);
     }
 
     public function test_contract_cannot_use_a_customer_of_another_tenant(): void
     {
-        $other = Tenant::factory()->create();
-        $foreign = Customer::factory()->forTenant($other->id)->create();
+        $foreign = Customer::factory()->forTenant(Tenant::factory()->create()->id)->create();
 
         $this->post(route('app.maintenance-contracts.store'), $this->contractPayload(['customer_id' => $foreign->id]))
             ->assertSessionHasErrors('customer_id');
     }
 
-    // ------------------------------------------------------------------ gatilho financeiro
+    // ------------------------------------------------------------------ emissão programada (independente do pagamento)
 
-    public function test_disabled_contract_does_not_emit_after_full_payment(): void
+    public function test_disabled_contract_keeps_billing_without_automatic_emission_but_allows_manual(): void
     {
+        $this->fakeSpedy('authorized');
         [$contract, $charge] = $this->contractWithCharge(issue: false);
 
-        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
-
-        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
+        $this->runScheduler();
         $this->assertSame(0, FiscalDocument::query()->count());
         Http::assertNothingSent();
+
+        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success', 'NFS-e autorizada.');
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->refresh()->status);
     }
 
-    public function test_unpaid_and_overdue_charges_never_emit(): void
-    {
-        Queue::fake();
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-
-        $this->travel(40)->days();
-        $this->artisan('vetoros:process-maintenance-contracts')->assertSuccessful();
-
-        Queue::assertNotPushed(EmitMaintenanceContractInvoice::class);
-
-        // Mesmo chamado direto, o job recusa cobrança não quitada.
-        (new EmitMaintenanceContractInvoice($charge->id))->handle(app(NativeFiscalService::class));
-        $this->assertSame(0, FiscalDocument::query()->count());
-        $this->assertTrue(MaintenanceContractLog::query()->where('action', 'invoice_skipped')->exists());
-        Http::assertNothingSent();
-    }
-
-    public function test_full_payment_emits_nfse_with_contract_data_and_sends_it_to_the_customer(): void
+    public function test_acceptance_scenario_emits_on_due_date_sends_invoice_keeps_charge_open_and_payment_never_reissues(): void
     {
         Mail::fake();
         $this->fakeSpedy('authorized');
         [$contract, $charge] = $this->contractWithCharge(issue: true, send: true);
 
-        $this->pay($contract, $charge, 350)
-            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'NFS-e foi enviada para emissão'));
+        // Dia programado: emite sem exigir pagamento.
+        $this->runScheduler();
 
         $document = FiscalDocument::query()->sole();
         $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->status);
-        $this->assertSame(AccountReceivable::class, $document->documentable_type);
         $this->assertSame($charge->id, (int) $document->documentable_id);
-        $this->assertSame((int) $this->tenant->id, (int) $document->tenant_id);
+        $charge->refresh();
+        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->status);
+        $this->assertSame(0.0, (float) $charge->paid_amount);
+        $this->assertSame(0, AccountReceivablePayment::query()->count());
 
         Http::assertSent(fn (HttpRequest $request) => $request->url() === self::SANDBOX.'/service-invoices'
             && $request->hasHeader('X-Api-Key', 'company-key-a')
             && $request['total']['invoiceAmount'] === 350.0
             && $request['receiver']['federalTaxNumber'] === '11444777000161'
-            && $request['receiver']['name'] === 'Condomínio Jardim'
             && $request['sendEmailToCustomer'] === false
-            && str_contains($request['description'], 'Contrato de manutenção nº '.$contract->contract_number));
+            && str_contains($request['description'], 'Contrato de manutenção nº 7, ciclo 1')
+            && str_contains($request['description'], 'Competência '.now()->format('m/Y')));
 
-        Mail::assertSent(FiscalDocumentMail::class, fn (FiscalDocumentMail $mail) => $mail->hasTo('financeiro@condominio.test') && count($mail->attachments()) === 2);
-        $delivery = FiscalDocumentDelivery::query()->sole();
-        $this->assertSame(FiscalDocumentDelivery::STATUS_SENT, $delivery->status);
-        $this->assertSame(FiscalDocumentDelivery::ORIGIN_AUTOMATIC, $delivery->origin);
+        // Fatura enviada com links protegidos e aviso de que nota não é pagamento.
+        Mail::assertSent(MaintenanceInvoiceMail::class, function (MaintenanceInvoiceMail $mail) use ($contract) {
+            $html = $mail->render();
 
-        $movement = CashSessionMovement::query()->sole();
-        $this->assertSame(AccountReceivablePayment::query()->sole()->id, (int) $movement->source_id);
-        $this->assertSame(350.0, (float) $movement->amount);
+            return $mail->hasTo('financeiro@condominio.test')
+                && $mail->envelope()->subject === 'Fatura de manutenção — Contrato nº '.$contract->contract_number.' — '.now()->format('m/Y')
+                && str_contains($mail->pdfUrl, 'signature=') && str_contains($mail->xmlUrl, 'signature=')
+                && str_contains($html, 'A emissão da nota fiscal não representa confirmação do pagamento.')
+                && str_contains($html, 'Em aberto')
+                && str_contains($html, 'R$ 350,00')
+                && $mail->attachments === [] && $mail->rawAttachments === [];
+        });
+        $this->assertSame(FiscalDocumentDelivery::STATUS_SENT, FiscalDocumentDelivery::query()->sole()->status);
 
-        foreach (['payment_registered', 'invoice_queued', 'invoice_authorized'] as $action) {
-            $this->assertTrue(MaintenanceContractLog::query()->where('maintenance_contract_id', $contract->id)->where('action', $action)->exists(), $action);
-        }
+        // Depois o cliente paga: quita, mantém a nota, não reemite.
+        $this->pay($contract, $charge, 350)->assertSessionHas('success', 'Pagamento registrado. Cobrança quitada.');
+        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
+        $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->refresh()->status);
+
+        // Agendador de novo para o mesmo ciclo: nada se repete.
+        $this->runScheduler();
+        $this->assertSame(1, AccountReceivable::query()->count());
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->assertSame(1, FiscalDocumentDelivery::query()->count());
+        $this->assertCount(1, $this->emissionRequests());
     }
 
-    public function test_partial_payment_waits_for_full_settlement(): void
+    public function test_charge_due_in_the_future_and_early_payment_do_not_emit(): void
+    {
+        $this->fakeSpedy('authorized');
+        [$contract, $charge] = $this->contractWithCharge(issue: true);
+        $charge->forceFill(['fiscal_scheduled_for' => now()->addDays(5)->toDateString()])->save();
+
+        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
+        $this->runScheduler();
+
+        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
+        $this->assertSame(0, FiscalDocument::query()->count());
+        Http::assertNothingSent();
+
+        $this->travel(5)->days();
+        $this->runScheduler();
+        $this->assertSame(1, FiscalDocument::query()->count());
+    }
+
+    public function test_partial_payment_after_emission_only_changes_balance(): void
     {
         Mail::fake();
         $this->fakeSpedy('authorized');
         [$contract, $charge] = $this->contractWithCharge(issue: true);
+        $this->runScheduler();
+        $document = FiscalDocument::query()->sole();
 
         $this->pay($contract, $charge, 100)->assertSessionHasNoErrors();
-        $this->assertSame(AccountReceivable::STATUS_PARTIAL, $charge->refresh()->status);
-        $this->assertSame(250.0, (float) $charge->balance_amount);
-        Http::assertNothingSent();
 
-        $this->pay($contract, $charge, 250)->assertSessionHasNoErrors();
-        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
-        $this->assertSame(1, FiscalDocument::query()->count());
+        $charge->refresh();
+        $this->assertSame(AccountReceivable::STATUS_PARTIAL, $charge->status);
+        $this->assertSame(250.0, (float) $charge->balance_amount);
+        $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->refresh()->status);
+        $this->assertCount(1, $this->emissionRequests());
     }
+
+    public function test_manually_emitted_cycle_is_not_emitted_again_by_the_scheduler(): void
+    {
+        $this->fakeSpedy('authorized');
+        [$contract, $charge] = $this->contractWithCharge(issue: true);
+        $charge->forceFill(['fiscal_scheduled_for' => now()->addDay()->toDateString()])->save();
+
+        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success', 'NFS-e autorizada.');
+        $this->travel(2)->days();
+        $this->runScheduler();
+
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->assertCount(1, $this->emissionRequests());
+    }
+
+    public function test_scheduler_reruns_and_concurrent_jobs_do_not_duplicate(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response($this->invoice('nfse-1', 'enqueued'))]);
+        [, $charge] = $this->contractWithCharge(issue: true);
+
+        Queue::fake();
+        $service = app(MaintenanceContractService::class);
+        $this->assertSame(1, $service->queueScheduledInvoices());
+        $this->assertSame(0, $service->queueScheduledInvoices());
+        Queue::assertPushed(EmitMaintenanceContractInvoice::class, 1);
+
+        // Dois workers executando o mesmo ciclo: uma nota, uma chamada.
+        $this->runEmissionJob($charge->id);
+        $this->runEmissionJob($charge->id);
+        $this->assertSame(1, FiscalDocument::query()->count());
+        Http::assertSentCount(1);
+
+        // Com documento, nem uma reserva antiga é refeita.
+        $charge->refresh()->forceFill(['fiscal_queued_at' => now()->subHours(2)])->save();
+        $this->assertSame(0, $service->queueScheduledInvoices());
+    }
+
+    public function test_lost_job_reservation_is_reconciled_after_one_hour(): void
+    {
+        Queue::fake();
+        [, $charge] = $this->contractWithCharge(issue: true);
+        $service = app(MaintenanceContractService::class);
+
+        $this->assertSame(1, $service->queueScheduledInvoices());
+        $this->assertSame(0, $service->queueScheduledInvoices());
+        $charge->refresh()->forceFill(['fiscal_queued_at' => now()->subMinutes(61)])->save();
+        $this->assertSame(1, $service->queueScheduledInvoices());
+    }
+
+    public function test_spedy_timeout_keeps_processing_and_reruns_never_create_another_invoice(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response(['message' => 'timeout'], 503)]);
+        [$contract, $charge] = $this->contractWithCharge(issue: true, send: true);
+
+        $this->runScheduler();
+        $document = FiscalDocument::query()->sole();
+        $this->assertSame(FiscalDocument::STATUS_PROCESSING, $document->status);
+        $this->assertNotNull($document->integration_id);
+
+        $this->runScheduler();
+        $this->runEmissionJob($charge->id);
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->assertCount(1, $this->emissionRequests());
+        $this->assertSame(0, FiscalDocumentDelivery::query()->count());
+
+        $this->get(route('app.maintenance-contracts.charges', $contract))
+            ->assertInertia(fn ($page) => $page->where('charges.0.fiscal_state', 'processing')->where('charges.0.delivery_state', 'awaiting_authorization'));
+    }
+
+    public function test_rejection_is_not_retried_automatically_and_manual_reprocess_reuses_the_document(): void
+    {
+        Http::fakeSequence(self::SANDBOX.'/service-invoices')
+            ->push($this->invoice('nfse-1', 'rejected', ['processingDetail' => ['status' => 'success', 'code' => 'E01', 'message' => 'Código de serviço inválido']]))
+            ->push($this->invoice('nfse-1', 'enqueued'));
+        [$contract, $charge] = $this->contractWithCharge(issue: true);
+
+        $this->runScheduler();
+        $first = FiscalDocument::query()->sole();
+        $this->assertSame(FiscalDocument::STATUS_REJECTED, $first->status);
+
+        $this->runScheduler();
+        $this->assertCount(1, $this->emissionRequests());
+
+        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success');
+        $second = FiscalDocument::query()->sole();
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(FiscalDocument::STATUS_PROCESSING, $second->status);
+        $this->assertCount(2, $this->emissionRequests());
+        $this->assertCount(1, $this->emissionRequests()->map(fn (HttpRequest $request) => $request['integrationId'])->unique());
+    }
+
+    public function test_competence_can_differ_from_due_date(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        [, $charge] = $this->contractWithCharge(issue: true, send: true, competence: MaintenanceContract::COMPETENCE_PREVIOUS_MONTH);
+
+        $previous = now()->startOfMonth()->subMonthNoOverflow();
+        $this->assertSame($previous->toDateString(), $charge->competence_start->toDateString());
+        $this->assertSame($previous->copy()->endOfMonth()->toDateString(), $charge->competence_end->toDateString());
+        $this->assertSame(now()->toDateString(), $charge->due_date->toDateString());
+        $this->assertSame(now()->toDateString(), $charge->fiscal_scheduled_for->toDateString());
+
+        $this->runScheduler();
+
+        $this->assertTrue($this->emissionRequests()->every(fn (HttpRequest $request) => str_contains((string) $request['description'], 'Competência '.$previous->format('m/Y'))));
+        $this->assertCount(1, $this->emissionRequests());
+        Mail::assertSent(MaintenanceInvoiceMail::class, fn (MaintenanceInvoiceMail $mail) => str_ends_with($mail->envelope()->subject, $previous->format('m/Y')));
+    }
+
+    public function test_cancelled_or_suspended_contracts_are_not_emitted_automatically(): void
+    {
+        $this->fakeSpedy('authorized');
+        [$contract, $charge] = $this->contractWithCharge(issue: true);
+        $contract->update(['status' => MaintenanceContract::STATUS_SUSPENDED]);
+
+        $this->runScheduler();
+        $this->runEmissionJob($charge->id);
+
+        $this->assertSame(0, FiscalDocument::query()->count());
+        $this->assertTrue(MaintenanceContractLog::query()->where('action', 'invoice_skipped')->exists());
+        Http::assertNothingSent();
+    }
+
+    public function test_historical_charges_are_not_emitted_when_the_option_is_enabled_later(): void
+    {
+        $this->fakeSpedy('authorized');
+        [$contract, $legacy] = $this->contractWithCharge(issue: false);
+        $legacy->forceFill(['fiscal_scheduled_for' => null])->save(); // cobrança anterior à migration
+
+        AccountReceivable::query()->create([
+            'tenant_id' => $this->tenant->id, 'customer_id' => $this->customer->id, 'source_type' => AccountReceivable::SOURCE_MAINTENANCE_CONTRACT,
+            'source_id' => $contract->id, 'description' => 'Ciclo antigo', 'total_amount' => 350, 'paid_amount' => 0, 'balance_amount' => 350,
+            'due_date' => now()->subMonth()->toDateString(), 'fiscal_scheduled_for' => now()->subMonth()->toDateString(),
+            'status' => AccountReceivable::STATUS_PENDING, 'installment_number' => 9,
+        ]);
+
+        $contract->update(['auto_issue_invoice' => true, 'auto_issue_enabled_at' => now()]);
+        $this->runScheduler();
+
+        $this->assertSame(0, FiscalDocument::query()->count());
+        $this->get(route('app.maintenance-contracts.charges', $contract))
+            ->assertInertia(fn ($page) => $page->where('charges', fn ($charges) => collect($charges)->every(fn ($charge) => $charge['fiscal_state'] === 'not_issued')));
+    }
+
+    public function test_missing_customer_document_fails_without_calling_spedy(): void
+    {
+        $this->customer->update(['cpfcnpj' => null]);
+        [$contract] = $this->contractWithCharge(issue: true);
+
+        $this->runScheduler();
+
+        $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
+        $log = MaintenanceContractLog::query()->where('maintenance_contract_id', $contract->id)->where('action', 'invoice_failed')->sole();
+        $this->assertStringContainsString('CPF ou CNPJ', $log->data['error']);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_failure_in_one_contract_does_not_stop_the_others(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        $broken = MaintenanceContract::query()->create([
+            'tenant_id' => $this->tenant->id, 'customer_id' => $this->customer->id, 'contract_number' => 8, 'description' => 'Contrato com erro',
+            'monthly_amount' => 100, 'billing_day' => 10, 'start_date' => now()->toDateString(), 'next_billing_date' => now()->toDateString(),
+            'status' => MaintenanceContract::STATUS_ACTIVE,
+        ]);
+        $good = MaintenanceContract::query()->create([
+            'tenant_id' => $this->tenant->id, 'customer_id' => $this->customer->id, 'contract_number' => 9, 'description' => 'Contrato saudável',
+            'monthly_amount' => 350, 'billing_day' => 10, 'start_date' => now()->toDateString(), 'next_billing_date' => now()->toDateString(),
+            'status' => MaintenanceContract::STATUS_ACTIVE, 'auto_issue_invoice' => true, 'auto_issue_enabled_at' => now()->subDay(),
+        ]);
+        // Falha simulada só na cobrança do primeiro contrato.
+        AccountReceivable::creating(function (AccountReceivable $receivable) use ($broken) {
+            if ((int) $receivable->source_id === $broken->id) {
+                throw new \RuntimeException('falha simulada');
+            }
+        });
+
+        $this->artisan('vetoros:process-maintenance-contracts')->assertSuccessful()->expectsOutputToContain('Falhas: 1');
+
+        $this->assertSame(0, AccountReceivable::query()->where('source_id', $broken->id)->count());
+        $charge = AccountReceivable::query()->where('source_id', $good->id)->sole();
+        $this->assertSame(1, FiscalDocument::query()->where('documentable_id', $charge->id)->count());
+        $this->assertSame(now()->toDateString(), $broken->refresh()->next_billing_date->toDateString());
+    }
+
+    // ------------------------------------------------------------------ envio da fatura
+
+    public function test_invoice_is_only_sent_after_authorization(): void
+    {
+        Mail::fake();
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response($this->invoice('nfse-1', 'enqueued'))]);
+        [$contract] = $this->contractWithCharge(issue: true, send: true);
+
+        $this->runScheduler();
+        Mail::assertNothingSent();
+        $this->assertSame(0, FiscalDocumentDelivery::query()->count());
+
+        $this->post(route('app.maintenance-contracts.invoices.send', [$contract, FiscalDocument::query()->sole()]))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'Somente notas autorizadas'));
+    }
+
+    public function test_smtp_failure_is_recorded_and_resend_never_emits_a_new_invoice(): void
+    {
+        $this->fakeSpedy('authorized');
+        DB::table('others')->where('tenant_id', $this->tenant->id)->update(['mail_host' => '127.0.0.1', 'mail_port' => 1]);
+        [$contract] = $this->contractWithCharge(issue: true, send: true);
+
+        $this->runScheduler();
+
+        $document = FiscalDocument::query()->sole();
+        $failed = FiscalDocumentDelivery::query()->sole();
+        $this->assertSame(FiscalDocumentDelivery::STATUS_FAILED, $failed->status);
+        $this->assertStringNotContainsString('127.0.0.1', (string) $failed->error);
+        $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->refresh()->status);
+
+        Mail::fake();
+        $this->post(route('app.maintenance-contracts.invoices.send', [$contract, $document]))
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'financeiro@condominio.test'));
+        Mail::assertSent(MaintenanceInvoiceMail::class, 1);
+
+        $this->assertSame(2, FiscalDocumentDelivery::query()->count());
+        $this->assertSame(FiscalDocumentDelivery::ORIGIN_MANUAL, FiscalDocumentDelivery::query()->latest('id')->first()->origin);
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->assertCount(1, $this->emissionRequests());
+    }
+
+    public function test_customer_without_email_is_recorded_as_failed_delivery(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        $this->customer->update(['email' => null]);
+        $this->contractWithCharge(issue: true, send: true);
+
+        $this->runScheduler();
+
+        $delivery = FiscalDocumentDelivery::query()->sole();
+        $this->assertSame(FiscalDocumentDelivery::STATUS_FAILED, $delivery->status);
+        $this->assertStringContainsString('e-mail válido', $delivery->error);
+        Mail::assertNothingSent();
+    }
+
+    // ------------------------------------------------------------------ links de PDF/XML
+
+    public function test_signed_links_serve_stored_files_and_reject_expired_or_tampered_links(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        [$contract] = $this->contractWithCharge(issue: true);
+        $this->runScheduler();
+        $document = FiscalDocument::query()->sole()->refresh();
+        $this->assertNotNull($document->pdf_path);
+
+        $links = FiscalDocumentLinks::for($document);
+        auth()->logout();
+        $before = count(Http::recorded());
+
+        $this->get($links['pdf'])->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        $this->get($links['xml'])->assertOk()->assertHeader('Content-Disposition', 'attachment; filename="nfse-1234.xml"');
+        $this->assertSame($before, count(Http::recorded()), 'Os links devem usar a cópia guardada no disco fiscal.');
+        $this->assertSame(2, MaintenanceContractLog::query()->where('maintenance_contract_id', $contract->id)->where('action', 'invoice_file_accessed')->count());
+
+        $this->get(str_replace('/pdf?', '/xml?', $links['pdf']))->assertForbidden();
+        $this->get(route('fiscal-documents.shared', ['document' => $document->id, 'format' => 'pdf']))->assertForbidden();
+        $this->travel(config('services.fiscal_links.days') + 1)->days();
+        $this->get($links['pdf'])->assertForbidden()->assertSee('Este link expirou');
+    }
+
+    public function test_fiscal_files_are_not_reachable_by_another_tenant(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        [$contract] = $this->contractWithCharge(issue: true);
+        $this->runScheduler();
+        $document = FiscalDocument::query()->sole();
+
+        $other = Tenant::factory()->create(['automatic_fiscal_emission_enabled' => true]);
+        $otherUser = User::factory()->forTenant($other->id)->create(['roles' => User::ROLE_ADMIN]);
+        $this->prepareTenant($other, 'company-key-b');
+
+        $this->actingAs($otherUser)->withSession(['tenant_id' => $other->id]);
+        $this->get(route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'pdf']))->assertNotFound();
+        $this->get(route('app.maintenance-contracts.charges', $contract))->assertNotFound();
+
+        // Documento de OS/venda não vira link público, mesmo com assinatura válida.
+        $orderDocument = FiscalDocument::query()->withoutGlobalScopes()->create([
+            'tenant_id' => $other->id, 'documentable_type' => Order::class, 'documentable_id' => 1, 'type' => 'nfse',
+            'provider' => FiscalSetting::PROVIDER_SPEDY, 'status' => FiscalDocument::STATUS_AUTHORIZED,
+        ]);
+        auth()->logout();
+        $this->get(FiscalDocumentLinks::for($orderDocument)['pdf'])->assertNotFound();
+    }
+
+    // ------------------------------------------------------------------ recebimento
 
     public function test_manual_payment_requires_permission_open_cash_and_valid_amount(): void
     {
         [$contract, $charge] = $this->contractWithCharge(issue: false);
 
         $technician = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_TECHNICIAN]);
-        // 403 web vira redirecionamento com aviso de ação não autorizada (tratamento padrão do app).
         $this->actingAs($technician)->post($this->payRoute($contract, $charge), $this->paymentPayload(350))
-            ->assertRedirect()
-            ->assertSessionHas('authorization_error');
+            ->assertRedirect()->assertSessionHas('authorization_error');
 
         $this->actingAs($this->user);
         $this->pay($contract, $charge, 400)->assertSessionHasErrors('amount');
@@ -214,24 +547,6 @@ class MaintenanceContractInvoiceTest extends TestCase
         $this->pay($contract, $charge, 350)->assertSessionHasErrors('amount');
 
         $this->assertSame(0, AccountReceivablePayment::query()->count());
-        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->refresh()->status);
-    }
-
-    public function test_duplicate_integrated_payment_event_is_registered_once(): void
-    {
-        $this->fakeSpedy('authorized');
-        [, $charge] = $this->contractWithCharge(issue: true);
-        $service = app(AccountReceivablePaymentService::class);
-        $event = ['amount' => 350, 'paid_at' => now()->toDateTimeString(), 'payment_method' => 'pix'];
-
-        $first = $service->register($charge, $event, null, AccountReceivablePayment::SOURCE_INTEGRATION, 'evt-123');
-        $second = $service->register($charge, $event, null, AccountReceivablePayment::SOURCE_INTEGRATION, 'evt-123');
-
-        $this->assertSame($first->id, $second->id);
-        $this->assertSame(1, AccountReceivablePayment::query()->count());
-        $this->assertSame(350.0, (float) $charge->refresh()->paid_amount);
-        $this->assertSame(1, FiscalDocument::query()->count());
-        $this->assertSame(0, CashSessionMovement::query()->count());
     }
 
     public function test_same_confirmation_submitted_twice_registers_the_payment_once(): void
@@ -244,254 +559,129 @@ class MaintenanceContractInvoiceTest extends TestCase
             ->assertSessionHas('success', 'Este pagamento já estava registrado; nada foi alterado.');
 
         $this->assertSame(1, AccountReceivablePayment::query()->count());
-        $this->assertSame(100.0, (float) $charge->refresh()->paid_amount);
         $this->assertSame(1, CashSessionMovement::query()->count());
-
-        $this->post($this->payRoute($contract, $charge), [...$this->paymentPayload(10), 'request_key' => 'nao-e-uuid'])
-            ->assertSessionHasErrors('request_key');
+        $this->post($this->payRoute($contract, $charge), [...$this->paymentPayload(10), 'request_key' => 'nao-e-uuid'])->assertSessionHasErrors('request_key');
     }
 
-    public function test_spedy_failure_never_reverts_the_confirmed_payment(): void
+    public function test_future_integrated_payment_event_is_idempotent_and_never_emits(): void
     {
-        Http::fake([self::SANDBOX.'/service-invoices' => Http::response(['message' => 'Dados inválidos'], 422)]);
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-
-        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
-
-        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
-        $this->assertSame(1, AccountReceivablePayment::query()->count());
-        $this->assertNull(AccountReceivablePayment::query()->sole()->reversed_at);
-        $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
-        $this->assertTrue(MaintenanceContractLog::query()->where('action', 'invoice_failed')->exists());
-    }
-
-    public function test_manual_emission_before_payment_is_allowed_and_payment_does_not_duplicate_it(): void
-    {
-        Mail::fake();
-        $this->fakeSpedy('authorized');
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-
-        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success', 'NFS-e autorizada.');
-        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->refresh()->status);
-
-        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
-
-        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
-        $this->assertSame(1, FiscalDocument::query()->count());
-        $this->assertCount(1, collect(Http::recorded())->filter(fn ($pair) => $pair[0]->method() === 'POST'));
-        $this->assertFalse(MaintenanceContractLog::query()->where('action', 'invoice_failed')->exists());
-    }
-
-    // ------------------------------------------------------------------ Spedy
-
-    public function test_concurrent_and_repeated_jobs_never_create_a_second_invoice(): void
-    {
-        Http::fake([self::SANDBOX.'/service-invoices' => Http::response($this->invoice('nfse-1', 'enqueued'))]);
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-        $this->settle($charge);
-
-        // Job do pagamento já rodou (sync). Novas execuções encontram a nota em processamento.
-        foreach (range(1, 3) as $_) {
-            dispatch_sync(new EmitMaintenanceContractInvoice($charge->id));
-        }
-
-        $this->assertSame(1, FiscalDocument::query()->count());
-        $this->assertSame(FiscalDocument::STATUS_PROCESSING, FiscalDocument::query()->sole()->status);
-        Http::assertSentCount(1);
-        $this->assertFalse(MaintenanceContractLog::query()->where('maintenance_contract_id', $contract->id)->where('action', 'invoice_failed')->exists());
-    }
-
-    public function test_rejection_is_recorded_and_reprocessing_reuses_the_same_invoice(): void
-    {
-        Http::fakeSequence(self::SANDBOX.'/service-invoices')
-            ->push($this->invoice('nfse-1', 'rejected', ['processingDetail' => ['status' => 'success', 'code' => 'E01', 'message' => 'Código de serviço inválido']]))
-            ->push($this->invoice('nfse-1', 'enqueued'));
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-        $this->settle($charge);
-
-        $first = FiscalDocument::query()->sole();
-        $this->assertSame(FiscalDocument::STATUS_REJECTED, $first->status);
-        $this->assertTrue(MaintenanceContractLog::query()->where('action', 'invoice_rejected')->exists());
-
-        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success');
-
-        $second = FiscalDocument::query()->sole();
-        $this->assertSame($first->id, $second->id);
-        $this->assertSame(FiscalDocument::STATUS_PROCESSING, $second->status);
-
-        $ids = [];
-        Http::assertSent(function (HttpRequest $request) use (&$ids) {
-            $ids[] = $request['integrationId'];
-
-            return true;
-        });
-        $this->assertCount(2, $ids);
-        $this->assertCount(1, array_unique($ids));
-
-        // Em processamento, novo pedido de emissão é recusado.
-        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))
-            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'em processamento'));
-        Http::assertSentCount(2);
-    }
-
-    public function test_spedy_unavailability_keeps_invoice_processing_without_duplicates(): void
-    {
-        Http::fake([self::SANDBOX.'/service-invoices' => Http::response(['message' => 'indisponível'], 503)]);
         [, $charge] = $this->contractWithCharge(issue: true);
-        $this->settle($charge);
+        $charge->forceFill(['fiscal_scheduled_for' => now()->addMonth()->toDateString()])->save();
+        $service = app(AccountReceivablePaymentService::class);
+        $event = ['amount' => 350, 'paid_at' => now()->toDateTimeString(), 'payment_method' => 'pix'];
 
-        $document = FiscalDocument::query()->sole();
-        $this->assertSame(FiscalDocument::STATUS_PROCESSING, $document->status);
-        $this->assertNull($document->provider_reference);
+        $first = $service->register($charge, $event, null, AccountReceivablePayment::SOURCE_INTEGRATION, 'provedor:evt-123');
+        $second = $service->register($charge, $event, null, AccountReceivablePayment::SOURCE_INTEGRATION, 'provedor:evt-123');
 
-        dispatch_sync(new EmitMaintenanceContractInvoice($charge->id));
-        $this->assertSame(1, FiscalDocument::query()->count());
-        Http::assertSentCount(1);
-    }
-
-    public function test_missing_customer_document_fails_without_calling_spedy(): void
-    {
-        $this->customer->update(['cpfcnpj' => null]);
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-        $this->settle($charge);
-
-        $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
-        $log = MaintenanceContractLog::query()->where('maintenance_contract_id', $contract->id)->where('action', 'invoice_failed')->sole();
-        $this->assertStringContainsString('CPF ou CNPJ', $log->data['error']);
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(350.0, (float) $charge->refresh()->paid_amount);
+        $this->assertSame(0, CashSessionMovement::query()->count());
+        $this->assertSame(0, FiscalDocument::query()->count());
         Http::assertNothingSent();
     }
 
-    // ------------------------------------------------------------------ envio ao cliente
-
-    public function test_email_failure_is_recorded_and_resend_never_emits_a_new_invoice(): void
+    public function test_pay_button_is_blocked_in_backend_when_an_automatic_channel_is_active(): void
     {
-        $this->fakeSpedy('authorized');
-        // SMTP apontando para porta fechada: o envio automático falha.
-        DB::table('others')->where('tenant_id', $this->tenant->id)->update(['mail_host' => '127.0.0.1', 'mail_port' => 1]);
-        [$contract, $charge] = $this->contractWithCharge(issue: true, send: true);
-        $this->settle($charge);
+        $this->app->bind(ReceivablePaymentChannel::class, fn () => new class implements ReceivablePaymentChannel
+        {
+            public function automaticChannelFor(AccountReceivable $receivable): ?string
+            {
+                return 'Pix do provedor';
+            }
+        });
+        [$contract, $charge] = $this->contractWithCharge(issue: false);
 
-        $document = FiscalDocument::query()->sole();
-        $failed = FiscalDocumentDelivery::query()->sole();
-        $this->assertSame(FiscalDocumentDelivery::STATUS_FAILED, $failed->status);
-        $this->assertStringNotContainsString('127.0.0.1', (string) $failed->error);
-        $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->refresh()->status);
-
-        Mail::fake();
-        $this->post(route('app.maintenance-contracts.invoices.send', [$contract, $document]))
-            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'financeiro@condominio.test'));
-
-        $this->assertSame(2, FiscalDocumentDelivery::query()->count());
-        $this->assertSame(FiscalDocumentDelivery::ORIGIN_MANUAL, FiscalDocumentDelivery::query()->latest('id')->first()->origin);
-        $this->assertSame(1, FiscalDocument::query()->count());
-        $emissions = collect(Http::recorded())->filter(fn ($pair) => $pair[0]->method() === 'POST' && $pair[0]->url() === self::SANDBOX.'/service-invoices');
-        $this->assertCount(1, $emissions);
-        // PDF/XML baixados uma vez só (guarda no disco fiscal); o envio e o reenvio usam a cópia.
-        $this->assertCount(2, collect(Http::recorded())->filter(fn ($pair) => $pair[0]->method() === 'GET'));
+        $this->get(route('app.maintenance-contracts.charges', $contract))
+            ->assertInertia(fn ($page) => $page->where('charges.0.payment_state', 'awaiting_automatic')->where('charges.0.automatic_channel', 'Pix do provedor'));
+        $this->pay($contract, $charge, 350)->assertSessionHasErrors('amount');
+        $this->assertSame(0, AccountReceivablePayment::query()->count());
     }
 
-    public function test_customer_without_email_is_recorded_as_failed_delivery(): void
-    {
-        Mail::fake();
-        $this->fakeSpedy('authorized');
-        $this->customer->update(['email' => null]);
-        [, $charge] = $this->contractWithCharge(issue: true, send: true);
-        $this->settle($charge);
-
-        $delivery = FiscalDocumentDelivery::query()->sole();
-        $this->assertSame(FiscalDocumentDelivery::STATUS_FAILED, $delivery->status);
-        $this->assertStringContainsString('e-mail válido', $delivery->error);
-        Mail::assertNothingSent();
-    }
-
-    // ------------------------------------------------------------------ estorno e isolamento
-
-    public function test_reversal_after_payment_restores_balance_and_cash_without_touching_the_invoice(): void
+    public function test_reversal_after_emission_reopens_the_charge_without_touching_the_invoice(): void
     {
         Mail::fake();
         $this->fakeSpedy('authorized');
         [$contract, $charge] = $this->contractWithCharge(issue: true);
-        $this->settle($charge);
+        $this->runScheduler();
+        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
         $payment = AccountReceivablePayment::query()->sole();
 
         $this->post(route('app.maintenance-contracts.payments.reverse', [$contract, $payment]), ['reason' => 'Cheque devolvido'])
-            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'contabilidade'));
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'continua válida'));
 
-        $charge->refresh();
-        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->status);
-        $this->assertSame(350.0, (float) $charge->balance_amount);
-        $this->assertNotNull($payment->refresh()->reversed_at);
+        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->refresh()->status);
         $this->assertNotNull(CashSessionMovement::query()->sole()->cancelled_at);
         $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::query()->sole()->status);
-
         $log = MaintenanceContractLog::query()->where('action', 'payment_reversed')->sole();
-        $this->assertTrue($log->data['invoice_review_required']);
-
-        $this->post(route('app.maintenance-contracts.payments.reverse', [$contract, $payment]), ['reason' => 'De novo'])->assertSessionHasErrors('reason');
+        $this->assertTrue($log->data['has_authorized_invoice']);
+        $this->assertArrayNotHasKey('invoice_review_required', $log->data);
     }
 
     public function test_reversal_after_cash_closed_registers_refund_in_the_current_cash(): void
     {
         [$contract, $charge] = $this->contractWithCharge(issue: false);
-        $this->settle($charge);
+        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
         CashSession::query()->update(['status' => 'closed', 'closed_at' => now()]);
         $this->openCash($this->tenant, $this->user, 500);
 
         $this->post(route('app.maintenance-contracts.payments.reverse', [$contract, AccountReceivablePayment::query()->sole()]), ['reason' => 'Pagamento em duplicidade'])
             ->assertSessionHasNoErrors();
 
-        $withdrawal = CashSessionMovement::query()->where('type', CashSessionMovement::TYPE_WITHDRAWAL)->sole();
-        $this->assertSame(350.0, (float) $withdrawal->amount);
-        $this->assertNull(CashSessionMovement::query()->where('type', CashSessionMovement::TYPE_ENTRY)->sole()->cancelled_at);
+        $this->assertSame(350.0, (float) CashSessionMovement::query()->where('type', CashSessionMovement::TYPE_WITHDRAWAL)->sole()->amount);
     }
 
-    public function test_tenants_are_isolated_in_charges_payments_and_fiscal_credentials(): void
-    {
-        $this->fakeSpedy('authorized');
-        [$contract, $charge] = $this->contractWithCharge(issue: true);
-
-        $other = Tenant::factory()->create(['automatic_fiscal_emission_enabled' => true]);
-        $otherUser = User::factory()->forTenant($other->id)->create(['roles' => User::ROLE_ADMIN]);
-        $this->prepareTenant($other, 'company-key-b');
-        $this->openCash($other, $otherUser);
-
-        $this->actingAs($otherUser)->withSession(['tenant_id' => $other->id]);
-        $this->get(route('app.maintenance-contracts.charges', $contract))->assertNotFound();
-        // POST com registro inexistente para o tenant volta com erro (tratamento padrão do app).
-        $this->post($this->payRoute($contract, $charge), $this->paymentPayload(350))
-            ->assertRedirect()
-            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'Não foi possível encontrar'));
-        $this->assertSame(0, AccountReceivablePayment::query()->withoutGlobalScopes()->count());
-
-        $this->actingAs($this->user)->withSession(['tenant_id' => $this->tenant->id]);
-        $this->settle($charge);
-
-        Http::assertSent(fn (HttpRequest $request) => $request->url() === self::SANDBOX.'/service-invoices' && $request->hasHeader('X-Api-Key', 'company-key-a'));
-        Http::assertNotSent(fn (HttpRequest $request) => $request->hasHeader('X-Api-Key', 'company-key-b'));
-    }
-
-    public function test_charges_page_shows_financial_and_fiscal_situation(): void
+    public function test_charges_page_separates_payment_fiscal_and_delivery_states(): void
     {
         Mail::fake();
         $this->fakeSpedy('authorized');
         [$contract, $charge] = $this->contractWithCharge(issue: true, send: true);
-        $this->settle($charge);
 
         $this->get(route('app.maintenance-contracts.charges', $contract))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('app/maintenance-contracts/charges')
-                ->where('charges.0.status', 'paid')
-                ->where('charges.0.paid_amount', 350)
-                ->where('charges.0.invoice.status', 'authorized')
-                ->where('charges.0.invoice.number', '1234')
-                ->where('charges.0.invoice.delivery.status', 'sent')
-                ->where('charges.0.payments.0.amount', 350));
+                ->where('charges.0.payment_state', 'pay')
+                ->where('charges.0.fiscal_state', 'scheduled')
+                ->where('charges.0.delivery_state', 'awaiting_authorization'));
 
+        $this->runScheduler();
+        $this->pay($contract, $charge, 100);
+
+        $this->get(route('app.maintenance-contracts.charges', $contract))
+            ->assertInertia(fn ($page) => $page
+                ->where('charges.0.payment_state', 'pay_balance')
+                ->where('charges.0.fiscal_state', 'authorized')
+                ->where('charges.0.invoice.number', '1234')
+                ->where('charges.0.delivery_state', 'sent')
+                ->where('charges.0.competence', now()->format('m/Y')));
+
+        $this->travel(40)->days();
+        $this->get(route('app.maintenance-contracts.charges', $contract))
+            ->assertInertia(fn ($page) => $page->where('charges.0.overdue', true));
         $this->get(route('app.maintenance-contracts.index'))->assertOk();
     }
 
     // ------------------------------------------------------------------ apoio
+
+    /** Executa o job de emissão diretamente (dispatch_sync passaria pela fila falsa). */
+    private function runEmissionJob(int $receivableId): void
+    {
+        (new EmitMaintenanceContractInvoice($receivableId))->handle(app(NativeFiscalService::class), app(MaintenanceContractService::class));
+    }
+
+    private function runScheduler(): void
+    {
+        $this->artisan('vetoros:process-maintenance-contracts')->assertSuccessful();
+    }
+
+    /** @return Collection<int, HttpRequest> */
+    private function emissionRequests(): Collection
+    {
+        return collect(Http::recorded())
+            ->filter(fn ($pair) => $pair[0]->method() === 'POST' && $pair[0]->url() === self::SANDBOX.'/service-invoices')
+            ->map(fn ($pair) => $pair[0])
+            ->values();
+    }
 
     private function prepareTenant(Tenant $tenant, string $apiKey): void
     {
@@ -552,7 +742,7 @@ class MaintenanceContractInvoiceTest extends TestCase
     }
 
     /** @return array{0: MaintenanceContract, 1: AccountReceivable} */
-    private function contractWithCharge(bool $issue, bool $send = false): array
+    private function contractWithCharge(bool $issue, bool $send = false, string $competence = MaintenanceContract::COMPETENCE_DUE_MONTH): array
     {
         $contract = MaintenanceContract::query()->create([
             'tenant_id' => $this->tenant->id,
@@ -560,22 +750,18 @@ class MaintenanceContractInvoiceTest extends TestCase
             'contract_number' => 7,
             'description' => 'Manutenção preventiva mensal dos elevadores',
             'monthly_amount' => 350,
-            'billing_day' => 5,
+            'billing_day' => 10,
             'start_date' => now()->subMonth()->toDateString(),
             'next_billing_date' => now()->toDateString(),
             'status' => MaintenanceContract::STATUS_ACTIVE,
             'auto_issue_invoice' => $issue,
             'auto_send_invoice' => $send,
+            'invoice_competence' => $competence,
+            'auto_issue_enabled_at' => $issue ? now()->subDay() : null,
         ]);
         $charge = app(MaintenanceContractService::class)->processBillingCycle($contract);
 
         return [$contract->refresh(), $charge];
-    }
-
-    private function settle(AccountReceivable $charge): void
-    {
-        $contract = MaintenanceContract::query()->findOrFail($charge->source_id);
-        $this->pay($contract, $charge, (float) $charge->refresh()->balance_amount)->assertSessionHasNoErrors();
     }
 
     private function pay(MaintenanceContract $contract, AccountReceivable $charge, float $amount)

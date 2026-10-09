@@ -2,13 +2,13 @@
 
 namespace App\Services;
 
-use App\Jobs\EmitMaintenanceContractInvoice;
 use App\Models\App\AccountReceivable;
 use App\Models\App\AccountReceivablePayment;
 use App\Models\App\CashSession;
 use App\Models\App\CashSessionMovement;
 use App\Models\App\FiscalDocument;
 use App\Models\App\MaintenanceContractLog;
+use App\Services\Payments\ReceivablePaymentChannel;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -23,13 +23,18 @@ use Illuminate\Validation\ValidationException;
  *   no evento integrado (provedores futuros), o id do provedor. Repetir a mesma referência devolve
  *   o recebimento já gravado. A autenticidade do evento integrado é de quem chama (webhook validado).
  * - Estorno nunca apaga: marca o recebimento, ajusta o caixa e recalcula a conta.
- * - A NFS-e automática do contrato só é disparada quando a conta fica integralmente quitada.
+ * - Recebimento não emite nota (VETOR-FISCAL-05.3): a NFS-e do contrato é programada por ciclo,
+ *   independente do pagamento; quitar uma cobrança já faturada não gera segunda nota.
+ * - Com meio de recebimento automático ativo (ReceivablePaymentChannel), a baixa manual é recusada.
  */
 class AccountReceivablePaymentService
 {
     public const CASH_SOURCE = 'account_receivable_payment';
 
-    public function __construct(private readonly CashSessionService $cashSessions) {}
+    public function __construct(
+        private readonly CashSessionService $cashSessions,
+        private readonly ReceivablePaymentChannel $channels,
+    ) {}
 
     /**
      * @param  array{amount: float|int|string, paid_at?: string|null, payment_method: string, notes?: string|null}  $data
@@ -59,6 +64,10 @@ class AccountReceivablePaymentService
 
                 $amount = round((float) $data['amount'], 2);
                 $this->assertPayable($locked, $amount);
+
+                if ($source === AccountReceivablePayment::SOURCE_MANUAL && ($channel = $this->channels->automaticChannelFor($locked))) {
+                    throw ValidationException::withMessages(['amount' => "Esta cobrança é recebida automaticamente ({$channel}). Aguarde a confirmação do provedor."]);
+                }
 
                 $cashSession = null;
                 if ($source === AccountReceivablePayment::SOURCE_MANUAL) {
@@ -95,7 +104,6 @@ class AccountReceivablePaymentService
                     $payment->forceFill(['cash_session_movement_id' => $movement->id])->save();
                 }
 
-                $wasPaid = $locked->status === AccountReceivable::STATUS_PAID;
                 $this->recalculate($locked);
 
                 $this->contractLog($locked, $userId, 'payment_registered', [
@@ -104,11 +112,8 @@ class AccountReceivablePaymentService
                     'amount' => $amount,
                     'source' => $source,
                     'status' => $locked->status,
+                    'has_invoice' => $this->hasActiveInvoice($locked),
                 ]);
-
-                if (! $wasPaid && $locked->status === AccountReceivable::STATUS_PAID) {
-                    $this->queueAutomaticInvoice($locked, $userId);
-                }
 
                 return $payment;
             });
@@ -123,10 +128,11 @@ class AccountReceivablePaymentService
     }
 
     /**
-     * Estorna um recebimento. Se a conta já tinha NFS-e autorizada, a nota não é cancelada
-     * automaticamente: o retorno indica que ela precisa de revisão (cancelamento é decisão fiscal).
+     * Estorna um recebimento. A NFS-e do ciclo não é tocada: ela foi emitida pela prestação do
+     * serviço, não pelo pagamento, então o estorno apenas reabre a cobrança. Cancelar a nota segue
+     * o fluxo fiscal normal, por decisão da empresa.
      *
-     * @return array{payment: AccountReceivablePayment, invoice_review_required: bool}
+     * @return array{payment: AccountReceivablePayment, has_authorized_invoice: bool}
      */
     public function reverse(AccountReceivablePayment $payment, string $reason, ?int $userId): array
     {
@@ -154,7 +160,7 @@ class AccountReceivablePaymentService
 
             $this->recalculate($receivable);
 
-            $invoiceReview = $receivable->fiscalDocuments()->withoutGlobalScopes()
+            $authorized = $receivable->fiscalDocuments()->withoutGlobalScopes()
                 ->where('status', FiscalDocument::STATUS_AUTHORIZED)
                 ->exists();
 
@@ -164,10 +170,10 @@ class AccountReceivablePaymentService
                 'amount' => (float) $payment->amount,
                 'reason' => $reason,
                 'status' => $receivable->status,
-                'invoice_review_required' => $invoiceReview,
+                'has_authorized_invoice' => $authorized,
             ]);
 
-            return ['payment' => $payment, 'invoice_review_required' => $invoiceReview];
+            return ['payment' => $payment, 'has_authorized_invoice' => $authorized];
         });
     }
 
@@ -265,16 +271,9 @@ class AccountReceivablePaymentService
         }
     }
 
-    private function queueAutomaticInvoice(AccountReceivable $receivable, ?int $userId): void
+    private function hasActiveInvoice(AccountReceivable $receivable): bool
     {
-        $contract = $receivable->maintenanceContract();
-
-        if (! $contract?->auto_issue_invoice) {
-            return;
-        }
-
-        $this->contractLog($receivable, $userId, 'invoice_queued', ['account_receivable_id' => $receivable->id]);
-        EmitMaintenanceContractInvoice::dispatch($receivable->id)->afterCommit();
+        return FiscalDocument::hasActiveNativeFor($receivable);
     }
 
     private function findByReference(int $tenantId, string $source, ?string $externalReference): ?AccountReceivablePayment

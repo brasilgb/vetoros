@@ -3,6 +3,7 @@
 use App\Http\Controllers\App\PaymentController;
 use App\Http\Controllers\App\SubscriptionController;
 use App\Http\Controllers\OsController;
+use App\Http\Controllers\SharedFiscalDocumentController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\PlanController;
 use App\Http\Controllers\TenantFeedbackController;
@@ -30,6 +31,12 @@ Route::get('/os/{token}/fiscal-proof', [OsController::class, 'fiscalProof'])
 Route::get('/os/{token}/fiscal-proof/pdf', [OsController::class, 'fiscalProofFile'])
     ->middleware('throttle:30,1')
     ->name('os.fiscal-proof.pdf');
+// PDF/XML de NFS-e de contrato para o cliente final: link assinado e temporário (VETOR-FISCAL-05.3).
+Route::get('/nfse/{document}/{format}', SharedFiscalDocumentController::class)
+    ->whereNumber('document')
+    ->where('format', 'pdf|xml')
+    ->middleware('throttle:30,1')
+    ->name('fiscal-documents.shared');
 Route::post('/os/{token}/feedback', [OsController::class, 'submitFeedback'])
     ->name('os.feedback.submit');
 Route::get('/experience/{token}', [TenantFeedbackController::class, 'show'])->name('tenant.feedback.show');

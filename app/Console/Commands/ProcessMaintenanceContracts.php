@@ -22,16 +22,24 @@ class ProcessMaintenanceContracts extends Command
         $expired = 0;
         $billed = 0;
         $scheduled = 0;
+        $failed = 0;
 
         MaintenanceContract::query()
             ->where('status', MaintenanceContract::STATUS_ACTIVE)
             ->whereNotNull('end_date')
             ->whereDate('end_date', '<', now()->toDateString())
             ->orderBy('id')
-            ->chunkById(100, function ($contracts) use (&$expired) {
+            ->chunkById(100, function ($contracts) use (&$expired, &$failed) {
                 foreach ($contracts as $contract) {
-                    if ($this->maintenanceContractService->expireIfNeeded($contract)) {
-                        $expired++;
+                    // Falha em um contrato não interrompe os demais.
+                    try {
+                        if ($this->maintenanceContractService->expireIfNeeded($contract)) {
+                            $expired++;
+                        }
+                    } catch (\Throwable $exception) {
+                        $failed++;
+                        report($exception);
+                        $this->warn("Contrato #{$contract->id}: {$exception->getMessage()}");
                     }
                 }
             });
@@ -41,10 +49,17 @@ class ProcessMaintenanceContracts extends Command
             ->whereNotNull('next_billing_date')
             ->whereDate('next_billing_date', '<=', now()->toDateString())
             ->orderBy('id')
-            ->chunkById(100, function ($contracts) use (&$billed) {
+            ->chunkById(100, function ($contracts) use (&$billed, &$failed) {
                 foreach ($contracts as $contract) {
-                    if ($this->maintenanceContractService->processBillingCycle($contract)) {
-                        $billed++;
+                    // Falha em um contrato não interrompe os demais.
+                    try {
+                        if ($this->maintenanceContractService->processBillingCycle($contract)) {
+                            $billed++;
+                        }
+                    } catch (\Throwable $exception) {
+                        $failed++;
+                        report($exception);
+                        $this->warn("Contrato #{$contract->id}: {$exception->getMessage()}");
                     }
                 }
             });
@@ -56,15 +71,25 @@ class ProcessMaintenanceContracts extends Command
             // gera com 1 dia de antecedência da visita
             ->whereDate('next_schedule_date', '<=', now()->addDay()->toDateString())
             ->orderBy('id')
-            ->chunkById(100, function ($contracts) use (&$scheduled) {
+            ->chunkById(100, function ($contracts) use (&$scheduled, &$failed) {
                 foreach ($contracts as $contract) {
-                    if ($this->maintenanceContractService->processVisitGeneration($contract)) {
-                        $scheduled++;
+                    // Falha em um contrato não interrompe os demais.
+                    try {
+                        if ($this->maintenanceContractService->processVisitGeneration($contract)) {
+                            $scheduled++;
+                        }
+                    } catch (\Throwable $exception) {
+                        $failed++;
+                        report($exception);
+                        $this->warn("Contrato #{$contract->id}: {$exception->getMessage()}");
                     }
                 }
             });
 
-        $this->info("Processo concluído. Expirados: {$expired}. Cobranças geradas: {$billed}. Visitas (OS + agendamento) geradas: {$scheduled}.");
+        // Emissão fiscal programada (independente do pagamento), depois de gerar as cobranças do dia.
+        $invoices = $this->maintenanceContractService->queueScheduledInvoices();
+
+        $this->info("Processo concluído. Expirados: {$expired}. Cobranças geradas: {$billed}. Visitas (OS + agendamento) geradas: {$scheduled}. NFS-e enfileiradas: {$invoices}. Falhas: {$failed}.");
 
         return self::SUCCESS;
     }

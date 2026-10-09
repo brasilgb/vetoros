@@ -35,6 +35,10 @@ class AccountReceivable extends Model
         'paid_amount',
         'balance_amount',
         'due_date',
+        'competence_start',
+        'competence_end',
+        'fiscal_scheduled_for',
+        'fiscal_queued_at',
         'status',
         'payment_method',
         'installment_number',
@@ -48,6 +52,10 @@ class AccountReceivable extends Model
         'paid_amount' => 'decimal:2',
         'balance_amount' => 'decimal:2',
         'due_date' => 'date',
+        'competence_start' => 'date',
+        'competence_end' => 'date',
+        'fiscal_scheduled_for' => 'date',
+        'fiscal_queued_at' => 'datetime',
         'last_paid_at' => 'datetime',
     ];
 
