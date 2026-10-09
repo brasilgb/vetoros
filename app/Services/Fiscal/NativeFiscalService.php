@@ -92,7 +92,11 @@ class NativeFiscalService
      * reserva com trava e o mesmo integrationId do emit(): cliques, jobs concorrentes e novas
      * tentativas não geram duas notas para a mesma cobrança.
      */
-    public function emitForContractReceivable(AccountReceivable $receivable, ?int $userId): FiscalDocument
+    /**
+     * @param  bool  $requirePaid  a emissão automática exige a cobrança quitada; a manual pode ser
+     *                             feita antes, quando a obrigação fiscal (competência) exigir
+     */
+    public function emitForContractReceivable(AccountReceivable $receivable, ?int $userId, bool $requirePaid = true): FiscalDocument
     {
         $receivable = AccountReceivable::query()->withoutGlobalScopes()->findOrFail($receivable->getKey());
         $contract = $receivable->maintenanceContract();
@@ -100,7 +104,10 @@ class NativeFiscalService
         if (! $contract) {
             throw new FiscalEmissionException('Esta cobrança não pertence a um contrato de manutenção.');
         }
-        if ($receivable->status !== AccountReceivable::STATUS_PAID) {
+        if ($receivable->status === AccountReceivable::STATUS_CANCELLED) {
+            throw new FiscalEmissionException('Não é possível emitir NFS-e para cobrança cancelada.');
+        }
+        if ($requirePaid && $receivable->status !== AccountReceivable::STATUS_PAID) {
             throw new FiscalEmissionException('A NFS-e do contrato só é emitida para cobrança integralmente quitada.');
         }
 

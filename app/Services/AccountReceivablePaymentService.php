@@ -19,8 +19,9 @@ use Illuminate\Validation\ValidationException;
  * existente: não é um financeiro paralelo.
  *
  * - Baixa manual exige caixa aberto e vira uma entrada do caixa (como o pagamento local do técnico).
- * - Evento integrado é idempotente pela referência externa do provedor; a autenticidade do evento
- *   é responsabilidade de quem chama (webhook validado).
+ * - Idempotente pela referência: na baixa manual, a chave da confirmação ("Pagamento efetuado");
+ *   no evento integrado (provedores futuros), o id do provedor. Repetir a mesma referência devolve
+ *   o recebimento já gravado. A autenticidade do evento integrado é de quem chama (webhook validado).
  * - Estorno nunca apaga: marca o recebimento, ajusta o caixa e recalcula a conta.
  * - A NFS-e automática do contrato só é disparada quando a conta fica integralmente quitada.
  */
@@ -44,7 +45,7 @@ class AccountReceivablePaymentService
             throw new \InvalidArgumentException('Evento integrado sem referência externa.');
         }
 
-        if ($existing = $this->findIntegrated((int) $receivable->tenant_id, $source, $externalReference)) {
+        if ($existing = $this->findByReference((int) $receivable->tenant_id, $source, $externalReference)) {
             return $existing;
         }
 
@@ -52,7 +53,7 @@ class AccountReceivablePaymentService
             return DB::transaction(function () use ($receivable, $data, $userId, $source, $externalReference) {
                 $locked = AccountReceivable::query()->withoutGlobalScopes()->whereKey($receivable->getKey())->lockForUpdate()->firstOrFail();
 
-                if ($existing = $this->findIntegrated((int) $locked->tenant_id, $source, $externalReference)) {
+                if ($existing = $this->findByReference((int) $locked->tenant_id, $source, $externalReference)) {
                     return $existing;
                 }
 
@@ -113,7 +114,7 @@ class AccountReceivablePaymentService
             });
         } catch (UniqueConstraintViolationException $exception) {
             // Dois eventos iguais ao mesmo tempo: o segundo devolve o recebimento já gravado.
-            if ($existing = $this->findIntegrated((int) $receivable->tenant_id, $source, $externalReference)) {
+            if ($existing = $this->findByReference((int) $receivable->tenant_id, $source, $externalReference)) {
                 return $existing;
             }
 
@@ -276,9 +277,9 @@ class AccountReceivablePaymentService
         EmitMaintenanceContractInvoice::dispatch($receivable->id)->afterCommit();
     }
 
-    private function findIntegrated(int $tenantId, string $source, ?string $externalReference): ?AccountReceivablePayment
+    private function findByReference(int $tenantId, string $source, ?string $externalReference): ?AccountReceivablePayment
     {
-        if ($source !== AccountReceivablePayment::SOURCE_INTEGRATION || blank($externalReference)) {
+        if (blank($externalReference)) {
             return null;
         }
 

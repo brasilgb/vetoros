@@ -99,10 +99,22 @@ class MaintenanceContractChargeController extends Controller
             'paid_at' => ['required', 'date', 'before_or_equal:now'],
             'payment_method' => ['required', Rule::in(self::PAYMENT_METHODS)],
             'notes' => ['nullable', 'string', 'max:500'],
+            // Chave gerada a cada confirmação: reenvio, duplo clique ou nova tentativa não duplicam a baixa.
+            'request_key' => ['required', 'uuid'],
         ]);
 
-        $this->payments->register($receivable, $validated, (int) Auth::id());
+        $payment = $this->payments->register(
+            $receivable,
+            $validated,
+            (int) Auth::id(),
+            AccountReceivablePayment::SOURCE_MANUAL,
+            'manual:'.$validated['request_key'],
+        );
         $receivable->refresh();
+
+        if (! $payment->wasRecentlyCreated) {
+            return back()->with('success', 'Este pagamento já estava registrado; nada foi alterado.');
+        }
 
         $message = $receivable->status === AccountReceivable::STATUS_PAID
             ? 'Recebimento registrado. Cobrança quitada'.($maintenance_contract->auto_issue_invoice ? '; a NFS-e foi enviada para emissão.' : '.')
@@ -132,7 +144,8 @@ class MaintenanceContractChargeController extends Controller
         $this->ensureCharge($maintenance_contract, $receivable);
 
         try {
-            $document = $this->fiscal->emitForContractReceivable($receivable, (int) Auth::id());
+            // Ação manual: permitida antes da quitação quando a obrigação fiscal exigir.
+            $document = $this->fiscal->emitForContractReceivable($receivable, (int) Auth::id(), requirePaid: false);
         } catch (FiscalValidationException|FiscalEmissionException|SpedyException $exception) {
             return back()->with('error', $exception->getMessage());
         }
@@ -227,7 +240,7 @@ class MaintenanceContractChargeController extends Controller
                 'deliveries_count' => $documentDeliveries->count(),
             ] : null,
             'can_emit' => $canFiscal
-                && $receivable->status === AccountReceivable::STATUS_PAID
+                && $receivable->status !== AccountReceivable::STATUS_CANCELLED
                 && (! $document || in_array($document->status, [FiscalDocument::STATUS_REJECTED, FiscalDocument::STATUS_FAILED, FiscalDocument::STATUS_CANCELLED], true)),
         ];
     }

@@ -6,12 +6,13 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, FileText, ReceiptText, RefreshCcw, Send, Undo2, Wallet } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FileText, ReceiptText, RefreshCcw, Send, Undo2, Wallet } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
 
@@ -131,7 +132,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
     ];
 
     const [paying, setPaying] = useState<Charge | null>(null);
-    const paymentForm = useForm({ amount: '', paid_at: '', payment_method: paymentMethods[0] ?? 'pix', notes: '' });
+    const paymentForm = useForm({ amount: '', paid_at: '', payment_method: paymentMethods[0] ?? 'pix', notes: '', request_key: '' });
 
     const openPayment = (charge: Charge) => {
         paymentForm.setData({
@@ -139,6 +140,8 @@ export default function MaintenanceContractCharges({ contract, charges, history,
             paid_at: moment().format('YYYY-MM-DDTHH:mm'),
             payment_method: paymentMethods[0] ?? 'pix',
             notes: '',
+            // Uma chave por confirmação: duplo clique ou reenvio não registram o pagamento duas vezes.
+            request_key: crypto.randomUUID(),
         });
         paymentForm.clearErrors();
         setPaying(charge);
@@ -160,7 +163,11 @@ export default function MaintenanceContractCharges({ contract, charges, history,
     };
 
     const emit = (charge: Charge) => {
-        if (!window.confirm(`Emitir a NFS-e de ${money(charge.total_amount)} para ${contract.customer?.name ?? 'o cliente'}?`)) return;
+        const question =
+            charge.status === 'paid'
+                ? `Emitir a NFS-e de ${money(charge.total_amount)} para ${contract.customer?.name ?? 'o cliente'}?`
+                : `Esta cobrança ainda não foi quitada. Emitir a NFS-e de ${money(charge.total_amount)} mesmo assim (obrigação fiscal por competência)? O pagamento continua em aberto.`;
+        if (!window.confirm(question)) return;
         router.post(route('app.maintenance-contracts.charges.invoice', [contract.id, charge.id]), {}, { preserveScroll: true });
     };
 
@@ -171,7 +178,10 @@ export default function MaintenanceContractCharges({ contract, charges, history,
         router.post(route('app.maintenance-contracts.invoices.send', [contract.id, invoice.id]), {}, { preserveScroll: true });
     };
 
-    const needsReview = charges.filter((charge) => charge.invoice?.status === 'authorized' && charge.status !== 'paid');
+    // Nota autorizada numa cobrança que teve recebimento estornado: a contabilidade avalia o cancelamento.
+    const needsReview = charges.filter(
+        (charge) => charge.invoice?.status === 'authorized' && charge.status !== 'paid' && charge.payments.some((payment) => payment.reversed_at),
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -220,18 +230,15 @@ export default function MaintenanceContractCharges({ contract, charges, history,
                                 <TableRow>
                                     <TableHead>Vencimento</TableHead>
                                     <TableHead>Valor</TableHead>
-                                    <TableHead>Recebido</TableHead>
-                                    <TableHead>Saldo</TableHead>
-                                    <TableHead>Situação</TableHead>
+                                    <TableHead>Pagamento</TableHead>
                                     <TableHead>NFS-e</TableHead>
                                     <TableHead>Envio ao cliente</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {charges.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-16 text-center">
+                                        <TableCell colSpan={5} className="h-16 text-center">
                                             Nenhuma cobrança gerada ainda.
                                         </TableCell>
                                     </TableRow>
@@ -285,7 +292,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
             <Dialog open={!!paying} onOpenChange={(open) => (!open ? setPaying(null) : null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Registrar recebimento</DialogTitle>
+                        <DialogTitle>Confirmar pagamento efetuado</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={submitPayment} className="space-y-4">
                         <p className="text-muted-foreground text-sm">
@@ -315,18 +322,18 @@ export default function MaintenanceContractCharges({ contract, charges, history,
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="payment_method">Forma de pagamento</Label>
-                            <select
-                                id="payment_method"
-                                className="border-input bg-background h-9 rounded-md border px-3 text-sm"
-                                value={paymentForm.data.payment_method}
-                                onChange={(e) => paymentForm.setData('payment_method', e.target.value)}
-                            >
-                                {paymentMethods.map((method) => (
-                                    <option key={method} value={method}>
-                                        {methodLabels[method] ?? method}
-                                    </option>
-                                ))}
-                            </select>
+                            <Select value={paymentForm.data.payment_method} onValueChange={(value) => paymentForm.setData('payment_method', value)}>
+                                <SelectTrigger id="payment_method">
+                                    <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {paymentMethods.map((method) => (
+                                        <SelectItem key={method} value={method}>
+                                            {methodLabels[method] ?? method}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <InputError message={paymentForm.errors.payment_method} />
                         </div>
                         <div className="grid gap-2">
@@ -343,7 +350,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
                                 Cancelar
                             </Button>
                             <Button type="submit" disabled={paymentForm.processing}>
-                                Registrar recebimento
+                                Confirmar pagamento
                             </Button>
                         </DialogFooter>
                     </form>
@@ -366,77 +373,100 @@ type RowProps = {
 function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, onSend }: RowProps) {
     const invoice = charge.invoice;
     const delivery = invoice?.delivery;
+    const payable = charge.balance_amount > 0 && charge.status !== 'cancelled';
 
     return (
         <>
             <TableRow>
                 <TableCell>{date(charge.due_date)}</TableCell>
                 <TableCell>{money(charge.total_amount)}</TableCell>
-                <TableCell>{money(charge.paid_amount)}</TableCell>
-                <TableCell>{money(charge.balance_amount)}</TableCell>
                 <TableCell>
-                    <Badge variant="outline" className={financialStatus[charge.status]?.className}>
-                        {financialStatus[charge.status]?.label ?? charge.status}
-                    </Badge>
-                </TableCell>
-                <TableCell className="text-sm">
-                    {invoice ? (
-                        <div className="grid gap-0.5">
-                            <span className="font-medium">{invoiceStatus[invoice.status] ?? invoice.status}</span>
-                            {invoice.number && <span>nº {invoice.number}</span>}
-                            {invoice.provider_reference && <span className="text-muted-foreground text-xs">id {invoice.provider_reference}</span>}
-                            {invoice.issued_at && <span className="text-muted-foreground text-xs">autorizada em {date(invoice.issued_at)}</span>}
-                            {invoice.error_message && <span className="text-destructive text-xs">{invoice.error_message}</span>}
-                        </div>
-                    ) : (
-                        <span className="text-muted-foreground">Não emitida</span>
-                    )}
-                </TableCell>
-                <TableCell className="text-sm">
-                    {delivery ? (
-                        <div className="grid gap-0.5">
-                            <span className={delivery.status === 'sent' ? '' : 'text-destructive'}>
-                                {delivery.status === 'sent' ? 'Enviada' : 'Falhou'} ({delivery.origin === 'automatic' ? 'automático' : 'reenvio'})
-                            </span>
+                    {/* Pagamento e situação fiscal ficam em colunas separadas. */}
+                    <div className="grid justify-items-start gap-1 text-sm">
+                        {charge.status === 'paid' ? (
+                            <Badge
+                                variant="outline"
+                                className="gap-1 border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Pago
+                            </Badge>
+                        ) : charge.status === 'cancelled' ? (
+                            <Badge variant="outline" className="bg-muted text-muted-foreground">
+                                Cancelada
+                            </Badge>
+                        ) : (
+                            payable && (
+                                <Button size="sm" onClick={() => onPay(charge)}>
+                                    <Wallet className="h-4 w-4" />
+                                    Pagar
+                                </Button>
+                            )
+                        )}
+                        {charge.status === 'paid' && charge.last_paid_at && (
+                            <span className="text-muted-foreground text-xs">em {date(charge.last_paid_at)}</span>
+                        )}
+                        {charge.status === 'partial' && (
                             <span className="text-muted-foreground text-xs">
-                                {delivery.email ?? 'sem e-mail'} · {date(delivery.created_at, true)}
+                                Recebido {money(charge.paid_amount)} · saldo {money(charge.balance_amount)}
                             </span>
-                            {delivery.error && <span className="text-destructive text-xs">{delivery.error}</span>}
-                        </div>
-                    ) : (
-                        <span className="text-muted-foreground">-</span>
-                    )}
+                        )}
+                    </div>
                 </TableCell>
-                <TableCell className="text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                        {charge.balance_amount > 0 && charge.status !== 'cancelled' && (
-                            <Button size="sm" onClick={() => onPay(charge)}>
-                                <Wallet className="h-4 w-4" />
-                                Receber
-                            </Button>
+                <TableCell className="text-sm">
+                    <div className="grid justify-items-start gap-1">
+                        {invoice ? (
+                            <>
+                                <span className="font-medium">{invoiceStatus[invoice.status] ?? invoice.status}</span>
+                                {invoice.number && <span>nº {invoice.number}</span>}
+                                {invoice.provider_reference && <span className="text-muted-foreground text-xs">id {invoice.provider_reference}</span>}
+                                {invoice.issued_at && <span className="text-muted-foreground text-xs">autorizada em {date(invoice.issued_at)}</span>}
+                                {invoice.error_message && <span className="text-destructive text-xs">{invoice.error_message}</span>}
+                            </>
+                        ) : (
+                            <span className="text-muted-foreground">Não emitida</span>
                         )}
-                        {canFiscal && charge.can_emit && (
-                            <Button size="sm" variant="outline" onClick={() => onEmit(charge)}>
-                                <FileText className="h-4 w-4" />
-                                {invoice ? 'Reprocessar NFS-e' : 'Emitir NFS-e'}
-                            </Button>
-                        )}
-                        {invoice?.can_refresh && (
-                            <Button size="icon" variant="outline" title="Consultar status da nota" onClick={() => onRefresh(invoice)}>
-                                <RefreshCcw className="h-4 w-4" />
-                            </Button>
-                        )}
-                        {invoice?.pdf_url && (
-                            <Button size="sm" variant="outline" asChild>
-                                <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
-                                    PDF
-                                </a>
-                            </Button>
-                        )}
-                        {invoice?.xml_url && (
-                            <Button size="sm" variant="outline" asChild>
-                                <a href={invoice.xml_url}>XML</a>
-                            </Button>
+                        <div className="flex flex-wrap gap-1">
+                            {canFiscal && charge.can_emit && (
+                                <Button size="sm" variant="outline" onClick={() => onEmit(charge)}>
+                                    <FileText className="h-4 w-4" />
+                                    {invoice ? 'Reprocessar' : 'Emitir NFS-e'}
+                                </Button>
+                            )}
+                            {invoice?.can_refresh && (
+                                <Button size="icon" variant="outline" title="Consultar status da nota" onClick={() => onRefresh(invoice)}>
+                                    <RefreshCcw className="h-4 w-4" />
+                                </Button>
+                            )}
+                            {invoice?.pdf_url && (
+                                <Button size="sm" variant="outline" asChild>
+                                    <a href={invoice.pdf_url} target="_blank" rel="noopener noreferrer">
+                                        PDF
+                                    </a>
+                                </Button>
+                            )}
+                            {invoice?.xml_url && (
+                                <Button size="sm" variant="outline" asChild>
+                                    <a href={invoice.xml_url}>XML</a>
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </TableCell>
+                <TableCell className="text-sm">
+                    <div className="grid justify-items-start gap-1">
+                        {delivery ? (
+                            <>
+                                <span className={delivery.status === 'sent' ? '' : 'text-destructive'}>
+                                    {delivery.status === 'sent' ? 'Enviada' : 'Falhou'} ({delivery.origin === 'automatic' ? 'automático' : 'reenvio'})
+                                </span>
+                                <span className="text-muted-foreground text-xs">
+                                    {delivery.email ?? 'sem e-mail'} · {date(delivery.created_at, true)}
+                                </span>
+                                {delivery.error && <span className="text-destructive text-xs">{delivery.error}</span>}
+                            </>
+                        ) : (
+                            <span className="text-muted-foreground">-</span>
                         )}
                         {invoice?.can_send && (
                             <Button size="sm" variant="outline" title="Reenviar a mesma nota ao cliente" onClick={() => onSend(invoice)}>
@@ -449,11 +479,11 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
             </TableRow>
             {charge.payments.map((payment) => (
                 <TableRow key={`payment-${payment.id}`} className="bg-muted/30 text-sm">
-                    <TableCell colSpan={7} className="pl-8">
+                    <TableCell colSpan={4} className="pl-8">
                         <span className={payment.reversed_at ? 'line-through' : ''}>
                             {money(payment.amount)} em {date(payment.paid_at, true)} ·{' '}
                             {methodLabels[payment.payment_method] ?? payment.payment_method} ·{' '}
-                            {payment.source === 'integration' ? 'pagamento integrado' : `baixa manual por ${payment.received_by ?? '-'}`}
+                            {payment.source === 'integration' ? 'pagamento integrado' : `confirmado por ${payment.received_by ?? '-'}`}
                         </span>
                         {payment.reversed_at && (
                             <span className="text-destructive">

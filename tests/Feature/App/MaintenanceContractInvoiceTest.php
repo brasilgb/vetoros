@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /** VETOR-FISCAL-05: NFS-e automática dos contratos de manutenção após a quitação da cobrança. */
@@ -231,6 +232,54 @@ class MaintenanceContractInvoiceTest extends TestCase
         $this->assertSame(350.0, (float) $charge->refresh()->paid_amount);
         $this->assertSame(1, FiscalDocument::query()->count());
         $this->assertSame(0, CashSessionMovement::query()->count());
+    }
+
+    public function test_same_confirmation_submitted_twice_registers_the_payment_once(): void
+    {
+        [$contract, $charge] = $this->contractWithCharge(issue: false);
+        $key = (string) Str::uuid();
+
+        $this->post($this->payRoute($contract, $charge), $this->paymentPayload(100, $key))->assertSessionHasNoErrors();
+        $this->post($this->payRoute($contract, $charge), $this->paymentPayload(100, $key))
+            ->assertSessionHas('success', 'Este pagamento já estava registrado; nada foi alterado.');
+
+        $this->assertSame(1, AccountReceivablePayment::query()->count());
+        $this->assertSame(100.0, (float) $charge->refresh()->paid_amount);
+        $this->assertSame(1, CashSessionMovement::query()->count());
+
+        $this->post($this->payRoute($contract, $charge), [...$this->paymentPayload(10), 'request_key' => 'nao-e-uuid'])
+            ->assertSessionHasErrors('request_key');
+    }
+
+    public function test_spedy_failure_never_reverts_the_confirmed_payment(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response(['message' => 'Dados inválidos'], 422)]);
+        [$contract, $charge] = $this->contractWithCharge(issue: true);
+
+        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
+
+        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
+        $this->assertSame(1, AccountReceivablePayment::query()->count());
+        $this->assertNull(AccountReceivablePayment::query()->sole()->reversed_at);
+        $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
+        $this->assertTrue(MaintenanceContractLog::query()->where('action', 'invoice_failed')->exists());
+    }
+
+    public function test_manual_emission_before_payment_is_allowed_and_payment_does_not_duplicate_it(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        [$contract, $charge] = $this->contractWithCharge(issue: true);
+
+        $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success', 'NFS-e autorizada.');
+        $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->refresh()->status);
+
+        $this->pay($contract, $charge, 350)->assertSessionHasNoErrors();
+
+        $this->assertSame(AccountReceivable::STATUS_PAID, $charge->refresh()->status);
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->assertCount(1, collect(Http::recorded())->filter(fn ($pair) => $pair[0]->method() === 'POST'));
+        $this->assertFalse(MaintenanceContractLog::query()->where('action', 'invoice_failed')->exists());
     }
 
     // ------------------------------------------------------------------ Spedy
@@ -539,9 +588,15 @@ class MaintenanceContractInvoiceTest extends TestCase
         return route('app.maintenance-contracts.charges.payments.store', [$contract, $charge]);
     }
 
-    private function paymentPayload(float $amount): array
+    private function paymentPayload(float $amount, ?string $requestKey = null): array
     {
-        return ['amount' => $amount, 'paid_at' => now()->subMinute()->toDateTimeString(), 'payment_method' => 'pix', 'notes' => null];
+        return [
+            'amount' => $amount,
+            'paid_at' => now()->subMinute()->toDateTimeString(),
+            'payment_method' => 'pix',
+            'notes' => null,
+            'request_key' => $requestKey ?? (string) Str::uuid(),
+        ];
     }
 
     private function contractPayload(array $overrides = []): array
