@@ -92,9 +92,25 @@ class SpedyCompanyService
             $password,
         );
 
+        // Um HTTP 2xx sozinho não confirma que o certificado foi aceito e ativado.
+        if (! is_string($certificate['id'] ?? null) || blank($certificate['id']) || ($certificate['isActive'] ?? null) !== true) {
+            throw new SpedyException('O emissor não confirmou a ativação do certificado. Consulte a situação com o suporte antes de tentar novamente.');
+        }
+
+        try {
+            $expiresAt = filled($certificate['expirationAt'] ?? null)
+                ? Carbon::parse($certificate['expirationAt']) : null;
+        } catch (\Throwable) {
+            throw new SpedyException('O emissor retornou uma validade inválida para o certificado. Contate o suporte.');
+        }
+
+        if ($expiresAt === null || $expiresAt->isPast()) {
+            throw new SpedyException('O emissor não confirmou um certificado vigente. Confira o arquivo e consulte o suporte.');
+        }
+
         $setting->forceFill([
-            'certificate_subject' => isset($certificate['subject']) ? mb_substr((string) $certificate['subject'], 0, 255) : null,
-            'certificate_expires_at' => isset($certificate['expirationAt']) ? Carbon::parse($certificate['expirationAt']) : null,
+            'certificate_subject' => is_string($certificate['subject'] ?? null) ? mb_substr($certificate['subject'], 0, 255) : null,
+            'certificate_expires_at' => $expiresAt,
         ])->save();
 
         return $setting;

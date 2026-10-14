@@ -189,6 +189,7 @@ class NativeFiscalEmissionTest extends TestCase
         $this->post(route('app.fiscal-settings.certificate'), [
             'certificate' => UploadedFile::fake()->createWithContent('meu-certificado.pfx', 'conteudo-pfx'),
             'password' => 'senha-do-certificado',
+            'confirm_replacement' => true,
         ])->assertSessionHas('success');
 
         $setting->refresh();

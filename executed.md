@@ -1,3 +1,61 @@
+# VETOR-FISCAL-06 — Autogestão do certificado digital A1
+
+Data: 2026-10-14. Auditoria, implementação e validações locais concluídas. Sem push, deploy ou migrations em produção.
+
+## Comparação do correio
+
+`correio.md` estava diferente da versão em `HEAD` (`4c4ce74c`): a instrução anterior era CRM-WA-30.1; a atual solicita VETOR-FISCAL-06. A execução seguiu a instrução atual. O relatório anterior permanece no histórico do Git.
+
+## O que já existia
+
+- Tela fiscal, rota `POST /app/fiscal-settings/certificate`, controller e serviço compartilhado de upload. O formulário só aparecia quando `registration_status` era `registered`, explicando sua ausência para empresas pendentes.
+- `SpedyCompanyService::uploadCertificate` e `SpedyClient::uploadCertificate`: transmissão multipart com `certificateFile` e `password`, usando chave e identificador remoto da empresa. Apenas titular e validade eram persistidos. A chave da empresa já usa cast criptografado.
+- Validação de `.pfx`/`.p12`, limite local de 2048 KB e exclusão de `password` do flash de entrada pelo Laravel. O tenant autenticado prevalece sobre o tenant informado na sessão.
+- RootAdmin: credenciais/ambiente da plataforma, liberação fiscal por tenant/modelo, cadastro/sincronização de empresas e consulta de certificados. O emitente próprio do SaaS tem upload central separado, já existente. Esses controles foram preservados.
+- Lacunas: operador com acesso às configurações podia enviar certificado; faltava confirmação de substituição; qualquer HTTP bem-sucedido era tratado como sucesso; erros do provedor podiam expor detalhes na mensagem e nos logs.
+
+## O que foi implementado
+
+- Campo de upload sempre visível em Sistema e módulos → Emissão fiscal, com instrução sobre A1/eCNPJ, extensões, limite e senha. Quando indisponível, fica desabilitado e explica o requisito de liberação/cadastro administrativo.
+- Prop `certificateUploadAllowed`, calculada no servidor. Upload exige administrador do tenant, integração configurada, liberação fiscal do tenant e empresa registrada. Permissão de configurações sozinha não basta.
+- Backend usa exclusivamente a empresa do usuário autenticado. IDs de tenant/empresa, credenciais e habilitações enviados pelo navegador não alteram destino nem controles do RootAdmin.
+- Confirmação no navegador e `confirm_replacement` obrigatório no servidor. Vale para todo envio, pois pode existir certificado remoto ainda ausente no cache local.
+- Validação antecipada de extensão/tamanho, erros junto aos campos, bloqueio durante transmissão e limpeza da senha ao enviar/cancelar/concluir. Arquivo selecionado é limpo após a requisição. Senha fica em estado transitório, fora do `useForm` e de recursos de memória/histórico do Inertia.
+- Upload recusa URL sem HTTPS e não segue redirecionamentos HTTP. Nenhum armazenamento permanente do arquivo foi adicionado; o upload usa o arquivo temporário normal da requisição PHP.
+- Resposta deve confirmar `id`, `isActive=true` e validade futura antes de salvar metadados e informar sucesso. Resposta vazia, inativa, vencida ou com validade inválida/ausente gera mensagem controlada.
+- Logs e mensagens de erros dos endpoints de certificados não incluem o conteúdo retornado pelo provedor, que poderia ecoar senha, arquivo ou credencial.
+- Tela diferencia validade vigente/vencida e mostra titular quando fornecido. Dados vêm da última confirmação armazenada, sem chamada automática à Spedy ao abrir a página.
+
+## Contrato e limites da Spedy
+
+| Operação | Endpoint da API v1 | Comportamento |
+|---|---|---|
+| Cadastro/substituição | `POST /companies/{id}/certificates` | Multipart com arquivo PKCS#12 e senha; último envio substitui o certificado ativo anterior. |
+| Consulta/situação | `GET /companies/{id}/certificates` | Lista certificados com `isActive` e `expirationAt`; utilizada pelo diagnóstico central existente. |
+
+Não foi identificado endpoint separado de validação ou substituição no catálogo consultado. A confirmação usa a resposta do próprio POST. O contrato inclui `id`, `expirationAt`, `subject`, `issuer` e `isActive`; titular/emissor podem ser nulos. O sistema persiste titular e validade, sem criar um segundo gerenciamento. [Upload](https://docs.spedy.com.br/api-reference/empresas/adicionar-certificado), [consulta](https://docs.spedy.com.br/api-reference/empresas/obter-certificados).
+
+A referência especifica `.pfx`/PKCS#12; a ajuda oficial também aceita `.p12`. Ambos são recebidos pelo VetorOS e transmitidos com o nome neutro `certificado.pfx`, como no fluxo existente. Não foi encontrado limite numérico de tamanho na referência: 2 MB é o limite conservador **já existente no VetorOS**, não um limite atribuído à API. [Ajuda oficial sobre formatos](https://ajuda.spedy.com.br/pt-br/article/como-incluiralterar-o-certificado-digital-1ewfyjl/).
+
+Timeout ou resposta inconsistente não permitem afirmar que o estado remoto permaneceu igual. Nesses casos, não há sucesso e os metadados locais anteriores são preservados; o suporte pode consultar a situação pelo diagnóstico central existente. Não foi criado rollback remoto de certificados. A interface mostra a última confirmação, não uma consulta em tempo real.
+
+## Validações
+
+- `vendor/bin/pest tests/Feature/App/TenantFiscalCertificateTest.php tests/Feature/App/NativeFiscalEmissionTest.php tests/Feature/Admin/FiscalCentralAdministrationTest.php --compact`: **54 testes passaram, 399 assertions**, em SQLite em memória, sem acesso ao banco de produção.
+- Nova cobertura: `.pfx`/`.p12`, preservação de controles do RootAdmin, operador proibido, plataforma/tenant desabilitados, cadastro pendente, extensão/tamanho/senha inválidos, confirmação de substituição, sessão/IDs forjados, isolamento, erros sensíveis, respostas inconsistentes/inativas/vencidas, HTTPS, timeout, erro 500 e redirecionamento. A tela não expõe credenciais nem chama a API ao abrir.
+- Teste anterior de upload atualizado para incluir confirmação obrigatória.
+- `npm run types`, ESLint da tela e Pint dos arquivos PHP alterados: passaram.
+- `npm run build`: passou; aviso de chunks maiores que 500 KB. Bundle gerado contém a mensagem final de confirmação de envio/substituição.
+- Prettier da tela e `git diff --check`: passaram.
+
+Não houve envio real de certificado nem emissão de nota: testes usam respostas HTTP simuladas e bloqueiam chamadas inesperadas. Validação com certificado/senha reais no sandbox e inspeção visual autenticada continuam pendentes. A suíte completa do projeto não foi executada; foram executadas as suítes fiscais relevantes. Nenhuma migration nova foi necessária.
+
+## Commit e publicação
+
+Na execução original, `.git` estava montado como somente leitura e o commit foi preparado fora do repositório (`/tmp/vetor-fiscal-06.git` e `storage/app/vetor-fiscal-06.bundle`). Em 2026-10-14 o trabalho foi commitado diretamente na `main`, rebaseado sobre `origin/main` (que já incluía VETOR-RELEASE-01 e os commits fiscais 05.x) e publicado junto com a atualização da landing page e do SEO das páginas públicas. Sem deploy e sem migrations.
+
+---
+
 # VETOR-RELEASE-01 — Preparação e publicação segura dos commits. Resultado: **PUBLICAÇÃO BLOQUEADA (nenhum push executado)**
 
 - Data: 2026-10-09

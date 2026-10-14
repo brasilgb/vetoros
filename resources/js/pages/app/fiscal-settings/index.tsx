@@ -13,7 +13,7 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, FileKey, Landmark, Save, Upload } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 
 type Model = 'nfe' | 'nfce' | 'nfse';
 
@@ -56,6 +56,7 @@ type FiscalSettingProps = {
 type Props = {
     platformAvailable: boolean;
     tenantAllowed: boolean;
+    certificateUploadAllowed: boolean;
     setting: FiscalSettingProps;
     blockers: Record<Model, string | null>;
 };
@@ -94,11 +95,15 @@ function formatDate(value?: string | null) {
     return value ? new Date(value).toLocaleDateString('pt-BR') : '-';
 }
 
-export default function FiscalSettings({ platformAvailable, tenantAllowed, setting, blockers }: Props) {
+export default function FiscalSettings({ platformAvailable, tenantAllowed, certificateUploadAllowed, setting, blockers }: Props) {
     const available = platformAvailable && tenantAllowed;
     const registered = setting.registration_status === 'registered';
+    const certificateExpired = !!setting.certificate_expires_at && new Date(setting.certificate_expires_at).getTime() <= Date.now();
+    const replacingCertificate = !!(setting.certificate_subject || setting.certificate_expires_at);
     const certificateExpiresSoon =
-        setting.certificate_expires_at && new Date(setting.certificate_expires_at).getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
+        !certificateExpired &&
+        setting.certificate_expires_at &&
+        new Date(setting.certificate_expires_at).getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
 
     const { data, setData, put, processing, errors } = useForm({
         company_tax_regime: setting.company_tax_regime ?? '',
@@ -130,6 +135,8 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
     const [certificate, setCertificate] = useState<File | null>(null);
     const [certificatePassword, setCertificatePassword] = useState('');
     const [sending, setSending] = useState(false);
+    const [certificateErrors, setCertificateErrors] = useState<Record<string, string>>({});
+    const certificateInput = useRef<HTMLInputElement>(null);
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -147,18 +154,37 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
 
     const uploadCertificate = (e: FormEvent) => {
         e.preventDefault();
-        if (!certificate) return;
+        if (!certificate || sending || !certificateUploadAllowed) return;
+        setCertificateErrors({});
+        if (!/\.(pfx|p12)$/i.test(certificate.name) || certificate.size > 2 * 1024 * 1024) {
+            setCertificateErrors({ certificate: 'Envie um arquivo .pfx ou .p12 de até 2 MB.' });
+            setCertificatePassword('');
+            return;
+        }
+        if (
+            !window.confirm(
+                'Este certificado será ativado para sua empresa e substituirá qualquer certificado anterior na emissora. Confirma o envio?',
+            )
+        ) {
+            setCertificatePassword('');
+            return;
+        }
 
         setSending(true);
+        const password = certificatePassword;
+        setCertificatePassword('');
         router.post(
             route('app.fiscal-settings.certificate'),
-            { certificate, password: certificatePassword },
+            { certificate, password, confirm_replacement: true },
             {
                 forceFormData: true,
                 preserveScroll: true,
+                onError: (errors) => setCertificateErrors(errors),
                 onFinish: () => {
                     setSending(false);
                     setCertificatePassword('');
+                    setCertificate(null);
+                    if (certificateInput.current) certificateInput.current.value = '';
                 },
             },
         );
@@ -221,7 +247,9 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
                         <div className="rounded-2xl border p-4">
                             <p className="text-muted-foreground text-sm">Certificado digital A1</p>
                             <p className="mt-1 font-medium">
-                                {setting.certificate_expires_at ? `Válido até ${formatDate(setting.certificate_expires_at)}` : 'Não enviado'}
+                                {setting.certificate_expires_at
+                                    ? `${certificateExpired ? 'Vencido em' : 'Ativo — válido até'} ${formatDate(setting.certificate_expires_at)}`
+                                    : 'Sem certificado confirmado'}
                             </p>
                             {setting.certificate_subject && (
                                 <p className="text-muted-foreground mt-1 truncate text-xs">{setting.certificate_subject}</p>
@@ -253,41 +281,55 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, setti
                     </div>
                 </div>
 
-                {registered && (
-                    <form onSubmit={uploadCertificate} className="bg-card space-y-4 rounded-2xl border p-5 shadow-sm sm:p-6">
-                        <HeadingSmall
-                            title="Enviar certificado digital"
-                            description="Arquivo .pfx/.p12 do certificado A1 da empresa. O arquivo e a senha são repassados ao emissor e não ficam armazenados no sistema."
-                        />
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="grid gap-2">
-                                <Label htmlFor="certificate">Arquivo do certificado</Label>
-                                <Input
-                                    id="certificate"
-                                    type="file"
-                                    accept=".pfx,.p12"
-                                    onChange={(e) => setCertificate(e.target.files?.[0] ?? null)}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="certificate_password">Senha do certificado</Label>
-                                <Input
-                                    id="certificate_password"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    value={certificatePassword}
-                                    onChange={(e) => setCertificatePassword(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex items-end">
-                                <Button type="submit" disabled={!certificate || !certificatePassword || sending}>
-                                    <Upload className="h-4 w-4" />
-                                    Enviar certificado
-                                </Button>
-                            </div>
+                <form onSubmit={uploadCertificate} autoComplete="off" className="bg-card space-y-4 rounded-2xl border p-5 shadow-sm sm:p-6">
+                    <HeadingSmall
+                        title="Enviar certificado digital"
+                        description="Certificado eCNPJ A1 da própria empresa, em .pfx ou .p12, de até 2 MB. Informe a senha apenas para este envio. O sistema repassa o arquivo e a senha à emissora sem guardá-los permanentemente."
+                    />
+                    {!certificateUploadAllowed && (
+                        <p className="text-muted-foreground text-sm">
+                            {!available
+                                ? 'O envio depende da liberação da emissão fiscal pela administração.'
+                                : !registered
+                                  ? 'O campo será liberado após a administração cadastrar a empresa emissora.'
+                                  : 'Somente o administrador da empresa pode enviar ou substituir o certificado.'}
+                        </p>
+                    )}
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-2">
+                            <Label htmlFor="certificate">Arquivo do certificado</Label>
+                            <Input
+                                id="certificate"
+                                ref={certificateInput}
+                                type="file"
+                                disabled={!certificateUploadAllowed || sending}
+                                accept=".pfx,.p12"
+                                onChange={(e) => setCertificate(e.target.files?.[0] ?? null)}
+                            />
+                            <InputError message={certificateErrors.certificate} />
                         </div>
-                    </form>
-                )}
+                        <div className="grid gap-2">
+                            <Label htmlFor="certificate_password">Senha do certificado</Label>
+                            <Input
+                                id="certificate_password"
+                                type="password"
+                                autoComplete="new-password"
+                                disabled={!certificateUploadAllowed || sending}
+                                maxLength={255}
+                                value={certificatePassword}
+                                onChange={(e) => setCertificatePassword(e.target.value)}
+                            />
+                            <InputError message={certificateErrors.password} />
+                        </div>
+                        <div className="flex items-end">
+                            <Button type="submit" disabled={!certificateUploadAllowed || !certificate || !certificatePassword || sending}>
+                                <Upload className="h-4 w-4" />
+                                {sending ? 'Enviando...' : replacingCertificate ? 'Substituir certificado' : 'Enviar certificado'}
+                            </Button>
+                        </div>
+                    </div>
+                    <InputError message={certificateErrors.confirm_replacement} />
+                </form>
 
                 <form onSubmit={submit} autoComplete="off" className="bg-card space-y-8 rounded-2xl border p-5 shadow-sm sm:p-6">
                     <div className="space-y-4">

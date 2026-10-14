@@ -59,6 +59,9 @@ class FiscalSettingController extends Controller
         return Inertia::render('app/fiscal-settings/index', [
             'platformAvailable' => SpedyClient::isConfigured(),
             'tenantAllowed' => (bool) $tenant->automatic_fiscal_emission_enabled,
+            'certificateUploadAllowed' => auth()->user()->isAdministrator()
+                && SpedyClient::isConfigured() && $tenant->automatic_fiscal_emission_enabled
+                && $setting->isRegisteredOnSpedy(),
             'setting' => [
                 'enabled' => (bool) $setting->enabled,
                 'registration_status' => $setting->registration_status,
@@ -184,16 +187,29 @@ class FiscalSettingController extends Controller
     public function certificate(Request $request): RedirectResponse
     {
         Gate::authorize('other-settings.access');
+        abort_unless($request->user()->isAdministrator(), 403);
+
+        $setting = $this->setting();
+        $tenant = Tenant::query()->findOrFail($setting->tenant_id);
+        abort_unless(SpedyClient::isConfigured() && $tenant->automatic_fiscal_emission_enabled, 403);
+
+        if (! $setting->isRegisteredOnSpedy()) {
+            return back()->withErrors(['certificate' => 'A administração precisa cadastrar a empresa emissora antes do envio.']);
+        }
 
         $validated = $request->validate([
             'certificate' => 'required|file|max:2048|extensions:pfx,p12',
             'password' => 'required|string|max:255',
+            // A Spedy pode ter um certificado que ainda não consta no cache local.
+            'confirm_replacement' => 'required|accepted',
         ], [
             'certificate.extensions' => 'Envie o certificado A1 no formato .pfx ou .p12.',
+            'confirm_replacement.accepted' => 'Confirme que o envio substituirá qualquer certificado anterior da empresa.',
+            'confirm_replacement.required' => 'Confirme que o envio substituirá qualquer certificado anterior da empresa.',
         ]);
 
         try {
-            $setting = $this->companies->uploadCertificate($this->setting(), $validated['certificate'], $validated['password']);
+            $setting = $this->companies->uploadCertificate($setting, $validated['certificate'], $validated['password']);
         } catch (SpedyException $exception) {
             return back()->with('error', $exception->getMessage());
         }

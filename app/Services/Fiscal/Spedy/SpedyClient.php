@@ -123,8 +123,13 @@ class SpedyClient
 
     public function uploadCertificate(string $companyId, string $contents, string $filename, string $password): array
     {
+        if (parse_url(self::baseUrl(), PHP_URL_SCHEME) !== 'https') {
+            throw new SpedyException('O envio do certificado exige conexão segura com o emissor. Contate o suporte.');
+        }
+
         return $this->handle(
             fn () => $this->request()
+                ->withOptions(['allow_redirects' => false])
                 ->attach('certificateFile', $contents, $filename)
                 ->post("companies/{$companyId}/certificates", ['password' => $password]),
             "companies/{$companyId}/certificates"
@@ -228,7 +233,9 @@ class SpedyClient
     {
         $status = $response->status();
         $body = (array) ($response->json() ?? []);
-        $errors = $this->extractErrors($body);
+        // O provedor pode ecoar senha, conteúdo do arquivo ou credenciais em erros.
+        $certificateRequest = str_ends_with($path, '/certificates');
+        $errors = $certificateRequest ? [] : $this->extractErrors($body);
 
         Log::warning('Spedy: requisição recusada', ['path' => $path, 'status' => $status, 'errors' => $errors]);
 
@@ -237,6 +244,7 @@ class SpedyClient
             $status === 404 => 'Registro não encontrado no serviço de emissão fiscal.',
             $status === 429 => 'Muitas solicitações ao serviço de emissão fiscal. Aguarde alguns segundos e tente novamente.',
             $status >= 500 => 'O serviço de emissão fiscal está indisponível no momento. Tente novamente em instantes.',
+            $certificateRequest => 'Certificado recusado pelo emissor. Confira o arquivo A1 e a senha; se o problema persistir, contate o suporte.',
             $errors !== [] => 'Dados recusados pelo serviço de emissão fiscal: '.implode(' ', array_slice($errors, 0, 5)),
             default => 'Solicitação recusada pelo serviço de emissão fiscal.',
         };
