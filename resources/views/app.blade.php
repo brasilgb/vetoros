@@ -107,11 +107,31 @@
             'applicationCategory' => 'BusinessApplication',
             'operatingSystem' => 'Web, Android',
             'url' => rtrim(config('app.url', url('/')), '/'),
-            'description' => 'Sistema de ordem de serviço para assistência técnica de celulares, informática e empresas de manutenção.',
+            'description' => 'Sistema de ordem de serviço para assistência técnica de celulares, informática e empresas de manutenção, com emissão de NF-e, NFC-e e NFS-e.',
             // Sem "offers": os preços não são divulgados publicamente (orçamento pelo WhatsApp).
         ];
     @endphp
     <script type="application/ld+json">{!! json_encode($schemaData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    @if ($isPublicSite)
+        @php
+            $organizationData = [
+                '@context' => 'https://schema.org',
+                '@type' => 'Organization',
+                'name' => 'VetorOS',
+                'url' => rtrim(config('app.url', url('/')), '/'),
+                'logo' => asset('images/vetor.png'),
+                'parentOrganization' => ['@type' => 'Organization', 'name' => 'ABrasil Sistemas', 'url' => 'https://abrasilsistemas.com.br'],
+                'contactPoint' => [
+                    '@type' => 'ContactPoint',
+                    'contactType' => 'sales',
+                    'telephone' => '+55-51-99893-1325',
+                    'email' => 'contato@vetoros.com.br',
+                    'availableLanguage' => 'Portuguese',
+                ],
+            ];
+        @endphp
+        <script type="application/ld+json">{!! json_encode($organizationData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    @endif
 
     {{-- Laravel / Inertia --}}
     @routes

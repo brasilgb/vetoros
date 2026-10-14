@@ -11,7 +11,7 @@ export const faqItems = [
     },
     {
         question: 'O VetorOS emite nota fiscal?',
-        answer: 'O VetorOS não emite a nota fiscal automaticamente. Ele leva você com um clique ao Emissor Nacional da NFS-e ou ao portal da NF-e, já com os dados da ordem ou venda resumidos na tela; depois de emitir lá, você registra o número e o link do documento no VetorOS, mantendo tudo organizado e rastreável junto ao atendimento.',
+        answer: 'Sim. O VetorOS emite NF-e nas vendas com cliente identificado, NFC-e no PDV e NFS-e nos serviços das ordens, direto do sistema e com o documento vinculado ao atendimento. Para ativar, solicite a liberação ao suporte, envie o certificado digital A1 da empresa (.pfx ou .p12) e revise as configurações tributárias com seu contador. Se preferir emitir em outro sistema, você continua podendo registrar o número e o link da nota manualmente.',
     },
     {
         question: 'Existe limite de usuários?',
@@ -34,6 +34,19 @@ export const faqItems = [
         answer: 'Sim. Cada ordem tem um link público único para o cliente acompanhar status, aprovar orçamento, ver comprovantes e avaliar o atendimento, sem precisar de senha.',
     },
 ];
+
+export const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+            '@type': 'Answer',
+            text: item.answer,
+        },
+    })),
+};
 
 export function FAQ() {
     return (

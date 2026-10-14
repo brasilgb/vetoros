@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Services\Commercial\PublicPlanCatalog;
+use App\Support\SiteMeta;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,6 +14,6 @@ class PlanController extends Controller
     {
         return Inertia::render('site/plans/index', [
             'publicPlans' => $catalog->plans(),
-        ]);
+        ])->withViewData(['meta' => SiteMeta::plans()]);
     }
 }

@@ -28,7 +28,7 @@ const operatingHighlights = [
     'Área pública do cliente com acompanhamento online',
     'Acompanhamentos, garantia, avaliações e métricas comerciais',
     'Financeiro, caixa, despesas, estoque e vendas no mesmo ambiente',
-    'Acesso rápido ao Emissor Nacional da NFS-e e ao portal da NF-e, com registro do comprovante junto à operação',
+    'Emissão automática de NF-e, NFC-e e NFS-e pelo próprio sistema, com o documento vinculado à venda ou à ordem',
 ];
 
 export function OnboardingShowcase() {

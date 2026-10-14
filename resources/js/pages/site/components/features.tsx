@@ -73,7 +73,8 @@ const features = [
     {
         icon: ReceiptText,
         title: 'Notas Fiscais',
-        description: 'Registre NF-e de produtos e NFS-e de serviços emitidas externamente e mantenha os comprovantes vinculados à operação.',
+        description:
+            'Emita NF-e, NFC-e e NFS-e direto das vendas, do PDV e das ordens de serviço, com os documentos vinculados à operação.',
     },
     {
         icon: HandCoins,
@@ -134,7 +135,7 @@ export function Features() {
                         plataforma, com apps para assinatura no atendimento, imagens da OS e trabalho técnico em campo.
                     </p>
                     <p className="mt-3 text-xs text-slate-400">
-                        Os documentos fiscais são emitidos externamente e registrados no VetorOS para consulta e auditoria.
+                        Emissão de NF-e, NFC-e e NFS-e pelo próprio sistema, mediante liberação e certificado digital A1 da empresa.
                     </p>
                 </div>
 

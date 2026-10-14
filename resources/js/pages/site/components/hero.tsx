@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { whatsappLink } from './site-contact';
 
 export function Hero() {
     return (
@@ -11,13 +12,12 @@ export function Hero() {
 
             <div className="relative mx-auto grid max-w-[86rem] items-center gap-16 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[0.92fr_1.08fr] lg:px-12">
                 <div>
-                    <p className="inline-flex items-center gap-2 rounded-full border border-sky-300/25 bg-sky-300/10 px-4 py-2 text-xs font-extrabold tracking-[0.12em] text-sky-200 uppercase">
-                        <Sparkles className="size-3.5" />
-                        Gestão feita para assistência técnica
-                    </p>
-
-                    <h1 className="mt-7 max-w-3xl text-[clamp(3.5rem,7vw,6.6rem)] leading-[0.88] font-black tracking-[-0.075em] text-balance">
-                        Menos caos.
+                    <h1 className="max-w-3xl text-[clamp(3.5rem,7vw,6.6rem)] leading-[0.88] font-black tracking-[-0.075em] text-balance">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/25 bg-sky-300/10 px-4 py-2 text-xs leading-normal font-extrabold tracking-[0.12em] text-sky-200 uppercase">
+                            <Sparkles className="size-3.5 shrink-0" aria-hidden="true" />
+                            Sistema de ordem de serviço para assistência técnica
+                        </span>
+                        <span className="mt-7 block">Menos caos.</span>
                         <span className="mt-2 block text-sky-300">Mais controle.</span>
                     </h1>
 
@@ -52,13 +52,15 @@ export function Hero() {
                         Cadastro online e 14 dias para testar gratuitamente.
                     </p>
 
-                    <Link
-                        href={route('plans.index')}
+                    <a
+                        href={whatsappLink('Olá! Gostaria de solicitar um orçamento do VetorOS.')}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-sky-300 underline-offset-4 hover:underline"
                     >
-                        Solicite um orçamento
+                        Solicite um orçamento pelo WhatsApp
                         <ArrowRight className="size-3.5" />
-                    </Link>
+                    </a>
                 </div>
 
                 <div className="relative mx-auto w-full">
@@ -81,7 +83,7 @@ export function Hero() {
             </div>
             <div className="border-t border-white/10">
                 <div className="mx-auto grid max-w-[86rem] divide-y divide-white/10 px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-8 lg:px-12">
-                    {['Criado para operações reais', 'Suporte próximo e humano', 'Acesso seguro de qualquer lugar'].map((item) => (
+                    {['Emite NF-e, NFC-e e NFS-e', 'Suporte próximo e humano', 'Acesso seguro de qualquer lugar'].map((item) => (
                         <p
                             key={item}
                             className="flex items-center justify-center gap-2 py-5 text-center text-xs font-bold tracking-[0.08em] text-slate-400 uppercase sm:py-6"

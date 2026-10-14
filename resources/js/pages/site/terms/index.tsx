@@ -1,4 +1,5 @@
 import LegalLayout from '@/layouts/site/LegalLayout';
+import { Head } from '@inertiajs/react';
 import { useActiveSection } from '@/Utils/use-active-section';
 import { useState } from 'react';
 
@@ -24,6 +25,7 @@ export default function Terms() {
 
     return (
         <LegalLayout>
+            <Head title="Termos de Uso" />
             <div className="grid grid-cols-1 gap-12 lg:grid-cols-[240px_1fr]">
                 {/* SIDEBAR */}
 
@@ -52,7 +54,7 @@ export default function Terms() {
                 <article className="text-muted-foreground max-w-[72ch] text-[15px] leading-7 [&>p]:mb-6 [&>ul]:mb-8 [&>ul]:space-y-2">
                     <h1 className="text-foreground mb-6 text-3xl font-semibold tracking-tight">Termos de Uso – VetorOS</h1>
 
-                    <p className="text-muted-foreground mb-10 text-sm">Última atualização: 6 de julho de 2026</p>
+                    <p className="text-muted-foreground mb-10 text-sm">Última atualização: 14 de outubro de 2026</p>
 
                     <p>
                         Estes Termos de Uso regulam a utilização da plataforma VetorOS. Ao marcar a opção de aceite no cadastro, criar uma conta ou
@@ -138,8 +140,11 @@ export default function Terms() {
                     </h2>
 
                     <p>
-                        O VetorOS permite registrar manualmente informações de NF-e e NFS-e emitidas em sistemas externos. O usuário é responsável
-                        pela emissão, autorização e conferência do documento junto à SEFAZ, prefeitura ou ambiente nacional competente.
+                        O VetorOS permite emitir NF-e, NFC-e e NFS-e por meio de integração com provedor fiscal parceiro, mediante liberação da
+                        funcionalidade para a conta e envio do certificado digital A1 da empresa, e também registrar manualmente informações de
+                        documentos emitidos em sistemas externos. O usuário é responsável pelos dados informados, pelas configurações tributárias,
+                        pela guarda do certificado e de sua senha e pela conferência dos documentos autorizados ou rejeitados pela SEFAZ,
+                        prefeitura ou ambiente nacional competente.
                     </p>
 
                     <p>

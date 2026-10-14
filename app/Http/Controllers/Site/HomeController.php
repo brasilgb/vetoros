@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\TenantFeedback;
+use App\Support\SiteMeta;
 use Illuminate\Database\QueryException;
 use Inertia\Inertia;
 
@@ -34,6 +35,6 @@ class HomeController extends Controller
 
         return Inertia::render('site/home/index', [
             'testimonials' => $testimonials,
-        ]);
+        ])->withViewData(['meta' => SiteMeta::home()]);
     }
 }

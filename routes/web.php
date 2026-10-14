@@ -7,6 +7,7 @@ use App\Http\Controllers\SharedFiscalDocumentController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\PlanController;
 use App\Http\Controllers\TenantFeedbackController;
+use App\Support\SiteMeta;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -43,11 +44,11 @@ Route::get('/experience/{token}', [TenantFeedbackController::class, 'show'])->na
 Route::post('/experience/{token}', [TenantFeedbackController::class, 'submit'])->name('tenant.feedback.submit');
 
 Route::get('/privacidade', function () {
-    return Inertia::render('site/privacy/index');
+    return Inertia::render('site/privacy/index')->withViewData(['meta' => SiteMeta::privacy()]);
 });
 
 Route::get('/termos', function () {
-    return Inertia::render('site/terms/index');
+    return Inertia::render('site/terms/index')->withViewData(['meta' => SiteMeta::terms()]);
 });
 /*
 |--------------------------------------------------------------------------

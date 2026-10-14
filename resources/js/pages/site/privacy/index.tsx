@@ -1,4 +1,5 @@
 import LegalLayout from '@/layouts/site/LegalLayout';
+import { Head } from '@inertiajs/react';
 import { useActiveSection } from '@/Utils/use-active-section';
 import { useState } from 'react';
 
@@ -22,6 +23,7 @@ export default function Privacy() {
 
     return (
         <LegalLayout>
+            <Head title="Política de Privacidade" />
             <div className="grid grid-cols-1 gap-12 lg:grid-cols-[240px_1fr]">
                 {/* SIDEBAR */}
 
@@ -50,7 +52,7 @@ export default function Privacy() {
                 <article className="text-muted-foreground max-w-[72ch] text-base leading-relaxed">
                     <h1 className="text-foreground mb-6 text-3xl font-semibold tracking-tight">Política de Privacidade – VetorOS</h1>
 
-                    <p className="text-muted-foreground mb-10 text-sm">Última atualização: 6 de julho de 2026</p>
+                    <p className="text-muted-foreground mb-10 text-sm">Última atualização: 14 de outubro de 2026</p>
 
                     <p className="mb-6">
                         Esta Política de Privacidade descreve como o VetorOS coleta, utiliza, armazena e protege os dados pessoais dos usuários que
@@ -93,9 +95,10 @@ export default function Privacy() {
 
                     <ul className="mb-6 list-disc space-y-1 pl-6">
                         <li>Dados cadastrais e fiscais da empresa emissora</li>
-                        <li>Dados de clientes ou destinatários constantes em NF-e e NFS-e</li>
+                        <li>Dados de clientes ou destinatários constantes em NF-e, NFC-e e NFS-e</li>
                         <li>Produtos, serviços, valores, tributos, endereços e informações dos documentos fiscais</li>
-                        <li>Números, referências e links dos documentos registrados manualmente</li>
+                        <li>Números, chaves, situação e links dos documentos emitidos pelo sistema ou registrados manualmente</li>
+                        <li>Titular e validade do certificado digital A1 (a senha do certificado não é armazenada)</li>
                     </ul>
 
                     <h3 className="text-foreground mt-8 mb-2 text-sm font-semibold">Dados técnicos</h3>
@@ -121,7 +124,7 @@ export default function Privacy() {
                         <li>Cumprir obrigações legais</li>
                         <li>Garantir a segurança da plataforma</li>
                         <li>Enviar comunicações operacionais solicitadas pela empresa usuária</li>
-                        <li>Armazenar os dados de NF-e e NFS-e registrados manualmente pelo usuário</li>
+                        <li>Emitir as NF-e, NFC-e e NFS-e solicitadas pelo usuário e armazenar os documentos emitidos ou registrados manualmente</li>
                     </ul>
 
                     {/* PAPÉIS E RESPONSABILIDADES */}

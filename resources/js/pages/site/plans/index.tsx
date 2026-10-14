@@ -2,38 +2,24 @@ import { Button } from '@/components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle2, MessageCircle } from 'lucide-react';
 import { CookieConsent } from '../components/cookie-consent';
-import { FAQ, faqItems } from '../components/faq';
+import { FAQ, faqSchema } from '../components/faq';
 import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 import { Pricing } from '../components/pricing';
 import { whatsappLink } from '../components/site-contact';
 import { WhatsAppFloat } from '../components/whatsapp-float';
 
-const faqSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqItems.map((item) => ({
-        '@type': 'Question',
-        name: item.question,
-        acceptedAnswer: {
-            '@type': 'Answer',
-            text: item.answer,
-        },
-    })),
-};
-
 const benefits = [
     'Controle financeiro, vendas e prestação de serviços',
     'Ordens de serviço e relacionamento com clientes',
     'Acesso completo durante 14 dias',
-    'Sem cartão de crédito e sem API fiscal obrigatória',
+    'Sem cartão de crédito e com emissão de NF-e, NFC-e e NFS-e',
 ];
 
 export default function Plans() {
     return (
         <main className="min-h-screen bg-white text-slate-900">
-            <Head title="Planos do VetorOS">
-                <meta name="description" content="Conheça os planos do VetorOS e teste a plataforma gratuitamente por 14 dias." />
+            <Head title="Planos e teste grátis">
                 <meta name="theme-color" content="#ffffff" />
                 <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
             </Head>
