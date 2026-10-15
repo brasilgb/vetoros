@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Cliente HTTP da API v1 da Spedy (https://docs.spedy.com.br).
  *
- * Duas credenciais: a chave da empresa titular (plataforma), única que gerencia
- * empresas, e a chave de cada empresa emissora (tenant), que emite apenas por ela.
+ * Duas credenciais: a chave da empresa titular (plataforma), única que acessa
+ * /companies/* (cadastro, configurações e certificados de qualquer emissora), e a
+ * chave de cada empresa emissora (tenant), que só emite e consulta as próprias notas.
  */
 class SpedyClient
 {

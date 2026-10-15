@@ -43,7 +43,7 @@ class SpedyCompanyService
                 SpedyClient::forOwner()->updateCompany($setting->spedy_company_id, $payload);
             }
 
-            SpedyClient::forCompany($setting->api_token)
+            SpedyClient::forOwner()
                 ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
         } catch (SpedyException|FiscalValidationException $exception) {
             $linked = filled($setting->spedy_company_id) && filled($setting->api_token) && ! $setting->hasEnvironmentMismatch();
@@ -70,8 +70,9 @@ class SpedyCompanyService
     }
 
     /**
-     * Reenvia só as configurações de emissão (série, ambiente, CSC) com a
-     * chave da própria empresa. É o que o tenant pode disparar ao salvar.
+     * Reenvia só as configurações de emissão (série, ambiente, CSC). É o que o
+     * tenant pode disparar ao salvar. Usa a chave titular: na Spedy, a chave da
+     * empresa emissora só acessa notas; /companies/* responde 403 para ela.
      */
     public function syncSettings(FiscalSetting $setting): FiscalSetting
     {
@@ -79,7 +80,7 @@ class SpedyCompanyService
             throw new SpedyException('A empresa emissora ainda não foi cadastrada pela administração.');
         }
 
-        SpedyClient::forCompany($setting->api_token)
+        SpedyClient::forOwner()
             ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
 
         return $setting;
@@ -95,7 +96,7 @@ class SpedyCompanyService
             throw new SpedyException('Conclua o cadastro da empresa emissora antes de enviar o certificado.');
         }
 
-        $certificate = SpedyClient::forCompany($setting->api_token)->uploadCertificate(
+        $certificate = SpedyClient::forOwner()->uploadCertificate(
             $setting->spedy_company_id,
             (string) $file->get(),
             'certificado.pfx',

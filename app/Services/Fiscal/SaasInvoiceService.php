@@ -139,7 +139,7 @@ class SaasInvoiceService
                 $issuer->setRawAttributes($locked->getAttributes(), true);
             });
 
-            SpedyClient::forCompany($issuer->api_token)->updateCompanySettings($issuer->spedy_company_id, [
+            SpedyClient::forOwner()->updateCompanySettings($issuer->spedy_company_id, [
                 'serviceInvoice' => array_filter([
                     'series' => $issuer->default_nfse_series ?: '1',
                     'environmentType' => $issuer->isProductionEnvironment() ? 'production' : 'simulation',
@@ -163,7 +163,7 @@ class SaasInvoiceService
             throw new SpedyException('Cadastre o emitente na Spedy antes de enviar o certificado.');
         }
 
-        $certificate = SpedyClient::forCompany($issuer->api_token)->uploadCertificate($issuer->spedy_company_id, (string) $file->get(), 'certificado.pfx', $password);
+        $certificate = SpedyClient::forOwner()->uploadCertificate($issuer->spedy_company_id, (string) $file->get(), 'certificado.pfx', $password);
 
         $issuer->forceFill([
             'certificate_subject' => isset($certificate['subject']) ? mb_substr((string) $certificate['subject'], 0, 255) : null,

@@ -152,7 +152,7 @@ class NativeFiscalEmissionTest extends TestCase
             && $request->hasHeader('X-Api-Key', 'owner-key-test'));
         Http::assertSent(fn (HttpRequest $request) => $request->method() === 'PUT'
             && str_ends_with($request->url(), '/settings')
-            && $request->hasHeader('X-Api-Key', 'company-key-secret')
+            && $request->hasHeader('X-Api-Key', 'owner-key-test')
             && $request['productInvoice']['environmentType'] === 'development'
             && $request['serviceInvoice']['environmentType'] === 'simulation');
     }
@@ -196,7 +196,7 @@ class NativeFiscalEmissionTest extends TestCase
         $setting->refresh();
         $this->assertSame('2027-10-01', $setting->certificate_expires_at->toDateString());
         $this->assertStringNotContainsString('senha-do-certificado', json_encode(DB::table('fiscal_settings')->where('id', $setting->id)->first()));
-        Http::assertSent(fn (HttpRequest $request) => $request->isMultipart() && $request->hasHeader('X-Api-Key', 'company-key-secret'));
+        Http::assertSent(fn (HttpRequest $request) => $request->isMultipart() && $request->hasHeader('X-Api-Key', 'owner-key-test'));
     }
 
     public function test_nfe_payload_maps_sale_customer_items_and_interstate_cfop(): void

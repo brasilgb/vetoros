@@ -74,7 +74,7 @@ class TenantFiscalCertificateTest extends TestCase
             $this->assertStringNotContainsString('test-pkcs12', json_encode(DB::table('fiscal_settings')->first()));
             $this->assertStringNotContainsString('private-test-password', json_encode(session()->all()));
             Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/companies/own-company/certificates')
-                && $request->hasHeader('X-Api-Key', 'own-company-key') && $request->isMultipart());
+                && $request->hasHeader('X-Api-Key', 'test-owner') && $request->isMultipart());
         }
     }
 
@@ -138,7 +138,7 @@ class TenantFiscalCertificateTest extends TestCase
             ...$this->payload(), 'tenant_id' => $other->id, 'spedy_company_id' => 'other-company', 'api_token' => 'other-key',
         ])->assertSessionHas('success');
         Http::assertSentCount(1);
-        Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/companies/own-company/certificates') && $request->hasHeader('X-Api-Key', 'own-company-key'));
+        Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/companies/own-company/certificates') && $request->hasHeader('X-Api-Key', 'test-owner'));
         $this->assertSame('Other certificate', $otherSetting->refresh()->certificate_subject);
     }
 

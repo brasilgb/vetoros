@@ -181,7 +181,7 @@ class FiscalCompanyController extends Controller
 
         try {
             SpedyClient::forOwner()->getCompany($setting->spedy_company_id);
-            $certificates = SpedyClient::forCompany($setting->api_token)->listCertificates($setting->spedy_company_id);
+            $certificates = SpedyClient::forOwner()->listCertificates($setting->spedy_company_id);
         } catch (SpedyException $exception) {
             // O vínculo não é apagado: pode ser falha temporária ou chave de outro ambiente.
             $message = $exception->status === 404
