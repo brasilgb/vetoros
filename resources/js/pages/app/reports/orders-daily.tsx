@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { toastError } from '@/components/app-toast-messages';
+import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer'; // componente do PDF
 import { FileText, Loader2 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
-import OrderDailyReportPDF from './pdf/OrderDailyReportPDF';
 
 interface DateRange {
     from?: Date;
@@ -47,6 +45,11 @@ export default function OrdersDaily({ dateRange, company }: { dateRange?: DateRa
                 preserveScroll: true,
                 onSuccess: async (page: any) => {
                     const reportData = page.props?.reportData || [];
+                    // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+                    const [{ pdf }, { default: OrderDailyReportPDF }] = await Promise.all([
+                        import('@react-pdf/renderer'),
+                        import('./pdf/OrderDailyReportPDF'),
+                    ]);
                     const pdfInstance = pdf();
 
                     await new Promise<void>((resolve) => {

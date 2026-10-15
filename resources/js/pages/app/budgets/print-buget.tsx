@@ -1,9 +1,7 @@
 import { toastError } from '@/components/app-toast-messages';
 import { Button } from '@/components/ui/button';
-import { pdf } from '@react-pdf/renderer'; // Importe a função 'pdf'
 import { LoaderIcon, PrinterIcon } from 'lucide-react';
 import { useState } from 'react';
-import { BudgetPDF } from './BudgetPDF'; // Importe o componente que criamos
 
 /**
  * Componente para gerar e abrir o PDF em uma nova aba.
@@ -19,6 +17,8 @@ export function PrintBudget({ company, budget }: any) {
         setLoading(true);
 
         try {
+            // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+            const [{ pdf }, { BudgetPDF }] = await Promise.all([import('@react-pdf/renderer'), import('./BudgetPDF')]);
             const pdfInstance = pdf(<BudgetPDF company={company} budget={budget} />);
 
             const blob = await pdfInstance.toBlob();

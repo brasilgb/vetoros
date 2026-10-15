@@ -12,13 +12,11 @@ import { usePaperSize } from '@/hooks/usePaperSize';
 import Receipt from '@/pages/app/sales/receipt';
 import type { OptionType, PageProps, User } from '@/types';
 import { useForm, usePage } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { Barcode, FileText, FileTextIcon, Loader2, Printer, ShoppingCartIcon, Trash2 } from 'lucide-react'; // Adicionado Trash2 para remover item
 import React, { useEffect, useRef, useState } from 'react';
 import Select, { type SingleValue } from 'react-select';
 import { useReactToPrint } from 'react-to-print';
 import SaleInvoiceModal from './Modals/SaleInvoiceModal';
-import SaleReceiptPDF from './SaleReceiptPDF';
 import { toastSuccess, toastWarning } from './app-toast-messages';
 
 interface Customer {
@@ -328,6 +326,8 @@ export function SalesProducts({ parts, iconSize, triggerLabel, triggerClassName 
 
         try {
             // Gera o blob do PDF
+            // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+            const [{ pdf }, { default: SaleReceiptPDF }] = await Promise.all([import('@react-pdf/renderer'), import('./SaleReceiptPDF')]);
             const blob = await pdf(
                 <SaleReceiptPDF
                     items={cartItems}

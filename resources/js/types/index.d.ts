@@ -40,7 +40,8 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
-    ziggy: Config & { location: string };
+    // Só o necessário a cada navegação; as rotas vêm do @routes (window.Ziggy).
+    ziggy: Pick<Config, 'url'> & { location: string; query: Record<string, string> };
     sidebarOpen: boolean;
     othersettings: {
         budget: boolean;

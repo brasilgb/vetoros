@@ -30,20 +30,11 @@ class TenantMailConfig
 
     public static function hasConfiguredForTenantId(?int $tenantId): bool
     {
-        if (! $tenantId || ! Schema::hasTable('others')) {
+        if (! $tenantId || ! self::othersTableExists()) {
             return self::hasSystemDefaultConfigured();
         }
 
-        $mailConfig = DB::table('others')
-            ->where('tenant_id', $tenantId)
-            ->select([
-                'mail_host',
-                'mail_port',
-                'mail_username',
-                'mail_password',
-            ])
-            ->orderByDesc('id')
-            ->first();
+        $mailConfig = self::tenantRow($tenantId);
 
         if (! $mailConfig) {
             return false;
@@ -57,26 +48,13 @@ class TenantMailConfig
 
     public static function applyForTenantId(?int $tenantId): void
     {
-        if (! $tenantId || ! Schema::hasTable('others')) {
+        if (! $tenantId || ! self::othersTableExists()) {
             self::applySystemDefault();
 
             return;
         }
 
-        $mailConfig = DB::table('others')
-            ->where('tenant_id', $tenantId)
-            ->select([
-                'mail_mailer',
-                'mail_host',
-                'mail_port',
-                'mail_username',
-                'mail_password',
-                'mail_encryption',
-                'mail_from_address',
-                'mail_from_name',
-            ])
-            ->orderByDesc('id')
-            ->first();
+        $mailConfig = self::tenantRow($tenantId);
 
         if (! $mailConfig || empty($mailConfig->mail_host) || empty($mailConfig->mail_username)) {
             Config::set('mail.default', 'log');
@@ -107,6 +85,39 @@ class TenantMailConfig
         Config::set('mail.from.address', $mailConfig->mail_from_address ?: config('mail.from.address'));
         Config::set('mail.from.name', $mailConfig->mail_from_name ?: config('app.name'));
         app('mail.manager')->purge();
+    }
+
+    /** Esquece a configuração lida nesta requisição (chamado quando `others` é gravado). */
+    public static function forget(): void
+    {
+        RequestCache::forget('tenant-mail:');
+    }
+
+    /**
+     * Uma leitura por tenant e requisição: listas como a de Ordens consultavam a mesma
+     * linha (e o information_schema) duas vezes por registro exibido.
+     */
+    private static function tenantRow(int $tenantId): ?object
+    {
+        return RequestCache::remember('tenant-mail:'.$tenantId, fn () => DB::table('others')
+            ->where('tenant_id', $tenantId)
+            ->select([
+                'mail_mailer',
+                'mail_host',
+                'mail_port',
+                'mail_username',
+                'mail_password',
+                'mail_encryption',
+                'mail_from_address',
+                'mail_from_name',
+            ])
+            ->orderByDesc('id')
+            ->first());
+    }
+
+    private static function othersTableExists(): bool
+    {
+        return RequestCache::remember('tenant-mail:schema', fn () => Schema::hasTable('others'));
     }
 
     private static function hasSystemDefaultConfigured(): bool

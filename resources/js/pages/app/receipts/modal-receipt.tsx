@@ -1,10 +1,8 @@
 import { toastError } from '@/components/app-toast-messages';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { pdf } from '@react-pdf/renderer';
 import { Loader2, Printer } from 'lucide-react';
 import { ReactNode, useState } from 'react';
-import OrderReceiptPDF from './pdf/OrderReceiptPDF';
 
 export default function ModalReceipt({
     orderid,
@@ -52,6 +50,8 @@ export default function ModalReceipt({
 
             const { order, company, receipt, checklist } = await response.json();
 
+            // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+            const [{ pdf }, { default: OrderReceiptPDF }] = await Promise.all([import('@react-pdf/renderer'), import('./pdf/OrderReceiptPDF')]);
             const blob = await pdf(<OrderReceiptPDF order={order} company={company} type={type} receipt={receipt} checklist={checklist} />).toBlob();
 
             const url = URL.createObjectURL(blob);

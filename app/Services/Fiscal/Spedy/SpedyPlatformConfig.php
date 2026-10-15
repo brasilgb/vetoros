@@ -3,6 +3,7 @@
 namespace App\Services\Fiscal\Spedy;
 
 use App\Models\Admin\SpedyPlatformSetting;
+use App\Support\RequestCache;
 use Illuminate\Database\QueryException;
 
 /**
@@ -44,14 +45,24 @@ class SpedyPlatformConfig
         };
     }
 
+    /** Esquece a linha lida nesta requisição (chamado quando a configuração é gravada). */
+    public static function forget(): void
+    {
+        RequestCache::forget('spedy-platform');
+    }
+
     private static function stored(string $field): ?string
     {
-        try {
-            $value = SpedyPlatformSetting::query()->orderBy('id')->toBase()->value($field);
-        } catch (QueryException) {
-            // Antes de rodar as migrations: só a variável de ambiente vale.
-            return null;
-        }
+        // Uma leitura por requisição: o menu e a tela fiscal consultavam a mesma linha 3 vezes por página.
+        $row = RequestCache::remember('spedy-platform', function () {
+            try {
+                return SpedyPlatformSetting::query()->orderBy('id')->toBase()->first(['owner_api_key', 'webhook_secret', 'environment']);
+            } catch (QueryException) {
+                // Antes de rodar as migrations: só a variável de ambiente vale.
+                return null;
+            }
+        });
+        $value = $row?->{$field};
 
         if ($value === null || $value === '') {
             return null;

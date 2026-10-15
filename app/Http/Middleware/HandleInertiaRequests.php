@@ -20,9 +20,9 @@ use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Middleware;
-use Tighten\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -424,11 +424,18 @@ class HandleInertiaRequests extends Middleware
                     'native' => $this->nativeFiscalAvailability($fiscalSetting),
                 ] : null;
             },
-            'performanceAlert' => fn () => $this->commercialPerformanceAlert($user),
-            'customerFeedbackAlert' => fn () => $this->customerFeedbackAlert($user),
+            // Selo do menu sobre os últimos 30 dias: em cache por tenant, sem refazer as consultas a cada página.
+            'performanceAlert' => fn () => $user?->hasPermission('orders')
+                ? Cache::remember('inertia:performance-alert:'.$user->tenant_id, now()->addMinutes(10), fn () => $this->commercialPerformanceAlert($user))
+                : null,
+            // Indicadores do painel: calculados só no painel, não em toda navegação.
+            ...$request->routeIs('app.dashboard') ? [
+                'customerFeedbackAlert' => fn () => $this->customerFeedbackAlert($user),
+                'taskIndicator' => fn () => $this->personalTaskIndicator($user),
+            ] : [],
             'tenantFeedbackRequest' => fn () => $this->tenantFeedbackRequest($user),
-            'taskIndicator' => fn () => $this->personalTaskIndicator($user),
-            'orderStatus' => fn () => $user ? Order::where('service_status', OrderStatus::BUDGET_APPROVED)->get() : null,
+            // O cabeçalho só conta os orçamentos aprovados: basta o id.
+            'orderStatus' => fn () => $user ? Order::where('service_status', OrderStatus::BUDGET_APPROVED)->get(['id']) : null,
 
             'notifications' => fn () => $user
                 ? Message::where('recipient_id', $user->id)->where('status', '0')->count()
@@ -449,8 +456,8 @@ class HandleInertiaRequests extends Middleware
                 'author' => trim($author),
             ],
 
+            // As rotas já vão uma vez no HTML (@routes); repeti-las aqui somava ~45 KB a cada navegação.
             'ziggy' => fn () => [
-                ...(new Ziggy)->toArray(),
                 'url' => config('app.url'),
                 'location' => $request->url(),
                 'query' => $request->query(),

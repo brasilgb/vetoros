@@ -13,6 +13,8 @@ RUN composer install --no-dev --no-interaction --no-progress --optimize-autoload
 COPY . .
 RUN composer dump-autoload --no-dev --optimize --no-interaction && mkdir -p /opt/public-build && chown -R www-data:www-data storage bootstrap/cache
 COPY --from=frontend /app/public/build /opt/public-build
+COPY deploy/php/conf.d/zz-vetoros-performance.ini /usr/local/etc/php/conf.d/zz-vetoros-performance.ini
+COPY deploy/php/php-fpm.d/zz-vetoros-pool.conf /usr/local/etc/php-fpm.d/zz-vetoros-pool.conf
 COPY docker-entrypoint.sh /usr/local/bin/infra-entrypoint
 RUN chmod +x /usr/local/bin/infra-entrypoint
 ENTRYPOINT ["infra-entrypoint"]

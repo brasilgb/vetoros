@@ -2,6 +2,7 @@
 
 namespace App\Models\App;
 
+use App\Support\TenantMailConfig;
 use App\Tenantable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,13 @@ class Other extends Model
     public const DEFAULT_RECORDS_PER_PAGE = 20;
 
     public const ALLOWED_RECORDS_PER_PAGE = [10, 20, 35, 50, 100];
+
+    protected static function booted(): void
+    {
+        // A configuração de e-mail lida na requisição não pode sobreviver a uma gravação.
+        static::saved(fn () => TenantMailConfig::forget());
+        static::deleted(fn () => TenantMailConfig::forget());
+    }
 
     protected $casts = [
         'navigation' => 'boolean',

@@ -25,18 +25,17 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks(id) {
-                    if (id.includes('node_modules')) {
-                        if (id.includes('@inertiajs') || id.includes('react')) {
-                            return 'vendor';
-                        }
+                    // Só o núcleo comum a todas as telas. `includes('react')` capturava qualquer
+                    // pacote com "react" no caminho (ex.: @react-pdf, ~1,5 MB) e o mandava para todas as páginas.
+                    if (/node_modules\/(react|react-dom|scheduler|@inertiajs)\//.test(id)) {
+                        return 'vendor';
                     }
-                }
+                },
             },
         },
     },
     server: {
-
-        cors: true
+        cors: true,
     },
     esbuild: {
         jsx: 'automatic',

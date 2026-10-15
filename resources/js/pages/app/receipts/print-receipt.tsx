@@ -3,10 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { maskMoney } from '@/Utils/mask';
 import { Link } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { ArrowLeft, Printer, Square } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import OrderReceiptPDF from './pdf/OrderReceiptPDF';
 
 const normalizePlaceholderKey = (key: string) =>
     key
@@ -253,11 +251,7 @@ function ReceiptCopy({
                     </div>
                     <div className="text-center">
                         {type === 'oraberta' && order?.customer_signature_url ? (
-                            <img
-                                src={order.customer_signature_url}
-                                alt="Assinatura do cliente"
-                                className="mx-auto h-14 object-contain"
-                            />
+                            <img src={order.customer_signature_url} alt="Assinatura do cliente" className="mx-auto h-14 object-contain" />
                         ) : (
                             <div className="mb-1 border-t border-black"></div>
                         )}
@@ -301,6 +295,8 @@ export default function Receipt({
         const generatePdf = async () => {
             setIsGeneratingPdf(true);
             try {
+                // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+                const [{ pdf }, { default: OrderReceiptPDF }] = await Promise.all([import('@react-pdf/renderer'), import('./pdf/OrderReceiptPDF')]);
                 const blob = await pdf(
                     <OrderReceiptPDF order={order} company={company} type={type} receipt={receipt} checklist={checklist} />,
                 ).toBlob();

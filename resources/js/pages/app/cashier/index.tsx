@@ -10,11 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import CashierDailyReportPDF from '@/pages/app/reports/pdf/CashierDailyReportPDF';
 import { BreadcrumbItem } from '@/types';
 import { maskMoney, maskMoneyDot } from '@/Utils/mask';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { BanknoteArrowDown, FileText, Loader2, WalletCards } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
@@ -119,6 +117,11 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
 
         setLoadingPdfId(session.id);
         try {
+            // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+            const [{ pdf }, { default: CashierDailyReportPDF }] = await Promise.all([
+                import('@react-pdf/renderer'),
+                import('@/pages/app/reports/pdf/CashierDailyReportPDF'),
+            ]);
             const blob = await pdf(<CashierDailyReportPDF session={session} company={company} />).toBlob();
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
@@ -255,7 +258,8 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                         </div>
                                     </div>
                                     <p className="text-muted-foreground mt-3 text-xs">
-                                        O saldo esperado considera saldo inicial, vendas, pagamentos de OS, entradas manuais, saídas manuais e sangrias registradas.
+                                        O saldo esperado considera saldo inicial, vendas, pagamentos de OS, entradas manuais, saídas manuais e
+                                        sangrias registradas.
                                     </p>
                                 </div>
                                 <div className="space-y-2">
@@ -398,7 +402,10 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                 <TableBody>
                                     {currentSession.withdrawals?.length ? (
                                         currentSession.withdrawals.map((withdrawal: any) => (
-                                            <TableRow key={withdrawal.id} className={withdrawal.cancelled_at ? 'bg-muted/40 text-muted-foreground' : undefined}>
+                                            <TableRow
+                                                key={withdrawal.id}
+                                                className={withdrawal.cancelled_at ? 'bg-muted/40 text-muted-foreground' : undefined}
+                                            >
                                                 <TableCell>{moment(withdrawal.created_at).format('DD/MM/YYYY HH:mm')}</TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-wrap items-center gap-2">
@@ -408,7 +415,8 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                                     <div className="text-muted-foreground text-xs">{withdrawal.user?.name || '-'}</div>
                                                     {withdrawal.cancelled_at && (
                                                         <div className="text-muted-foreground mt-1 text-xs">
-                                                            Cancelada por {withdrawal.cancelled_by?.name || '-'} em {moment(withdrawal.cancelled_at).format('DD/MM/YYYY HH:mm')}
+                                                            Cancelada por {withdrawal.cancelled_by?.name || '-'} em{' '}
+                                                            {moment(withdrawal.cancelled_at).format('DD/MM/YYYY HH:mm')}
                                                             {withdrawal.cancellation_reason ? ` - ${withdrawal.cancellation_reason}` : ''}
                                                         </div>
                                                     )}
@@ -418,7 +426,12 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {!withdrawal.cancelled_at && (
-                                                        <Button type="button" variant="outline" size="sm" onClick={() => setSelectedWithdrawal(withdrawal)}>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setSelectedWithdrawal(withdrawal)}
+                                                        >
                                                             Cancelar
                                                         </Button>
                                                     )}

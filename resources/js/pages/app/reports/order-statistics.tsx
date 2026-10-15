@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { toastError } from '@/components/app-toast-messages';
+import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer'; // componente do PDF
 import { FileText, Loader2 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
-import OrderStatisticsPDF from './pdf/OrderStatisticsPDF';
 
 interface DateRange {
     from?: Date;
@@ -43,6 +41,11 @@ export default function OrdersStatistics({ dateRange, company }: { dateRange?: D
                     const reportMeta = page.props?.reportMeta || {};
 
                     // Gera o PDF no frontend
+                    // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+                    const [{ pdf }, { default: OrderStatisticsPDF }] = await Promise.all([
+                        import('@react-pdf/renderer'),
+                        import('./pdf/OrderStatisticsPDF'),
+                    ]);
                     const blob = await pdf(
                         <OrderStatisticsPDF data={reportData} reportMeta={reportMeta} dateRange={dateRange} company={company} />,
                     ).toBlob();

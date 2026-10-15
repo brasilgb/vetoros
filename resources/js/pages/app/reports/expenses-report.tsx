@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { toastError } from '@/components/app-toast-messages';
+import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { FileText, Loader2 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
-import ExpenseReportPDF from './pdf/ExpenseReportPDF';
 
 interface DateRange {
     from?: Date;
@@ -41,6 +39,11 @@ export default function ExpensesReport({ dateRange, company }: { dateRange?: Dat
                 onSuccess: async (page: any) => {
                     const reportData = page.props?.reportData || [];
 
+                    // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+                    const [{ pdf }, { default: ExpenseReportPDF }] = await Promise.all([
+                        import('@react-pdf/renderer'),
+                        import('./pdf/ExpenseReportPDF'),
+                    ]);
                     const blob = await pdf(<ExpenseReportPDF data={reportData} dateRange={dateRange} company={company} />).toBlob();
 
                     const url = URL.createObjectURL(blob);

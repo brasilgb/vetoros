@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { toastError } from '@/components/app-toast-messages';
+import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { FileText, Loader2 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
-import CashierPeriodReportPDF from './pdf/CashierPeriodReportPDF';
 
 interface DateRange {
     from?: Date;
@@ -42,6 +40,11 @@ export default function CashierReport({ dateRange, company }: { dateRange?: Date
                     const reportData = page.props?.reportData || [];
                     const reportMeta = page.props?.reportMeta || {};
 
+                    // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+                    const [{ pdf }, { default: CashierPeriodReportPDF }] = await Promise.all([
+                        import('@react-pdf/renderer'),
+                        import('./pdf/CashierPeriodReportPDF'),
+                    ]);
                     const blob = await pdf(
                         <CashierPeriodReportPDF data={reportData} dateRange={dateRange} company={company} reportMeta={reportMeta} />,
                     ).toBlob();

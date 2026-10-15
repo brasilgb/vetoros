@@ -1,11 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { toastError } from '@/components/app-toast-messages';
+import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { FileText, Loader2 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
-import FiscalReportPDF from './pdf/FiscalReportPDF';
 
 interface DateRange {
     from?: Date;
@@ -41,7 +39,14 @@ export default function FiscalReport({ dateRange, company }: { dateRange?: DateR
                 onSuccess: async (page: any) => {
                     const reportData = page.props?.reportData || [];
                     const reportMeta = page.props?.reportMeta || {};
-                    const blob = await pdf(<FiscalReportPDF data={reportData} reportMeta={reportMeta} dateRange={dateRange} company={company} />).toBlob();
+                    // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+                    const [{ pdf }, { default: FiscalReportPDF }] = await Promise.all([
+                        import('@react-pdf/renderer'),
+                        import('./pdf/FiscalReportPDF'),
+                    ]);
+                    const blob = await pdf(
+                        <FiscalReportPDF data={reportData} reportMeta={reportMeta} dateRange={dateRange} company={company} />,
+                    ).toBlob();
                     const url = URL.createObjectURL(blob);
                     previewWindow.location.href = url;
                 },

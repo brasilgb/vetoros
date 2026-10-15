@@ -4,7 +4,6 @@ import { toastError } from '@/components/app-toast-messages';
 import { Icon } from '@/components/icon';
 import InputSearch from '@/components/inputSearch';
 import SaleInvoiceModal from '@/components/Modals/SaleInvoiceModal';
-import SaleReceiptPDF from '@/components/SaleReceiptPDF';
 import { SalesProducts } from '@/components/sales-products';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,6 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { pdf } from '@react-pdf/renderer';
 import { EyeIcon, FileText, Loader2, PrinterIcon, ShoppingCartIcon } from 'lucide-react';
 import moment from 'moment';
 import { useEffect, useRef, useState } from 'react';
@@ -134,6 +132,8 @@ export default function Sales({ sales, parts, search, financial_status, financia
             }));
 
             // Gera o blob do PDF
+            // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
+            const [{ pdf }, { default: SaleReceiptPDF }] = await Promise.all([import('@react-pdf/renderer'), import('@/components/SaleReceiptPDF')]);
             const blob = await pdf(
                 <SaleReceiptPDF items={mappedItems} total={sale.total_amount} customerName={customerNameForPDF} sale={sale} company={companyData} />,
             ).toBlob();
