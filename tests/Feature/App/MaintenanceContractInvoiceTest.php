@@ -176,7 +176,10 @@ class MaintenanceContractInvoiceTest extends TestCase
         [$contract, $charge] = $this->contractWithCharge(issue: false);
 
         $this->get(route('app.maintenance-contracts.index'))
-            ->assertInertia(fn ($page) => $page->where('canFiscal', true)->where('contracts.data.0.invoice_target.kind', 'charge'));
+            ->assertInertia(fn ($page) => $page->where('canFiscal', true)
+                ->where('contracts.data.0.invoice_target.kind', 'charge')
+                ->where('contracts.data.0.invoice_status.state', 'pending')
+                ->where('contracts.data.0.invoice_pdf_url', null));
 
         $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('success', 'NFS-e autorizada.');
         $this->assertSame($charge->id, FiscalDocument::query()->sole()->documentable_id);
@@ -186,7 +189,9 @@ class MaintenanceContractInvoiceTest extends TestCase
         $this->assertSame(1, AccountReceivable::query()->count());
         $this->assertSame(1, FiscalDocument::query()->count());
         $this->get(route('app.maintenance-contracts.index'))
-            ->assertInertia(fn ($page) => $page->where('contracts.data.0.invoice_target', null));
+            ->assertInertia(fn ($page) => $page->where('contracts.data.0.invoice_target', null)
+                ->where('contracts.data.0.invoice_status.state', 'authorized')
+                ->where('contracts.data.0.invoice_pdf_url', route('app.fiscal-documents.file', ['fiscalDocument' => FiscalDocument::query()->sole()->id, 'format' => 'pdf'])));
     }
 
     public function test_contract_button_generates_the_due_cycle_charge_before_emitting(): void

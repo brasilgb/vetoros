@@ -23,7 +23,10 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     Ban,
     CalendarClock,
+    CheckCircle2,
+    Clock,
     Edit,
+    ExternalLink,
     FileText,
     MoreHorizontal,
     PauseCircle,
@@ -32,10 +35,12 @@ import {
     Printer,
     ReceiptText,
     RefreshCcw,
+    TriangleAlert,
     Wallet,
 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Painel', href: route('app.dashboard') },
@@ -64,6 +69,8 @@ type Contract = {
     auto_send_invoice?: boolean;
     invoice_competence?: 'due_month' | 'previous_month';
     invoice_target?: { kind: 'charge' | 'cycle'; due_date: string; amount: number } | null;
+    invoice_pdf_url?: string | null;
+    invoice_status?: { state: 'pending' | 'processing' | 'authorized'; due_date?: string | null; number?: string | null } | null;
 };
 
 type Technician = { id: number; name: string };
@@ -89,6 +96,34 @@ const statusMeta: Record<Contract['status'], { label: string; className: string 
     cancelled: { label: 'Cancelado', className: 'bg-muted text-muted-foreground' },
     expired: { label: 'Vencido', className: 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300' },
 };
+
+function InvoiceIndicator({ status, kind }: { status?: Contract['invoice_status']; kind?: 'charge' | 'cycle' }) {
+    if (!status) return <span className="text-muted-foreground">—</span>;
+    const due = status.due_date ? moment(status.due_date).format('DD/MM/YYYY') : '';
+
+    if (status.state === 'authorized') {
+        const label = `NFS-e${status.number ? ` nº ${status.number}` : ''} autorizada${due ? ` (vencimento ${due})` : ''}`;
+        return (
+            <CheckCircle2 className="mx-auto h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-label={label}>
+                <title>{label}</title>
+            </CheckCircle2>
+        );
+    }
+    if (status.state === 'processing') {
+        const label = `NFS-e em processamento${due ? ` (vencimento ${due})` : ''}`;
+        return (
+            <Clock className="mx-auto h-5 w-5 text-sky-600 dark:text-sky-400" aria-label={label}>
+                <title>{label}</title>
+            </Clock>
+        );
+    }
+    const label = kind === 'cycle' ? `Ciclo de ${due} sem cobrança e sem NFS-e` : `Cobrança de ${due} sem NFS-e`;
+    return (
+        <TriangleAlert className="mx-auto h-5 w-5 text-amber-600 dark:text-amber-400" aria-label={label}>
+            <title>{label}</title>
+        </TriangleAlert>
+    );
+}
 
 function formatCurrency(value: number | string) {
     return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -191,7 +226,8 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                 ? `Emitir a NFS-e de ${formatCurrency(target.amount)} (vencimento ${due}) para ${customer}?`
                 : `Gerar a cobrança do ciclo ${due} (${formatCurrency(target.amount)}) e emitir a NFS-e para ${customer}?`;
         if (!window.confirm(question)) return;
-        router.post(route('app.maintenance-contracts.invoice', contract.id), {}, { preserveScroll: true });
+        const loading = toast.loading('Emitindo NFS-e…', { description: customer });
+        router.post(route('app.maintenance-contracts.invoice', contract.id), {}, { preserveScroll: true, onFinish: () => toast.dismiss(loading) });
     };
 
     const closeModal = () => {
@@ -366,6 +402,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                 <TableHead>Próx. visita</TableHead>
                                 <TableHead>Vigência</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead className="text-center">NF</TableHead>
                                 <TableHead className="text-right"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -396,6 +433,9 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                             <Badge className={statusMeta[contract.status].className} variant="outline">
                                                 {statusMeta[contract.status].label}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <InvoiceIndicator status={contract.invoice_status} kind={contract.invoice_target?.kind} />
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {canManage && (
@@ -446,6 +486,18 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                                                         <FileText />
                                                                         Emitir NFS-e
                                                                     </DropdownMenuItem>
+                                                                    {contract.invoice_pdf_url && (
+                                                                        <DropdownMenuItem asChild>
+                                                                            <a
+                                                                                href={contract.invoice_pdf_url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                            >
+                                                                                <ExternalLink />
+                                                                                Abrir NFS-e
+                                                                            </a>
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                 </>
                                                             )}
                                                             <DropdownMenuItem asChild>
@@ -490,7 +542,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-16 text-center">
+                                    <TableCell colSpan={9} className="h-16 text-center">
                                         Nenhum contrato de manutenção cadastrado.
                                     </TableCell>
                                 </TableRow>
@@ -498,7 +550,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={8}>
+                                <TableCell colSpan={9}>
                                     <AppPagination data={contracts} />
                                 </TableCell>
                             </TableRow>

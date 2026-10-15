@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\App\AccountReceivable;
 use App\Models\App\Company;
+use App\Models\App\FiscalDocument;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\Receipt;
 use App\Models\User;
@@ -127,11 +129,35 @@ class MaintenanceContractController extends Controller
             ->get(['id', 'source_id', 'due_date', 'total_amount'])
             ->groupBy('source_id')
             ->map->first();
-        $contracts->getCollection()->each(function (MaintenanceContract $contract) use ($awaiting) {
+        // Coluna "NF": situação da nota do ciclo mais recente do contrato.
+        $latestDocuments = FiscalDocument::query()
+            ->join('accounts_receivable', 'accounts_receivable.id', '=', 'fiscal_documents.documentable_id')
+            ->where('fiscal_documents.documentable_type', AccountReceivable::class)
+            ->where('accounts_receivable.source_type', AccountReceivable::SOURCE_MAINTENANCE_CONTRACT)
+            ->whereIn('accounts_receivable.source_id', $contracts->getCollection()->pluck('id'))
+            ->orderByDesc('accounts_receivable.due_date')
+            ->orderByDesc('fiscal_documents.id')
+            ->get(['fiscal_documents.id', 'fiscal_documents.status', 'fiscal_documents.number', 'accounts_receivable.source_id', 'accounts_receivable.due_date'])
+            ->groupBy('source_id')
+            ->map->first();
+        $canFiscal = Gate::allows('fiscal-documents.access');
+        $contracts->getCollection()->each(function (MaintenanceContract $contract) use ($awaiting, $latestDocuments, $canFiscal) {
             $charge = $awaiting->get($contract->id);
-            $contract->setAttribute('invoice_target', match (true) {
+            $target = match (true) {
                 $charge !== null => ['kind' => 'charge', 'due_date' => $charge->due_date?->toDateString(), 'amount' => (float) $charge->total_amount],
                 $this->maintenanceContractService->canBillNow($contract) => ['kind' => 'cycle', 'due_date' => $contract->next_billing_date->toDateString(), 'amount' => (float) $contract->monthly_amount],
+                default => null,
+            };
+            $document = $latestDocuments->get($contract->id);
+            $contract->setAttribute('invoice_target', $target);
+            $contract->setAttribute('invoice_pdf_url', $canFiscal && $document?->status === FiscalDocument::STATUS_AUTHORIZED
+                ? route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'pdf'])
+                : null);
+            $contract->setAttribute('invoice_status', match (true) {
+                $target !== null => ['state' => 'pending', 'due_date' => $target['due_date'], 'number' => null],
+                $document === null => null,
+                in_array($document->status, FiscalDocument::PENDING_STATUSES, true) => ['state' => 'processing', 'due_date' => substr((string) $document->due_date, 0, 10), 'number' => null],
+                $document->status === FiscalDocument::STATUS_AUTHORIZED => ['state' => 'authorized', 'due_date' => substr((string) $document->due_date, 0, 10), 'number' => $document->number],
                 default => null,
             });
         });
@@ -155,7 +181,7 @@ class MaintenanceContractController extends Controller
             'totals' => $totals,
             'technicians' => $technicians,
             'invoiceBlocker' => $this->nativeFiscal->contractInvoiceBlocker((int) Auth::user()->tenant_id),
-            'canFiscal' => Gate::allows('fiscal-documents.access'),
+            'canFiscal' => $canFiscal,
         ]);
     }
 
