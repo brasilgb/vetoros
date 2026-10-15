@@ -22,6 +22,8 @@ Schedule::command('vetoros:send-subscription-status-notifications')
 
 Schedule::command('vetoros:process-maintenance-contracts')
     ->dailyAt('07:30')
+    // O modal do contrato informa a emissão automática às 7h30 de Brasília.
+    ->timezone('America/Sao_Paulo')
     ->withoutOverlapping();
 
 Schedule::command('vetoros:send-tenant-feedback-requests')

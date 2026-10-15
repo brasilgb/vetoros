@@ -82,7 +82,8 @@ class MaintenanceContractController extends Controller
         return [
             ...$validated,
             'auto_issue_invoice' => $issue,
-            'auto_send_invoice' => $issue && (bool) ($validated['auto_send_invoice'] ?? false),
+            // Envio vale para toda NFS-e autorizada do contrato, emitida automática ou manualmente.
+            'auto_send_invoice' => (bool) ($validated['auto_send_invoice'] ?? false),
         ];
     }
 
@@ -96,7 +97,7 @@ class MaintenanceContractController extends Controller
         $status = trim((string) $request->get('status', ''));
 
         $query = MaintenanceContract::query()
-            ->with(['customer:id,name', 'preferredTechnician:id,name'])
+            ->with(['customer:id,name,email', 'preferredTechnician:id,name'])
             // CASE em vez de FIELD(): funciona no MySQL e no SQLite dos testes.
             ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'suspended' THEN 1 WHEN 'expired' THEN 2 WHEN 'cancelled' THEN 3 ELSE 4 END")
             ->orderBy('next_billing_date');
@@ -120,6 +121,21 @@ class MaintenanceContractController extends Controller
 
         $contracts = $query->paginate(Pagination::perPage())->withQueryString();
 
+        // Alvo do botão de NFS-e de cada contrato: a cobrança mais antiga sem nota ou o ciclo vencido a gerar.
+        $awaiting = $this->maintenanceContractService
+            ->chargesAwaitingInvoice($contracts->getCollection()->pluck('id')->all())
+            ->get(['id', 'source_id', 'due_date', 'total_amount'])
+            ->groupBy('source_id')
+            ->map->first();
+        $contracts->getCollection()->each(function (MaintenanceContract $contract) use ($awaiting) {
+            $charge = $awaiting->get($contract->id);
+            $contract->setAttribute('invoice_target', match (true) {
+                $charge !== null => ['kind' => 'charge', 'due_date' => $charge->due_date?->toDateString(), 'amount' => (float) $charge->total_amount],
+                $this->maintenanceContractService->canBillNow($contract) => ['kind' => 'cycle', 'due_date' => $contract->next_billing_date->toDateString(), 'amount' => (float) $contract->monthly_amount],
+                default => null,
+            });
+        });
+
         $totals = [
             'active_count' => MaintenanceContract::query()->where('status', MaintenanceContract::STATUS_ACTIVE)->count(),
             'monthly_revenue' => (float) MaintenanceContract::query()
@@ -139,6 +155,7 @@ class MaintenanceContractController extends Controller
             'totals' => $totals,
             'technicians' => $technicians,
             'invoiceBlocker' => $this->nativeFiscal->contractInvoiceBlocker((int) Auth::user()->tenant_id),
+            'canFiscal' => Gate::allows('fiscal-documents.access'),
         ]);
     }
 

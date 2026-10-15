@@ -104,11 +104,12 @@ class MaintenanceContractInvoiceTest extends TestCase
         $this->assertSame(0, MaintenanceContract::query()->count());
     }
 
-    public function test_enabling_issue_records_the_start_and_sending_requires_issue(): void
+    public function test_enabling_issue_records_the_start_and_sending_is_independent_of_issue(): void
     {
         $this->post(route('app.maintenance-contracts.store'), $this->contractPayload(['auto_send_invoice' => true]))->assertSessionHasNoErrors();
         $contract = MaintenanceContract::query()->sole();
-        $this->assertFalse($contract->auto_send_invoice);
+        $this->assertTrue($contract->auto_send_invoice);
+        $this->assertFalse($contract->auto_issue_invoice);
 
         $this->put(route('app.maintenance-contracts.update', $contract), $this->contractPayload(['auto_issue_invoice' => true, 'auto_send_invoice' => true]))
             ->assertSessionHasNoErrors();
@@ -119,8 +120,30 @@ class MaintenanceContractInvoiceTest extends TestCase
         $this->put(route('app.maintenance-contracts.update', $contract), $this->contractPayload(['auto_issue_invoice' => false, 'auto_send_invoice' => true]))
             ->assertSessionHasNoErrors();
         $contract->refresh();
-        $this->assertFalse($contract->auto_send_invoice);
+        $this->assertTrue($contract->auto_send_invoice);
         $this->assertNull($contract->auto_issue_enabled_at);
+    }
+
+    public function test_manual_emission_sends_the_invoice_only_when_sending_is_checked(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        [$contract] = $this->contractWithCharge(issue: false, send: true);
+
+        $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('success', 'NFS-e autorizada.');
+        Mail::assertSent(MaintenanceInvoiceMail::class, 1);
+        $this->assertSame(FiscalDocumentDelivery::ORIGIN_AUTOMATIC, FiscalDocumentDelivery::query()->sole()->origin);
+    }
+
+    public function test_manual_emission_does_not_send_when_sending_is_unchecked(): void
+    {
+        Mail::fake();
+        $this->fakeSpedy('authorized');
+        [$contract] = $this->contractWithCharge(issue: false, send: false);
+
+        $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('success', 'NFS-e autorizada.');
+        Mail::assertNothingSent();
+        $this->assertSame(0, FiscalDocumentDelivery::query()->count());
     }
 
     public function test_contract_cannot_use_a_customer_of_another_tenant(): void
@@ -145,6 +168,70 @@ class MaintenanceContractInvoiceTest extends TestCase
         $this->post(route('app.maintenance-contracts.charges.invoice', [$contract, $charge]))->assertSessionHas('success', 'NFS-e autorizada.');
         $this->assertSame(1, FiscalDocument::query()->count());
         $this->assertSame(AccountReceivable::STATUS_PENDING, $charge->refresh()->status);
+    }
+
+    public function test_contract_button_emits_the_pending_charge_and_never_bills_ahead(): void
+    {
+        $this->fakeSpedy('authorized');
+        [$contract, $charge] = $this->contractWithCharge(issue: false);
+
+        $this->get(route('app.maintenance-contracts.index'))
+            ->assertInertia(fn ($page) => $page->where('canFiscal', true)->where('contracts.data.0.invoice_target.kind', 'charge'));
+
+        $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('success', 'NFS-e autorizada.');
+        $this->assertSame($charge->id, FiscalDocument::query()->sole()->documentable_id);
+
+        // Ciclo seguinte ainda no futuro: nada é gerado nem emitido.
+        $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('error');
+        $this->assertSame(1, AccountReceivable::query()->count());
+        $this->assertSame(1, FiscalDocument::query()->count());
+        $this->get(route('app.maintenance-contracts.index'))
+            ->assertInertia(fn ($page) => $page->where('contracts.data.0.invoice_target', null));
+    }
+
+    public function test_contract_button_generates_the_due_cycle_charge_before_emitting(): void
+    {
+        $this->fakeSpedy('authorized');
+        $contract = MaintenanceContract::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'contract_number' => 8,
+            'description' => 'Manutenção mensal',
+            'monthly_amount' => 150,
+            'billing_day' => 5,
+            'start_date' => now()->subMonth()->toDateString(),
+            'next_billing_date' => now()->subDays(3)->toDateString(),
+            'status' => MaintenanceContract::STATUS_ACTIVE,
+        ]);
+
+        $this->get(route('app.maintenance-contracts.index'))
+            ->assertInertia(fn ($page) => $page->where('contracts.data.0.invoice_target.kind', 'cycle'));
+
+        $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('success', 'NFS-e autorizada.');
+        $charge = AccountReceivable::query()->sole();
+        $this->assertSame(now()->subDays(3)->toDateString(), $charge->due_date->toDateString());
+        $this->assertSame($charge->id, FiscalDocument::query()->sole()->documentable_id);
+        $this->assertTrue($contract->refresh()->next_billing_date->isFuture());
+    }
+
+    public function test_contract_button_does_not_bill_without_fiscal_configuration(): void
+    {
+        FiscalSetting::query()->where('tenant_id', $this->tenant->id)->update(['nfse_allowed' => false]);
+        $contract = MaintenanceContract::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'contract_number' => 9,
+            'description' => 'Manutenção mensal',
+            'monthly_amount' => 150,
+            'billing_day' => 5,
+            'start_date' => now()->subMonth()->toDateString(),
+            'next_billing_date' => now()->toDateString(),
+            'status' => MaintenanceContract::STATUS_ACTIVE,
+        ]);
+
+        $this->post(route('app.maintenance-contracts.invoice', $contract))->assertSessionHas('error');
+        $this->assertSame(0, AccountReceivable::query()->count());
+        Http::assertNothingSent();
     }
 
     public function test_acceptance_scenario_emits_on_due_date_sends_invoice_keeps_charge_open_and_payment_never_reissues(): void

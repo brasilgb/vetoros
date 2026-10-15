@@ -171,6 +171,7 @@ Route::post('maintenance-contracts/{maintenance_contract}/cancel', [MaintenanceC
 Route::get('maintenance-contracts/{maintenance_contract}/charges', [MaintenanceContractChargeController::class, 'index'])->name('maintenance-contracts.charges');
 Route::post('maintenance-contracts/{maintenance_contract}/charges/{receivable}/payments', [MaintenanceContractChargeController::class, 'storePayment'])->name('maintenance-contracts.charges.payments.store');
 Route::post('maintenance-contracts/{maintenance_contract}/payments/{payment}/reverse', [MaintenanceContractChargeController::class, 'reversePayment'])->name('maintenance-contracts.payments.reverse');
+Route::post('maintenance-contracts/{maintenance_contract}/invoice', [MaintenanceContractChargeController::class, 'emitContractInvoice'])->name('maintenance-contracts.invoice');
 Route::post('maintenance-contracts/{maintenance_contract}/charges/{receivable}/invoice', [MaintenanceContractChargeController::class, 'emitInvoice'])->name('maintenance-contracts.charges.invoice');
 Route::post('maintenance-contracts/{maintenance_contract}/invoices/{fiscalDocument}/send', [MaintenanceContractChargeController::class, 'sendInvoice'])->name('maintenance-contracts.invoices.send');
 Route::get('/cashier', [CashSessionController::class, 'index'])->name('cashier.index');

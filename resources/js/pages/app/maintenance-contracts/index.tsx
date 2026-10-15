@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,7 +20,20 @@ import AppLayout from '@/layouts/app-layout';
 import type { OptionType } from '@/types';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Ban, CalendarClock, Edit, PauseCircle, PlayCircle, Plus, Printer, ReceiptText, RefreshCcw, Wallet } from 'lucide-react';
+import {
+    Ban,
+    CalendarClock,
+    Edit,
+    FileText,
+    MoreHorizontal,
+    PauseCircle,
+    PlayCircle,
+    Plus,
+    Printer,
+    ReceiptText,
+    RefreshCcw,
+    Wallet,
+} from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
 
@@ -43,12 +57,13 @@ type Contract = {
     status: 'active' | 'suspended' | 'cancelled' | 'expired';
     notes?: string | null;
     customer_id?: number;
-    customer?: { id: number; name: string } | null;
+    customer?: { id: number; name: string; email?: string | null } | null;
     preferred_technician_id?: number | null;
     preferred_technician?: { id: number; name: string } | null;
     auto_issue_invoice?: boolean;
     auto_send_invoice?: boolean;
     invoice_competence?: 'due_month' | 'previous_month';
+    invoice_target?: { kind: 'charge' | 'cycle'; due_date: string; amount: number } | null;
 };
 
 type Technician = { id: number; name: string };
@@ -95,7 +110,7 @@ function parseCurrencyMask(value: string) {
     return Number.isFinite(amount) ? amount.toFixed(2) : '';
 }
 
-export default function MaintenanceContracts({ contracts, search, status, totals, technicians, invoiceBlocker }: any) {
+export default function MaintenanceContracts({ contracts, search, status, totals, technicians, invoiceBlocker, canFiscal }: any) {
     const { flash, auth } = usePage().props as any;
     const canManage = auth?.role !== 'technician' && auth?.permissions?.includes('finance');
 
@@ -164,6 +179,19 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         setHasDuration(!!contract.duration_months);
         setHasAutoVisit(!!contract.visit_frequency_days);
         setOpenModal(true);
+    };
+
+    const emitInvoice = (contract: Contract) => {
+        const target = contract.invoice_target;
+        if (!target) return;
+        const due = moment(target.due_date).format('DD/MM/YYYY');
+        const customer = contract.customer?.name ?? 'o cliente';
+        const question =
+            target.kind === 'charge'
+                ? `Emitir a NFS-e de ${formatCurrency(target.amount)} (vencimento ${due}) para ${customer}?`
+                : `Gerar a cobrança do ciclo ${due} (${formatCurrency(target.amount)}) e emitir a NFS-e para ${customer}?`;
+        if (!window.confirm(question)) return;
+        router.post(route('app.maintenance-contracts.invoice', contract.id), {}, { preserveScroll: true });
     };
 
     const closeModal = () => {
@@ -338,7 +366,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                 <TableHead>Próx. visita</TableHead>
                                 <TableHead>Vigência</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead className="min-w-[260px] text-right"></TableHead>
+                                <TableHead className="text-right"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -369,56 +397,9 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                                 {statusMeta[contract.status].label}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="min-w-[260px] text-right">
+                                        <TableCell className="text-right">
                                             {canManage && (
-                                                <div className="flex flex-wrap justify-end gap-2">
-                                                    {contract.end_date && (contract.status === 'active' || contract.status === 'expired') && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => openRenewModal(contract)}
-                                                            title="Renovar contrato"
-                                                        >
-                                                            <RefreshCcw className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                    {contract.status === 'active' && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => suspend(contract)}
-                                                            title="Suspender contrato"
-                                                        >
-                                                            <PauseCircle className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                    {contract.status === 'suspended' && (
-                                                        <Button
-                                                            size="sm"
-                                                            className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                                            onClick={() => reactivate(contract)}
-                                                            title="Reativar contrato"
-                                                        >
-                                                            <PlayCircle className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                    {(contract.status === 'active' || contract.status === 'suspended') && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="text-red-600 hover:text-red-700"
-                                                            onClick={() => cancelContract(contract)}
-                                                            title="Cancelar contrato"
-                                                        >
-                                                            <Ban className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                    <Button size="sm" variant="outline" asChild title="Cobranças, recebimentos e notas fiscais">
-                                                        <Link href={route('app.maintenance-contracts.charges', contract.id)}>
-                                                            <ReceiptText className="h-4 w-4" />
-                                                            Cobranças
-                                                        </Link>
-                                                    </Button>
+                                                <div className="flex justify-end gap-2">
                                                     <Button size="icon" variant="outline" asChild title="Imprimir contrato">
                                                         <a
                                                             href={route('app.maintenance-contracts.printing', contract.id)}
@@ -443,6 +424,65 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                                         url={'app.maintenance-contracts.destroy'}
                                                         param={contract.id}
                                                     />
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="outline"
+                                                                title="Mais ações"
+                                                                aria-label={`Mais ações do contrato ${contract.contract_number ?? contract.description}`}
+                                                            >
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-60">
+                                                            {canFiscal && (
+                                                                <>
+                                                                    <DropdownMenuItem
+                                                                        disabled={!contract.invoice_target || !!invoiceBlocker}
+                                                                        onSelect={() => emitInvoice(contract)}
+                                                                    >
+                                                                        <FileText />
+                                                                        Emitir NFS-e
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={route('app.maintenance-contracts.charges', contract.id)}>
+                                                                    <ReceiptText />
+                                                                    Cobranças e notas fiscais
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            {contract.end_date && (contract.status === 'active' || contract.status === 'expired') && (
+                                                                <DropdownMenuItem onSelect={() => openRenewModal(contract)}>
+                                                                    <RefreshCcw />
+                                                                    Renovar contrato
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {contract.status === 'active' && (
+                                                                <DropdownMenuItem onSelect={() => suspend(contract)}>
+                                                                    <PauseCircle />
+                                                                    Suspender contrato
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {contract.status === 'suspended' && (
+                                                                <DropdownMenuItem onSelect={() => reactivate(contract)}>
+                                                                    <PlayCircle />
+                                                                    Reativar contrato
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {(contract.status === 'active' || contract.status === 'suspended') && (
+                                                                <>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem variant="destructive" onSelect={() => cancelContract(contract)}>
+                                                                        <Ban />
+                                                                        Cancelar contrato
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             )}
                                         </TableCell>
@@ -615,7 +655,6 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                             form.setData((current) => ({
                                                 ...current,
                                                 auto_issue_invoice: checked === true,
-                                                auto_send_invoice: checked === true ? current.auto_send_invoice : false,
                                             }))
                                         }
                                     />
@@ -626,6 +665,12 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                             cobrança continua em aberto até o recebimento. Vale para os ciclos a partir de agora; confirme a regra do
                                             seu município com a contabilidade.
                                         </p>
+                                        {form.data.auto_issue_invoice && (
+                                            <p className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
+                                                A nota será emitida às 7h30 (horário de Brasília) do dia de cobrança escolhido
+                                                {form.data.billing_day ? ` (dia ${form.data.billing_day} de cada mês)` : ''}.
+                                            </p>
+                                        )}
                                         {invoiceBlocker && (
                                             <p className="text-xs text-amber-700 dark:text-amber-400">Indisponível: {invoiceBlocker}</p>
                                         )}
@@ -636,14 +681,14 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                     <Checkbox
                                         id="auto_send_invoice"
                                         checked={form.data.auto_send_invoice}
-                                        disabled={!form.data.auto_issue_invoice}
                                         onCheckedChange={(checked) => form.setData('auto_send_invoice', checked === true)}
                                     />
                                     <div className="grid gap-1">
-                                        <Label htmlFor="auto_send_invoice">Enviar fatura e nota fiscal automaticamente ao cliente</Label>
+                                        <Label htmlFor="auto_send_invoice">Enviar fatura e nota fiscal por e-mail ao cliente</Label>
                                         <p className="text-muted-foreground text-xs">
-                                            Depois da autorização, o cliente recebe a fatura por e-mail (SMTP da empresa) com links protegidos para o
-                                            PDF e o XML da NFS-e.
+                                            Marcado: assim que a NFS-e for autorizada, emitida automaticamente ou pelo botão do contrato, o cliente
+                                            recebe a fatura por e-mail (SMTP da empresa) com links protegidos para o PDF e o XML. Desmarcado: nada é
+                                            enviado.
                                         </p>
                                     </div>
                                 </div>

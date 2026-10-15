@@ -10,6 +10,7 @@ use App\Models\App\FiscalDocumentDelivery;
 use App\Models\App\MaintenanceContract;
 use App\Services\AccountReceivablePaymentService;
 use App\Services\Fiscal\FiscalDocumentDeliveryService;
+use App\Services\MaintenanceContractService;
 use App\Services\Fiscal\FiscalEmissionException;
 use App\Services\Fiscal\FiscalValidationException;
 use App\Services\Fiscal\NativeFiscalService;
@@ -38,6 +39,7 @@ class MaintenanceContractChargeController extends Controller
         private readonly NativeFiscalService $fiscal,
         private readonly FiscalDocumentDeliveryService $deliveries,
         private readonly ReceivablePaymentChannel $channels,
+        private readonly MaintenanceContractService $contracts,
     ) {}
 
     public function index(MaintenanceContract $maintenance_contract): Response
@@ -141,12 +143,47 @@ class MaintenanceContractChargeController extends Controller
             : 'Recebimento estornado; a cobrança voltou a ficar em aberto.');
     }
 
+    /**
+     * Emissão pelo contrato: NFS-e da cobrança mais antiga ainda sem nota (ou recusada, reprocessando
+     * o mesmo documento). Sem cobrança pendente, gera a do ciclo vencido e emite; ciclo futuro não é
+     * antecipado, para um clique repetido nunca faturar meses à frente.
+     */
+    public function emitContractInvoice(MaintenanceContract $maintenance_contract): RedirectResponse
+    {
+        Gate::authorize('update', $maintenance_contract);
+        Gate::authorize('fiscal-documents.access');
+
+        // Sem configuração fiscal válida não gera cobrança: ela ficaria sem nota.
+        if ($blocker = $this->fiscal->contractInvoiceBlocker((int) $maintenance_contract->tenant_id)) {
+            return back()->with('error', 'Emissão fiscal indisponível: '.$blocker);
+        }
+
+        $receivable = $this->contracts->chargesAwaitingInvoice([$maintenance_contract->id])->first();
+
+        if (! $receivable && $this->contracts->canBillNow($maintenance_contract)) {
+            $receivable = $this->contracts->processBillingCycle($maintenance_contract);
+        }
+
+        if (! $receivable) {
+            return back()->with('error', $maintenance_contract->status === MaintenanceContract::STATUS_ACTIVE && $maintenance_contract->next_billing_date
+                ? 'Todas as cobranças deste contrato já têm NFS-e. Próximo ciclo em '.$maintenance_contract->next_billing_date->format('d/m/Y').'.'
+                : 'Não há ciclo em aberto para emitir NFS-e neste contrato.');
+        }
+
+        return $this->emitFor($receivable);
+    }
+
     public function emitInvoice(MaintenanceContract $maintenance_contract, AccountReceivable $receivable): RedirectResponse
     {
         Gate::authorize('update', $maintenance_contract);
         Gate::authorize('fiscal-documents.access');
         $this->ensureCharge($maintenance_contract, $receivable);
 
+        return $this->emitFor($receivable);
+    }
+
+    private function emitFor(AccountReceivable $receivable): RedirectResponse
+    {
         try {
             // Ação manual: permitida antes da quitação quando a obrigação fiscal exigir.
             $document = $this->fiscal->emitForContractReceivable($receivable, (int) Auth::id(), requirePaid: false);

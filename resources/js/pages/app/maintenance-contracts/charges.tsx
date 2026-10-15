@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, FileText, ReceiptText, RefreshCcw, Send, Undo2, Wallet } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ReceiptText, RefreshCcw, Send, Undo2, Wallet } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
 
@@ -143,7 +143,7 @@ function date(value: string | null, withTime = false) {
     return value ? moment(value).format(withTime ? 'DD/MM/YYYY HH:mm' : 'DD/MM/YYYY') : '-';
 }
 
-export default function MaintenanceContractCharges({ contract, charges, history, paymentMethods, canFiscal, invoiceBlocker }: Props) {
+export default function MaintenanceContractCharges({ contract, charges, history, paymentMethods, invoiceBlocker }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Painel', href: route('app.dashboard') },
         { title: 'Contratos de manutenção', href: route('app.maintenance-contracts.index') },
@@ -179,15 +179,6 @@ export default function MaintenanceContractCharges({ contract, charges, history,
         const reason = window.prompt(`Motivo do estorno de ${money(payment.amount)}:`);
         if (!reason) return;
         router.post(route('app.maintenance-contracts.payments.reverse', [contract.id, payment.id]), { reason }, { preserveScroll: true });
-    };
-
-    const emit = (charge: Charge) => {
-        const question =
-            charge.status === 'paid'
-                ? `Emitir a NFS-e de ${money(charge.total_amount)} para ${contract.customer?.name ?? 'o cliente'}?`
-                : `Emitir agora a NFS-e de ${money(charge.total_amount)} (competência ${charge.competence ?? '-'})? A emissão não marca a cobrança como paga.`;
-        if (!window.confirm(question)) return;
-        router.post(route('app.maintenance-contracts.charges.invoice', [contract.id, charge.id]), {}, { preserveScroll: true });
     };
 
     const refresh = (invoice: Invoice) => router.post(route('app.fiscal-documents.refresh', invoice.id), {}, { preserveScroll: true });
@@ -258,10 +249,8 @@ export default function MaintenanceContractCharges({ contract, charges, history,
                                     <ChargeRows
                                         key={charge.id}
                                         charge={charge}
-                                        canFiscal={canFiscal}
                                         onPay={openPayment}
                                         onReverse={reverse}
-                                        onEmit={emit}
                                         onRefresh={refresh}
                                         onSend={send}
                                     />
@@ -373,15 +362,13 @@ export default function MaintenanceContractCharges({ contract, charges, history,
 
 type RowProps = {
     charge: Charge;
-    canFiscal: boolean;
     onPay: (charge: Charge) => void;
     onReverse: (payment: Payment) => void;
-    onEmit: (charge: Charge) => void;
     onRefresh: (invoice: Invoice) => void;
     onSend: (invoice: Invoice) => void;
 };
 
-function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, onSend }: RowProps) {
+function ChargeRows({ charge, onPay, onReverse, onRefresh, onSend }: RowProps) {
     const invoice = charge.invoice;
     const delivery = invoice?.delivery;
     const state = charge.payment_state;
@@ -456,12 +443,6 @@ function ChargeRows({ charge, canFiscal, onPay, onReverse, onEmit, onRefresh, on
                             <span className="text-muted-foreground">Não emitida</span>
                         )}
                         <div className="flex flex-wrap gap-1">
-                            {canFiscal && charge.can_emit && (
-                                <Button size="sm" variant="outline" onClick={() => onEmit(charge)}>
-                                    <FileText className="h-4 w-4" />
-                                    {invoice ? 'Reprocessar' : 'Emitir NFS-e'}
-                                </Button>
-                            )}
                             {invoice?.can_refresh && (
                                 <Button size="icon" variant="outline" title="Consultar status da nota" onClick={() => onRefresh(invoice)}>
                                     <RefreshCcw className="h-4 w-4" />

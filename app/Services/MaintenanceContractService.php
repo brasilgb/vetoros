@@ -6,6 +6,7 @@ use App\Events\OrderCreated;
 use App\Events\OrderLifecycleCreated;
 use App\Jobs\EmitMaintenanceContractInvoice;
 use App\Models\App\AccountReceivable;
+use App\Models\App\FiscalDocument;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\MaintenanceContractLog;
 use App\Models\App\Order;
@@ -250,6 +251,36 @@ class MaintenanceContractService
             });
 
         return $queued;
+    }
+
+    /**
+     * Cobranças ainda sem NFS-e válida (sem documento, ou recusado/falho e pronto para reprocessar),
+     * da mais antiga para a mais nova. É o alvo da emissão feita pelo contrato.
+     *
+     * @param  list<int>  $contractIds
+     */
+    public function chargesAwaitingInvoice(array $contractIds)
+    {
+        return AccountReceivable::query()
+            ->where('source_type', AccountReceivable::SOURCE_MAINTENANCE_CONTRACT)
+            ->whereIn('source_id', $contractIds)
+            ->where('status', '!=', AccountReceivable::STATUS_CANCELLED)
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')
+                ->from('fiscal_documents')
+                ->where('fiscal_documents.documentable_type', AccountReceivable::class)
+                ->whereColumn('fiscal_documents.documentable_id', 'accounts_receivable.id')
+                ->whereNotIn('fiscal_documents.status', [FiscalDocument::STATUS_REJECTED, FiscalDocument::STATUS_FAILED]))
+            ->orderBy('due_date')
+            ->orderBy('id');
+    }
+
+    /** O ciclo vencido ainda sem cobrança pode ser gerado agora (contrato ativo e dentro da vigência). */
+    public function canBillNow(MaintenanceContract $contract): bool
+    {
+        return $contract->status === MaintenanceContract::STATUS_ACTIVE
+            && $contract->next_billing_date !== null
+            && ! $contract->next_billing_date->isFuture()
+            && ($contract->end_date === null || $contract->next_billing_date->lte($contract->end_date));
     }
 
     /** Regras da emissão automática do ciclo (também conferidas de novo pelo job). */
