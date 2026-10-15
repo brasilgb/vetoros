@@ -151,17 +151,24 @@ export default function FiscalDocuments({ documents = [] }: { documents?: Fiscal
                                                                 <RefreshCw className="h-4 w-4" />
                                                             </Button>
                                                         )}
-                                                        {document.pdf_url && (
-                                                            <Button size="icon" variant="outline" asChild title="Abrir PDF">
+                                                        {document.pdf_url ? (
+                                                            <Button size="icon" variant="outline" asChild title="Abrir nota (PDF)">
                                                                 <a
                                                                     href={document.pdf_url}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    aria-label="Abrir PDF"
+                                                                    aria-label="Abrir nota (PDF)"
                                                                 >
                                                                     <FileText className="h-4 w-4" />
                                                                 </a>
                                                             </Button>
+                                                        ) : (
+                                                            // Sempre visível: sem PDF, explica por quê em vez de sumir.
+                                                            <span title="A nota só pode ser aberta depois de autorizada">
+                                                                <Button size="icon" variant="outline" disabled aria-label="Abrir nota indisponível">
+                                                                    <FileText className="h-4 w-4" />
+                                                                </Button>
+                                                            </span>
                                                         )}
                                                         {document.xml_url && (
                                                             <Button size="icon" variant="outline" asChild title="Baixar XML">
