@@ -1,3 +1,103 @@
+# VETOR-FISCAL-02 — Publicação, implantação e homologação real da integração Spedy. Resultado: **BLOQUEADO NA PUBLICAÇÃO (push sem credencial); NADA IMPLANTADO**
+
+Data: 2026-10-15. Executor: estação de desenvolvimento local (WSL), **não a VPS**. Aqui não existem `/opt/infra-abrasil` nem Docker, e não há credencial de push para o GitHub. Nenhum push, deploy, backup, migration, alteração de container ou chamada real à Spedy foi feito.
+
+## Comparação do correio
+
+`correio.md` estava diferente da versão em `HEAD` (`36ea985c`). A instrução anterior era VETOR-FISCAL-01, já executada (commit `3ffec982`). A atual é VETOR-FISCAL-02 (publicação, deploy e homologação no sandbox).
+
+## 1. Verificações (somente leitura)
+
+| Item | Resultado |
+|---|---|
+| Repositório / branch | `gateway/vetoros` em `main`. Não foi usado `infra-vetor` |
+| HEAD local / `origin/main` | `36ea985c` / `832906cf`: **2 à frente, 0 atrás**, fast-forward possível (`origin/main` é ancestral) |
+| Commit `3ffec982` | Presente. Contém só o VETOR-FISCAL-01 (12 arquivos: serviço/cliente Spedy, controllers fiscais, modelo, migration, 2 telas, testes). `36ea985c` contém só `correio.md` e `executed.md` |
+| `git fsck` | Sem erros (só blobs soltos) |
+| Árvore de trabalho | Alterações **de outra frente**, não incluídas: `app/Support/TenantMailConfig.php`, `config/mail.php`, `tests/Unit/TenantMailTransportTest.php` |
+| Migrations pendentes (MySQL local, `--pretend`) | A do FISCAL-01 adiciona `spedy_environment` e `last_synced_at` em `fiscal_settings`, é aditiva e preenche esses campos só nos vínculos existentes. A base local também tem migrations antigas pendentes. **Produção: não verificável daqui** |
+| Serviços `vetoros`, `vetoros-worker`, `vetoros-scheduler`, `nginx`, `mysql` / integração Spedy em produção | **Não verificáveis daqui** (sem acesso à VPS) |
+
+## 2. Segurança antes do push
+
+| Item | Situação em 2026-10-15 |
+|---|---|
+| `brasilgb/vetoros` | **Público** (API responde 200 sem autenticação) |
+| `brasilgb/infraabrasil` | **Público** (200) |
+| Rotação de credenciais / reescrita do histórico (P0 do SEC-03 e do RELEASE-01) | Sem registro de conclusão |
+| `secret-guard` nos 14 arquivos dos 2 commits novos | Nada encontrado |
+| `secret-guard tracked` | 1.127 arquivos, nada encontrado |
+
+**Decisão:** os P0 continuam abertos, mas o responsável **autorizou expressamente nesta sessão** o push convencional do VetorOS e da infra no estado atual. Force push e reescrita do histórico não foram autorizados nem feitos.
+
+## 3. Publicação: bloqueada
+
+- Suíte completa antes do push: **641 passaram (3.972 asserções), 0 falhas**. Rodou na árvore de trabalho; os 3 testes a mais são da frente de e-mail, não commitada.
+- `git push origin main` **falhou**: `fatal: could not read Username for 'https://github.com'`. O remoto é HTTPS, e esta máquina não tem credential helper, chave SSH nem `gh`. O `fetch` funciona só porque o repositório é público.
+- **Infra (`infra-abrasil`) não foi tocada:**
+  - está **divergente**: 5 commits atrás e 1 à frente (`ed94ddc`) de `origin/main`;
+  - os 5 commits remotos alteram `executed.md`, `gateway/correio.md`, `.gitmodules` e ponteiros;
+  - a árvore tem alterações não commitadas de outras frentes: `.env.example`, `correio.md`, `docker-compose.yml`, `executed.md`, submódulos `abrasilsistemas`/`desgarrados`, `SMTP.md`, `gateway/vetorleads/` e scripts de e-mail;
+  - integrar com o remoto agora geraria conflito nesse trabalho, e o push falharia pelo mesmo motivo.
+  - Ponteiro do VetorOS: `4c4ce74c` no HEAD local da infra; `68d31093` no `origin/main`.
+
+## 4 a 16. Não executados
+
+Backup, migration, rebuild, configuração do sandbox, cadastro do emitente, certificado A1, NFS-e de homologação, webhook, reconciliação e contrato automático **dependem do código publicado e de execução na VPS**. O certificado A1 e a senha também precisam ser enviados pelo administrador do tenant, pela tela. Ambiente da plataforma: nada foi alterado; produção continua fora desta etapa (§16).
+
+## Para destravar
+
+**A. Publicar (na sua máquina, com credencial do GitHub):**
+```bash
+cd ~/projects/laravel/infra-abrasil/gateway/vetoros
+git push origin main                      # fast-forward a partir de 832906cf (3 commits: FISCAL-01 e os dois relatórios), sem force
+```
+Na infra, depois de decidir o destino das alterações locais das outras frentes:
+```bash
+cd ~/projects/laravel/infra-abrasil
+git stash push -m "pre-fiscal-02"          # ou commitar as outras frentes antes
+git pull --no-rebase origin main           # resolver executed.md se houver conflito, sem force
+git -C gateway/vetoros checkout origin/main   # após o push do VetorOS
+git add gateway/vetoros && git commit -m "Atualiza ponteiro do VetorOS (VETOR-FISCAL-01)"
+git push origin main
+git stash pop
+```
+
+**B. Na VPS (`/opt/infra-abrasil`), em ordem:**
+```bash
+ssh -T git@github-vetoros                   # deploy key (falhou no DEPLOY-01.1)
+git pull --ff-only origin main && git submodule sync && git submodule update --init gateway/vetoros
+git -C gateway/vetoros log -1 --format='%h' # esperado: o mesmo HEAD publicado em origin/main do VetorOS
+
+for s in vetoros vetoros-worker vetoros-scheduler; do docker tag infra-abrasil-$s:latest infra-abrasil-$s:rollback-fiscal02; done
+mkdir -p backups
+docker exec infra-abrasil-mysql-1 sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers --databases vetoros' \
+  | gzip > backups/vetoros-fiscal02-$(date +%Y%m%d%H%M).sql.gz
+gunzip -t backups/vetoros-fiscal02-*.sql.gz && zcat backups/vetoros-fiscal02-*.sql.gz | tail -1   # "Dump completed"
+
+docker compose build vetoros vetoros-worker vetoros-scheduler
+docker compose run --rm --no-deps vetoros php artisan migrate:status
+docker compose run --rm --no-deps vetoros php artisan migrate --pretend   # conferir: só ALTER aditivo em fiscal_settings (+ pendentes já conhecidas)
+docker compose up -d --no-deps vetoros vetoros-worker vetoros-scheduler
+docker compose exec vetoros php artisan migrate --force
+docker compose ps vetoros vetoros-worker vetoros-scheduler nginx && docker compose exec -T nginx nginx -s reload
+```
+**Rollback:** subir as tags `rollback-fiscal02`. A migration é aditiva, então o código antigo convive com as colunas novas, e `migrate:rollback --step=1` também as remove.
+
+**C. Homologação no sandbox:** seguir as §7 a §15 do correio, que coincidem com a §7 do relatório do VETOR-FISCAL-01. Para registrar o vínculo sem expor credenciais:
+```bash
+docker compose exec vetoros php artisan tinker --execute="echo json_encode(DB::table('fiscal_settings')->where('tenant_id', <ID>)->first(['registration_status','registration_error','spedy_company_id','spedy_environment','last_synced_at']));"
+```
+
+## Pendências
+
+1. Credencial de push nesta máquina (ou push manual) e decisão sobre as alterações locais da infra.
+2. Deploy key da VPS para `brasilgb/vetoros` (pendência do DEPLOY-01.1).
+3. P0 de segurança continuam abertos (repositórios públicos, rotação e histórico). A publicação foi autorizada no estado atual, mas não os resolve.
+4. Certificado A1 válido da empresa de teste e chave titular da conta **sandbox** da Spedy.
+
+---
+
 # VETOR-FISCAL-01 — Integração automática Spedy e liberação do certificado A1. Resultado: **IMPLEMENTADO E VALIDADO, COMMIT LOCAL `3ffec982`, SEM PUSH, SEM DEPLOY**
 
 Data: 2026-10-15. Ambiente: desenvolvimento local e testes automatizados. Nenhuma chamada real à Spedy e nenhuma migration aplicada (nem local, nem em produção).

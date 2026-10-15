@@ -1,190 +1,317 @@
-# VETOR-FISCAL-01 — Integração automática Spedy e liberação de certificado A1
+# VETOR-FISCAL-02 — Publicação, implantação e homologação real da integração Spedy
 
-**Projeto:** VetorOS — ABrasil Sistemas  
-**Prioridade:** Alta  
-**Ambiente inicial:** Sandbox/Homologação  
-**Execução:** Desenvolvimento local, testes e commits locais. Sem push ou deploy sem autorização.
+Objetivo: colocar em ambiente operacional a implementação concluída no VETOR-FISCAL-01, validar a migration, configurar corretamente o sandbox da Spedy e comprovar o fluxo completo de cadastro do emitente e certificado A1.
 
-## 1. Objetivo
+## 1. Antes de alterar qualquer coisa
 
-Concluir o processo de ativação fiscal dos tenants do VetorOS por meio da API da Spedy, sem exigir que os clientes acessem a plataforma externa.
+Trabalhar no repositório oficial do VetorOS dentro de:
 
-Existe atualmente uma empresa com dados cadastrais preenchidos e emissão fiscal habilitada pelo rootAdmin, porém a interface informa "Empresa emissora: Pendente" e impede o envio do certificado A1.
+`/opt/infra-abrasil` em produção  
+e no submódulo correspondente `gateway/vetoros`.
 
-Investigar e corrigir a causa real antes de liberar os campos.
+Não usar `infra-vetor`.
 
-## 2. Auditoria inicial obrigatória
+Verificar:
 
-Examinar a implementação fiscal existente para identificar:
+- branch atual;
+- `git status`;
+- HEAD local;
+- `origin/main`;
+- commit `3ffec982`;
+- migrations pendentes;
+- serviços `vetoros`, `vetoros-worker`, `vetoros-scheduler`, `nginx` e `mysql`;
+- estado atual da integração Spedy.
 
-- Configurações e credenciais da Spedy.
-- Cliente HTTP e endpoints utilizados.
-- Processo de cadastro da empresa emissora.
-- Persistência do identificador da empresa na Spedy.
-- Relação entre empresa, tenant e ambiente fiscal.
-- Regras que bloqueiam o envio do certificado.
-- Flags de autorização de NF-e, NFC-e e NFS-e.
-- Possíveis divergências entre rootAdmin e interface do tenant.
+Não imprimir nenhuma chave, certificado, senha ou segredo.
 
-Consultar a documentação atual em:
+## 2. Segurança antes do push
 
-https://docs.spedy.com.br/llms.txt
+Antes de publicar, conferir a situação atual dos P0 registrados anteriormente.
 
-Utilizar somente endpoints, campos e formatos confirmados pela documentação oficial.
+Verificar especialmente:
 
-**Não criar uma segunda integração caso os serviços necessários já existam. Corrigir e reutilizar a implementação atual.**
+- se `brasilgb/vetoros` está privado;
+- se `brasilgb/infraabrasil` está privado;
+- se o procedimento anteriormente definido para credenciais/histórico já foi resolvido ou formalmente aceito.
 
-## 3. Cadastro automático na Spedy
+Não executar force push nem reescrita de histórico sem autorização explícita.
 
-Implementar ou concluir uma operação centralizada que permita:
+Caso os bloqueios de segurança permaneçam, não realizar push e informar objetivamente o bloqueio.
 
-1. Validar os dados cadastrais e fiscais da empresa.
-2. Verificar se já existe vínculo com uma empresa emissora.
-3. Consultar a Spedy quando houver suporte ao recurso.
-4. Cadastrar o CNPJ pelo endpoint oficial adequado.
-5. Registrar o identificador retornado.
-6. Armazenar o ambiente associado ao vínculo.
-7. Atualizar o status da empresa emissora.
-8. Retornar mensagens compreensíveis em caso de falha.
+Caso estejam resolvidos ou o responsável tenha autorizado a publicação no estado atual, prosseguir com push convencional.
 
-Impedir duplicações e preservar os vínculos existentes.
+## 3. Publicação
 
-O processo deve ser idempotente e seguro contra execuções simultâneas.
+Confirmar que o commit:
 
-## 4. rootAdmin — Gerenciamento fiscal
+`3ffec982`
 
-Na administração da empresa, manter o controle de habilitação fiscal e acrescentar ou corrigir os seguintes recursos:
+é o HEAD esperado e contém somente as alterações do VETOR-FISCAL-01 e dependências já aprovadas.
 
-- Status da integração com a Spedy.
-- Botão "Cadastrar na Spedy", quando ainda não cadastrada.
-- Botão "Sincronizar", quando já cadastrada.
-- Identificador da empresa emissora.
-- Ambiente de operação.
-- Status do certificado digital.
-- Permissões individuais por tipo de nota.
-- Última sincronização e último erro.
+Executar a suíte relevante antes do push.
 
-O administrador deve visualizar claramente a diferença entre "fiscal habilitado" e "empresa pronta para emitir".
+Se estiver íntegro:
 
-A habilitação fiscal não deve ser confundida com autorização de emissão em produção.
+- push da `main`;
+- atualizar o ponteiro do submódulo em `infra-abrasil`;
+- commit do ponteiro da infra;
+- push da infra.
 
-## 5. Cliente — Certificado digital A1
+Não executar force push.
 
-Depois de confirmado o cadastro da empresa na Spedy:
+## 4. Backup de produção
 
-- Liberar o campo de seleção do certificado.
-- Permitir arquivos .pfx e .p12, se aceitos pela API.
-- Solicitar a senha somente durante o envio.
-- Enviar arquivo e senha no formato exigido pela API.
-- Confirmar o resultado retornado pela Spedy.
-- Atualizar o estado do certificado.
-- Apresentar a validade quando fornecida pela integração.
-- Permitir atualização de certificado vencido ou substituído.
+Antes de migrations ou recriação de containers:
 
-Nunca registrar a senha em logs, banco de dados, filas persistentes ou mensagens de erro.
+- gerar backup completo do banco `vetoros`;
+- compactar;
+- validar integridade do arquivo;
+- registrar nome e data do backup;
+- não versionar o backup.
 
-Não expor credenciais nem permitir acesso de outro tenant ao certificado.
+## 5. Migration
 
-## 6. Configuração fiscal
+Revisar com:
 
-Reutilizar as telas fiscais existentes e verificar a necessidade de:
+`php artisan migrate:status`
 
-- Inscrição Estadual.
-- Inscrição Municipal.
-- Regime tributário/CRT.
-- Série e numeração de documentos.
-- Código de serviço e parâmetros municipais.
-- CFOP e outras informações fiscais pertinentes.
+e:
 
-Exigir somente os campos aplicáveis a cada modalidade de emissão.
+`php artisan migrate --pretend`
 
-Não preencher informações tributárias fictícias para fazer a validação passar.
+Aplicar somente após conferir as migrations pendentes.
 
-## 7. Controle por documento
+A migration do VETOR-FISCAL-01 deverá adicionar em `fiscal_settings`:
 
-Preservar habilitações independentes:
+- `spedy_environment`;
+- `last_synced_at`.
 
-- NF-e.
-- NFC-e.
-- NFS-e.
+Confirmar que é aditiva e não destrói informações existentes.
 
-Cada modalidade deve apresentar seu estado real: não contratada, não habilitada, configuração pendente, pronta para homologação ou apta à emissão no ambiente correspondente.
+Depois executar:
 
-A ativação de uma modalidade não pode liberar automaticamente as demais sem autorização.
+`php artisan migrate --force`
 
-## 8. Sandbox e produção
+## 6. Atualização dos serviços
 
-Manter configurações e identificadores separados por ambiente.
+Rebuild/recriação somente dos serviços necessários do VetorOS:
 
-- Nunca utilizar a chave de produção em chamadas de homologação.
-- Não transportar automaticamente certificados ou vínculos entre ambientes.
-- Não emitir documentos fiscais reais durante os testes.
-- Bloquear alterações em produção sem autorização.
-- Não interpretar um teste bem-sucedido no sandbox como habilitação automática de produção.
+- `vetoros`;
+- `vetoros-worker`;
+- `vetoros-scheduler`.
 
-Se a API ou o contrato Spedy não permitir determinada operação, apresentar o impedimento real e documentar a providência necessária.
+Depois validar nginx e health checks.
 
-## 9. Tratamento de erros
+Não alterar MySQL, Redis, WAHA, n8n ou outros sistemas sem necessidade.
 
-Implementar mensagens claras para:
+## 7. Configuração real da Spedy Sandbox
 
-- API indisponível.
-- Chave de API inválida.
-- Permissão ou plano insuficiente.
-- CNPJ já cadastrado.
-- Dados cadastrais incompletos.
-- Certificado inválido.
-- Senha do certificado incorreta.
-- Empresa emissora não encontrada.
-- Divergência entre ambiente e identificador.
-- Falha de sincronização.
+No RootAdmin:
 
-Preservar códigos técnicos e identificadores de correlação em logs seguros, sem dados sensíveis.
+### Fiscal → Integração
 
-## 10. Testes e homologação
+Confirmar:
 
-Criar ou atualizar testes automatizados para:
+- ambiente = Sandbox;
+- chave titular da conta Sandbox configurada;
+- diagnóstico funcionando;
+- webhook configurado;
+- URL HTTPS correta.
 
-- Cadastro de empresa emissora.
-- Sincronização de cadastro existente.
-- Repetição da operação sem duplicação.
-- Falhas de API e timeout.
-- Controle de acesso do rootAdmin.
-- Isolamento entre tenants.
-- Liberação condicional do certificado.
-- Upload do certificado.
-- Separação de ambientes.
-- Bloqueio de emissão antes da configuração necessária.
+Importante:
 
-Validar também a interface do cliente que atualmente apresenta os campos desabilitados.
+Sandbox e Produção são contas/credenciais independentes.
 
-## 11. Critérios de aceite
+Nunca utilizar chave ou vínculo de produção como se fosse sandbox.
 
-A entrega estará concluída quando:
+## 8. Tenant de homologação
 
-1. O rootAdmin conseguir cadastrar/sincronizar uma empresa na Spedy no sandbox autorizado.
-2. O identificador for associado corretamente à empresa do tenant.
-3. O painel fiscal deixar de apresentar "Pendente" quando houver confirmação real do cadastro.
-4. O campo do certificado A1 ficar disponível quando seus pré-requisitos forem atendidos.
-5. O cliente conseguir enviar o certificado com segurança.
-6. O status do certificado for atualizado de acordo com a resposta da Spedy.
-7. A habilitação de NF-e, NFC-e e NFS-e respeitar os requisitos específicos.
-8. Os testes automatizados forem aprovados.
+Escolher uma empresa de teste controlada.
 
-Não marcar etapas como concluídas apenas porque uma flag local foi alterada.
+No cadastro da empresa conferir:
 
-## 12. Entrega
+- CNPJ;
+- razão social;
+- nome fantasia;
+- CEP;
+- endereço;
+- número;
+- bairro;
+- município;
+- UF;
+- e-mail;
+- telefone.
 
-Apresentar um relatório com:
+Em Emissão Fiscal conferir:
 
-- Causa raiz do bloqueio atual.
-- Componentes e arquivos modificados.
-- Configurações necessárias na Spedy.
-- Endpoints realmente utilizados.
-- Resultados dos testes.
-- Pendências externas, caso existam.
-- Passo a passo de homologação pelo rootAdmin.
+- regime tributário;
+- inscrição estadual, quando aplicável;
+- inscrição municipal, quando aplicável;
+- demais dados necessários ao modelo que será homologado.
 
-Realizar commits locais das alterações validadas, sem push ou deploy.
+## 9. RootAdmin → Fiscal → Empresas emissoras
 
-**Priorizar a solução operacional, reaproveitando a arquitetura fiscal atual do VetorOS e evitando refatorações desnecessárias.**
+Para o tenant de teste:
+
+1. habilitar o fiscal;
+2. liberar inicialmente somente NFS-e, se esse for o primeiro modelo homologado;
+3. clicar **Cadastrar na Spedy**.
+
+Resultado esperado:
+
+- status `Cadastrada`;
+- ID Spedy presente;
+- indicação `(Sandbox)`;
+- data da última sincronização;
+- ausência de erro.
+
+Se ocorrer erro, NÃO contornar manualmente.
+
+Registrar:
+
+- `registration_status`;
+- `registration_error`;
+- `spedy_company_id`;
+- `spedy_environment`;
+- `last_synced_at`.
+
+Não exibir credenciais.
+
+## 10. Certificado A1
+
+Depois que a empresa estiver realmente cadastrada:
+
+entrar como administrador do tenant em:
+
+Sistema e módulos → Emissão fiscal.
+
+Confirmar que o campo de certificado foi liberado.
+
+Enviar certificado:
+
+- `.pfx` ou `.p12`;
+- certificado A1 válido;
+- senha correta.
+
+Resultado esperado:
+
+`Ativo — válido até ...`
+
+A senha não pode ser persistida nem aparecer em logs.
+
+## 11. Sincronização
+
+Voltar ao RootAdmin e executar:
+
+**Consultar cadastro e certificado**
+
+Esperado:
+
+- empresa encontrada;
+- certificado ativo;
+- validade coerente;
+- titular identificado quando retornado pela Spedy;
+- `last_synced_at` atualizado.
+
+## 12. Configuração da NFS-e
+
+No tenant configurar somente os campos realmente necessários para NFS-e, incluindo:
+
+- série;
+- item da LC 116;
+- ISS;
+- tipo de tributação;
+- município/código IBGE quando necessário;
+- confirmação dos dados fiscais/contábeis.
+
+Não pré-preencher artificialmente dados tributários.
+
+Salvar e confirmar que `/companies/{id}/settings` foi sincronizado com sucesso.
+
+## 13. Primeira emissão real de homologação
+
+Emitir uma NFS-e de teste com valor pequeno e cliente controlado.
+
+Registrar:
+
+- `integrationId`;
+- status inicial;
+- retorno Spedy;
+- número da nota, se autorizado;
+- código de verificação;
+- PDF;
+- XML;
+- webhook recebido;
+- eventual reconciliação por `fiscal:sync-spedy`.
+
+Não registrar chave API ou conteúdo sensível.
+
+Comprovar que uma segunda tentativa não gera duplicidade.
+
+## 14. Contrato de manutenção
+
+Depois da emissão manual estar homologada, testar o fluxo que já foi implementado:
+
+- contrato com NFS-e automática;
+- cobrança com vencimento do ciclo;
+- nota emitida pela competência, independentemente do pagamento;
+- autorização;
+- envio da fatura ao cliente;
+- links assinados PDF/XML;
+- pagamento posterior;
+- nenhuma segunda nota criada pelo pagamento.
+
+Executar também novamente o agendador para comprovar idempotência.
+
+## 15. Critério de aprovação
+
+Somente considerar o fiscal homologado quando estiver comprovado:
+
+- integração Sandbox válida;
+- empresa cadastrada automaticamente pelo VetorOS;
+- vínculo gravado no ambiente correto;
+- certificado A1 enviado pelo próprio tenant;
+- certificado confirmado pela Spedy;
+- configurações fiscais sincronizadas;
+- NFS-e emitida;
+- webhook/reconciliação funcionando;
+- PDF/XML disponíveis;
+- nenhuma emissão duplicada;
+- nenhum segredo exposto em tela/log;
+- isolamento entre tenants mantido.
+
+## 16. Não migrar para produção ainda
+
+Mesmo depois da homologação Sandbox, NÃO alterar o ambiente da plataforma para Produção nesta etapa.
+
+Produção deverá ser uma etapa própria, porque exige:
+
+- conta/chave de produção;
+- novo cadastro das empresas na conta de produção;
+- novos vínculos;
+- revisão de certificado;
+- aprovação explícita do RootAdmin;
+- emissão real controlada.
+
+## 17. Relatório
+
+Ao final, atualizar `executed.md` com:
+
+- commit publicado;
+- migration aplicada;
+- serviços atualizados;
+- situação do sandbox;
+- resultado do cadastro do emitente;
+- resultado do certificado;
+- resultado da emissão;
+- resultado do webhook;
+- resultado da reconciliação;
+- resultado do contrato automático;
+- testes executados;
+- erros encontrados;
+- pendências;
+- rollback disponível.
+
+Não registrar chaves, senhas, conteúdo do certificado nem outros segredos.
+
+Se surgir qualquer falha da Spedy durante a homologação, diagnosticar e corrigir a integração antes de avançar para produção.
