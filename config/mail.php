@@ -21,6 +21,8 @@ return [
         'host' => env('MAIL_HOST'),
         'port' => env('MAIL_PORT'),
         'encryption' => env('MAIL_ENCRYPTION'),
+        'scheme' => env('MAIL_SCHEME'),
+        'url' => env('MAIL_URL'),
         'username' => env('MAIL_USERNAME'),
         'password' => env('MAIL_PASSWORD'),
         'from_address' => env('MAIL_FROM_ADDRESS'),
