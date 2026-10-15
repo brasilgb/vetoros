@@ -1,3 +1,89 @@
+# VETOR-FISCAL-01 — Integração automática Spedy e liberação do certificado A1. Resultado: **IMPLEMENTADO E VALIDADO, COMMIT LOCAL `3ffec982`, SEM PUSH, SEM DEPLOY**
+
+Data: 2026-10-15. Ambiente: desenvolvimento local e testes automatizados. Nenhuma chamada real à Spedy e nenhuma migration aplicada (nem local, nem em produção).
+
+## Comparação do correio
+
+`correio.md` estava diferente da versão em `HEAD` (`832906cf`). A instrução anterior era VETOR-FISCAL-06 (autogestão do certificado A1), já executada e registrada abaixo. A atual é VETOR-FISCAL-01, executada a seguir.
+
+## 1. Causa raiz do "Empresa emissora: Pendente"
+
+A integração já existia completa: cadastro do emitente com a chave titular, sincronização, consulta e upload do certificado. O bloqueio vem de três pontos:
+
+1. **"Fiscal habilitado" não cadastra a empresa.** O switch do RootAdmin só grava `tenants.automatic_fiscal_emission_enabled`. O cadastro na Spedy é outra ação, o botão "Cadastrar na Spedy" em RootAdmin → Fiscal → Empresas emissoras. Enquanto ele não roda com sucesso, `fiscal_settings.registration_status` continua `pending`, e o campo do certificado fica bloqueado de propósito, porque a API exige o id e a chave da empresa (`POST /companies/{id}/certificates`). A tela não deixava clara a diferença entre "habilitado" e "pronto para emitir".
+2. **Falha de validação no cadastro não era gravada.** `SpedyCompanyService::sync` montava o payload (CNPJ, razão social, endereço, regime tributário) **fora** do `try`. Uma `FiscalValidationException` aparecia só como mensagem flash, uma única vez, e o registro continuava `pending`, sem erro. Assim, quem clicou "Cadastrar" com dados faltando (o regime tributário fica nas configurações fiscais, não em Dados da empresa) via depois apenas "Pendente".
+3. **O vínculo não registrava o ambiente.** Segundo a [documentação](https://docs.spedy.com.br/start/ambiente-de-testes), sandbox e produção são **contas separadas**: ids e chaves de uma não funcionam na outra. A troca de ambiente pelo painel já descartava os vínculos de sandbox. A troca pela variável `SPEDY_ENVIRONMENT`, porém, deixava vínculos de outra conta marcados como "cadastrados".
+
+**Não foi possível confirmar qual desses casos atinge a empresa real**, porque esta execução não acessou o banco de produção. Na base local, o tenant 1 está com emissão habilitada, `registration_status=pending` e `registration_error` vazio, e a integração não está configurada. É o quadro do item 1 ou do item 2. Para conferir na VPS (somente leitura):
+
+```bash
+docker compose exec vetoros php artisan tinker --execute="echo json_encode(DB::table('fiscal_settings')->join('tenants','tenants.id','=','fiscal_settings.tenant_id')->where('tenants.automatic_fiscal_emission_enabled',1)->get(['fiscal_settings.tenant_id','registration_status','registration_error','spedy_company_id','company_tax_regime']));"
+```
+
+## 2. O que foi implementado
+
+| Componente | Alteração |
+|---|---|
+| Migration `2026_10_15_100000_add_spedy_link_environment_to_fiscal_settings` | Aditiva: `fiscal_settings.spedy_environment` e `last_synced_at`. Vínculos existentes recebem o ambiente atual da plataforma |
+| `FiscalSetting` | `isRegisteredOnSpedy()` passa a exigir vínculo do ambiente atual; novo `hasEnvironmentMismatch()`; bloqueio de emissão com mensagem própria para vínculo de outro ambiente |
+| `SpedyCompanyService::sync` | Valida dentro do `try` e grava **todo** erro (validação ou API) em `registration_error`. Status `error` se não há vínculo válido; falha de sincronização de vínculo válido mantém o cadastro. Grava `spedy_environment` e `last_synced_at`. Antes do `POST /companies`, procura o CNPJ na conta e, se achar, **não cria outra empresa** e informa o id existente. Vínculo de sandbox com a plataforma em produção é descartado no cadastro explícito do root (sem levar o certificado). Vínculo de produção com a plataforma em sandbox **nunca** é descartado |
+| `SpedyClient` | `findCompanyByFederalTaxNumber()`, que pagina `GET /companies` (100 por página, até 20 páginas), já que a API não filtra por CNPJ. Mensagens: 401 chave inválida/revogada; 403 chave de outro ambiente ou plano/permissão insuficiente |
+| `FiscalCompanyController` (RootAdmin) | Envia vínculo, ambiente do vínculo e da plataforma, divergência e última sincronização. "Consultar cadastro e certificado" grava `last_synced_at`; no 404, grava "Empresa emissora não encontrada" **sem apagar** o vínculo |
+| `FiscalIntegrationController` | A troca de ambiente pelo painel também limpa os novos campos |
+| `admin/fiscal/companies.tsx` | Colunas "Fiscal habilitado" e "Pronta para emitir", separadas. Cadastro: Cadastrada / Erro / Vínculo de outro ambiente, ID, ambiente, última sincronização e último erro. Certificado: vigente/vencido, validade e titular. Estado por modelo: fiscal não habilitado / não liberada / pendência real / pronta para homologação / apta em produção. Botões "Cadastrar na Spedy" e "Sincronizar". Ambiente da plataforma visível |
+| `app/fiscal-settings/index.tsx` (tenant) | O certificado fica liberado só com vínculo confirmado no ambiente atual (`registered_on_spedy`, do servidor). Selo "Cadastro de outro ambiente" e explicação do bloqueio |
+
+Itens do correio que **já estavam atendidos** e foram preservados: cadastro idempotente com `lockForUpdate`, para dois cliques não criarem duas empresas; chave da empresa cifrada e gravada antes de qualquer outra chamada; certificado `.pfx`/`.p12` com senha só no envio, sem registrar senha em log ou banco, confirmação `isActive` e validade (VETOR-FISCAL-06); liberação independente de NF-e, NFC-e e NFS-e; aprovação de produção com senha do root; bloqueio de produção pelo tenant; `environmentType` por modelo; e campos fiscais por modalidade (CSC só para NFC-e, tipo de tributação só para NFS-e, confirmação da contabilidade, sem valores tributários pré-preenchidos).
+
+## 3. Endpoints da Spedy realmente utilizados (API v1)
+
+| Uso | Endpoint | Chave |
+|---|---|---|
+| Verificar CNPJ na conta (novo) | `GET /companies?page=&pageSize=` | titular |
+| Cadastrar emitente | `POST /companies` (retorna `id` e `apiCredentials.apiKey`, exibida uma única vez) | titular |
+| Sincronizar cadastro | `PUT /companies/{id}` | titular |
+| Configurações de emissão | `PUT /companies/{id}/settings` | da empresa |
+| Consultar cadastro | `GET /companies/{id}` | titular |
+| Consultar / enviar certificado | `GET` / `POST /companies/{id}/certificates` | da empresa |
+
+Fontes: [llms.txt](https://docs.spedy.com.br/llms.txt), [OpenAPI v1](https://docs.spedy.com.br/openapi/v1.json), [Autenticação](https://docs.spedy.com.br/start/autenticacao), [Ambiente de testes](https://docs.spedy.com.br/start/ambiente-de-testes).
+
+## 4. Configurações necessárias na Spedy
+
+1. Conta **sandbox** própria (cadastro separado, Plano Desenvolvedor) e a chave da empresa titular em Minha empresa → Credenciais de API.
+2. RootAdmin → Fiscal → Integração: ambiente `sandbox`, chave titular, "Diagnóstico" e "Configurar webhook".
+3. Certificado A1 **válido** da empresa cliente: o sandbox também exige certificado real.
+4. Produção: outra conta/chave. A troca de ambiente pelo painel descarta os vínculos de sandbox, e cada empresa precisa ser cadastrada de novo.
+
+## 5. Testes
+
+- Novo `tests/Feature/Admin/SpedyIssuerActivationTest.php` (11 testes): cadastro com vínculo do ambiente e liberação do certificado; dados incompletos gravados como erro, sem chamada à API; CNPJ já existente sem duplicação; timeout no `POST` seguido de nova tentativa sem duplicação; falha de sincronização mantendo o vínculo; vínculo de produção não usado nem descartado em sandbox, com upload bloqueado; vínculo de sandbox substituído só no cadastro em produção, sem levar o certificado; 404 gravado sem apagar o vínculo; mensagem de 401; liberação de um modelo sem liberar os outros; tenant sem acesso a cadastro e consulta.
+- `FiscalCentralAdministrationTest` e `NativeFiscalEmissionTest` ganharam o fake da consulta de CNPJ.
+- **Suíte completa: 638 passaram (3.956 asserções), 0 falhas.** `tsc --noEmit` ok, `vite build` ok, Prettier e Pint ok nos arquivos alterados. `migrate --pretend` no MySQL local confere o SQL da migration.
+
+## 6. Pendências e limitações reais
+
+- **Confirmar a causa na empresa real** com a consulta da §1. Se aparecer `error`, a mensagem gravada a partir de agora indica o que corrigir. Se aparecer `pending` sem erro, basta clicar "Cadastrar na Spedy".
+- **CNPJ já existente na conta Spedy:** a API devolve a chave de outras empresas ofuscada, então não há como religar automaticamente uma empresa criada fora do VetorOS ou criada antes de um timeout. O sistema informa o id, e a providência é excluir o cadastro duplicado no painel da Spedy ou falar com o suporte deles.
+- A busca de CNPJ percorre até 2.000 empresas. Acima disso, o cadastro é interrompido com mensagem, sem criar a empresa.
+- "Não contratada" (por modelo) não existe como conceito no VetorOS: não há contratação por modelo nos planos. O estado mostrado é "Não liberada".
+- A troca de `SPEDY_ENVIRONMENT` direto no `.env` continua possível. Agora o sistema detecta e bloqueia vínculos de outro ambiente, mas o caminho recomendado é a troca pelo painel.
+- Migration pendente de deploy, sem impacto em dados existentes. **Sem push e sem deploy.**
+
+## 7. Homologação pelo RootAdmin (sandbox)
+
+1. Fiscal → Integração: confirmar ambiente **Sandbox**, chave titular configurada, "Diagnóstico" bem-sucedido e webhook configurado.
+2. No tenant (como administrador): preencher Dados da empresa (CNPJ, razão social, endereço com CEP) e, em Emissão fiscal, o regime tributário e a IE/IM aplicáveis.
+3. Fiscal → Empresas emissoras: ligar "Fiscal habilitado" e liberar **só** os modelos a homologar.
+4. Clicar **Cadastrar na Spedy**. Esperado: "Cadastrada", ID, "(Sandbox)" e data de sincronização. Em erro, a mensagem fica na coluna Cadastro.
+5. No tenant: o campo do certificado A1 fica liberado. Enviar o `.pfx`/`.p12` com a senha. Esperado: "Ativo — válido até …".
+6. No RootAdmin: "Consultar cadastro e certificado" confirma o certificado ativo na Spedy.
+7. No tenant: ativar os modelos, preencher série, CSC (NFC-e) ou tipo de tributação (NFS-e), confirmar os dados tributários e salvar. Isso sincroniza `/settings`.
+8. Conferir "Pronta para emitir" = "Pronta para homologação" em cada modelo e emitir uma nota de teste (NFS-e em Simulação, NF-e/NFC-e em Homologação).
+9. Só depois: "Aprovar produção" (pede senha) e, para produção real, a troca da plataforma para a conta de produção, com novo cadastro.
+
+---
+
 # VETOR-FISCAL-06 — Autogestão do certificado digital A1
 
 Data: 2026-10-14. Auditoria, implementação e validações locais concluídas. Sem push, deploy ou migrations em produção.
