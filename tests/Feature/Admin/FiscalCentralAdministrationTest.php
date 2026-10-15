@@ -211,6 +211,7 @@ class FiscalCentralAdministrationTest extends TestCase
         FiscalSetting::query()->create(['tenant_id' => $tenant->id, 'company_tax_regime' => '1']);
 
         Http::fake([
+            self::SANDBOX.'/companies?*' => Http::response(['items' => []]),
             self::SANDBOX.'/companies' => Http::response(['id' => 'co-new', 'apiCredentials' => ['apiKey' => 'co-new-key']]),
             self::SANDBOX.'/companies/co-new/settings' => Http::response([]),
         ]);

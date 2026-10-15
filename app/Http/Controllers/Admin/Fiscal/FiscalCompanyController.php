@@ -12,6 +12,7 @@ use App\Services\Fiscal\FiscalValidationException;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyCompanyService;
 use App\Services\Fiscal\Spedy\SpedyException;
+use App\Services\Fiscal\Spedy\SpedyPlatformConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -64,6 +65,11 @@ class FiscalCompanyController extends Controller
                 'allowed' => collect(self::MODELS)->mapWithKeys(fn ($model) => [$model => $setting->isModelAllowed($model)]),
                 'tenant_enabled' => ['nfe' => (bool) $setting->nfe_enabled, 'nfce' => (bool) $setting->nfce_enabled, 'nfse' => (bool) $setting->nfse_enabled],
                 'registration_status' => $setting->registration_status ?? FiscalSetting::REGISTRATION_PENDING,
+                'registered_on_spedy' => $setting->isRegisteredOnSpedy(),
+                'spedy_company_id' => $setting->spedy_company_id,
+                'spedy_environment' => $setting->spedy_environment,
+                'environment_mismatch' => $setting->hasEnvironmentMismatch(),
+                'last_synced_at' => $setting->last_synced_at?->toIso8601String(),
                 'registration_error' => $setting->registration_error,
                 'registered_at' => $setting->registered_at?->toIso8601String(),
                 'certificate_subject' => $setting->certificate_subject,
@@ -83,6 +89,7 @@ class FiscalCompanyController extends Controller
             'tenants' => $tenants,
             'search' => $search,
             'platformConfigured' => $platformConfigured,
+            'platformEnvironment' => SpedyPlatformConfig::environment(),
         ]);
     }
 
@@ -148,7 +155,7 @@ class FiscalCompanyController extends Controller
         }
 
         $setting = $this->setting($tenant);
-        $firstRegistration = blank($setting->spedy_company_id);
+        $firstRegistration = ! $setting->isRegisteredOnSpedy();
 
         try {
             $this->companies->sync($setting);
@@ -176,7 +183,13 @@ class FiscalCompanyController extends Controller
             SpedyClient::forOwner()->getCompany($setting->spedy_company_id);
             $certificates = SpedyClient::forCompany($setting->api_token)->listCertificates($setting->spedy_company_id);
         } catch (SpedyException $exception) {
-            return back()->with('error', $exception->getMessage());
+            // O vínculo não é apagado: pode ser falha temporária ou chave de outro ambiente.
+            $message = $exception->status === 404
+                ? 'Empresa emissora não encontrada na conta Spedy do ambiente atual. Confira o ambiente da plataforma e o identificador '.$setting->spedy_company_id.'.'
+                : $exception->getMessage();
+            $setting->forceFill(['registration_error' => mb_substr($message, 0, 1000)])->save();
+
+            return back()->with('error', $message);
         }
 
         $items = array_is_list($certificates) ? $certificates : ($certificates['items'] ?? []);
@@ -185,6 +198,8 @@ class FiscalCompanyController extends Controller
         $setting->forceFill([
             'certificate_subject' => isset($active['subject']) ? mb_substr((string) $active['subject'], 0, 255) : $setting->certificate_subject,
             'certificate_expires_at' => isset($active['expirationAt']) ? Carbon::parse($active['expirationAt']) : $setting->certificate_expires_at,
+            'registration_error' => null,
+            'last_synced_at' => now(),
         ])->save();
 
         FiscalAdminAudit::record('company.checked', $tenant->id, $setting, ['active_certificate' => $active !== null]);

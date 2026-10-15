@@ -78,6 +78,34 @@ class SpedyClient
         return $this->handle(fn () => $this->request()->get('companies', ['pageSize' => $pageSize]), 'companies');
     }
 
+    /**
+     * Procura o CNPJ entre as empresas da conta. A API não filtra por CNPJ (GET /companies
+     * aceita só page/pageSize), então percorre as páginas até um limite seguro.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findCompanyByFederalTaxNumber(string $federalTaxNumber, int $pageSize = 100, int $maxPages = 20): ?array
+    {
+        $target = preg_replace('/\D+/', '', $federalTaxNumber);
+
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $result = $this->handle(fn () => $this->request()->get('companies', ['page' => $page, 'pageSize' => $pageSize]), 'companies');
+            $items = array_is_list($result) ? $result : ($result['items'] ?? []);
+
+            foreach ($items as $company) {
+                if (is_array($company) && preg_replace('/\D+/', '', (string) ($company['federalTaxNumber'] ?? '')) === $target) {
+                    return $company;
+                }
+            }
+
+            if (count($items) < $pageSize) {
+                return null;
+            }
+        }
+
+        throw new SpedyException('Não foi possível concluir a verificação de CNPJ na conta Spedy (muitas empresas). Contate o suporte técnico.');
+    }
+
     public function getCompany(string $companyId): array
     {
         return $this->send('get', "companies/{$companyId}");
@@ -240,7 +268,8 @@ class SpedyClient
         Log::warning('Spedy: requisição recusada', ['path' => $path, 'status' => $status, 'errors' => $errors]);
 
         $message = match (true) {
-            $status === 403 => 'Credencial de emissão fiscal inválida ou de outro ambiente. Contate o suporte.',
+            $status === 401 => 'Chave de API da Spedy inválida ou revogada. Confira a integração no RootAdmin.',
+            $status === 403 => 'Acesso negado pela Spedy: chave de outro ambiente ou plano/permissão insuficiente. Contate o suporte.',
             $status === 404 => 'Registro não encontrado no serviço de emissão fiscal.',
             $status === 429 => 'Muitas solicitações ao serviço de emissão fiscal. Aguarde alguns segundos e tente novamente.',
             $status >= 500 => 'O serviço de emissão fiscal está indisponível no momento. Tente novamente em instantes.',

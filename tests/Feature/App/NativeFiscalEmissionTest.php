@@ -124,6 +124,7 @@ class NativeFiscalEmissionTest extends TestCase
         ]);
 
         Http::fake([
+            self::SANDBOX.'/companies?*' => Http::response(['items' => []]),
             self::SANDBOX.'/companies' => Http::response(['id' => 'company-uuid', 'apiCredentials' => ['apiKey' => 'company-key-secret']]),
             self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
             self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
@@ -139,7 +140,7 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertSame('company-key-secret', $setting->api_token);
         $this->assertStringNotContainsString('company-key-secret', (string) DB::table('fiscal_settings')->where('id', $setting->id)->value('api_token'));
 
-        Http::assertSentCount(4);
+        Http::assertSentCount(5);
         Http::assertSent(fn (HttpRequest $request) => $request->method() === 'POST'
             && $request->url() === self::SANDBOX.'/companies'
             && $request->hasHeader('X-Api-Key', 'owner-key-test')

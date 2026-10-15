@@ -20,6 +20,8 @@ type Model = 'nfe' | 'nfce' | 'nfse';
 type FiscalSettingProps = {
     enabled: boolean;
     registration_status: 'pending' | 'registered' | 'error';
+    registered_on_spedy: boolean;
+    environment_mismatch: boolean;
     registration_error?: string | null;
     registered_at?: string | null;
     emission_environment: 'homologation' | 'production';
@@ -97,7 +99,7 @@ function formatDate(value?: string | null) {
 
 export default function FiscalSettings({ platformAvailable, tenantAllowed, certificateUploadAllowed, setting, blockers }: Props) {
     const available = platformAvailable && tenantAllowed;
-    const registered = setting.registration_status === 'registered';
+    const registered = setting.registered_on_spedy;
     const certificateExpired = !!setting.certificate_expires_at && new Date(setting.certificate_expires_at).getTime() <= Date.now();
     const replacingCertificate = !!(setting.certificate_subject || setting.certificate_expires_at);
     const certificateExpiresSoon =
@@ -225,6 +227,8 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, certi
                             <div className="mt-1 flex items-center gap-2">
                                 {registered ? (
                                     <Badge className="bg-emerald-600">Cadastrada</Badge>
+                                ) : setting.environment_mismatch ? (
+                                    <Badge variant="destructive">Cadastro de outro ambiente</Badge>
                                 ) : setting.registration_status === 'error' ? (
                                     <Badge variant="destructive">Erro no cadastro</Badge>
                                 ) : (
@@ -233,7 +237,10 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, certi
                             </div>
                             {setting.registration_error && <p className="text-destructive mt-2 text-sm">{setting.registration_error}</p>}
                             {!registered && available && (
-                                <p className="mt-3 text-sm">O cadastro na emissora é feito pela administração depois de validar seus dados.</p>
+                                <p className="mt-3 text-sm">
+                                    O cadastro na emissora é feito pela administração depois de validar seus dados. Enquanto isso, o envio do
+                                    certificado fica bloqueado.
+                                </p>
                             )}
                             <p className="text-muted-foreground mt-2 text-xs">
                                 Mantenha atualizados os{' '}

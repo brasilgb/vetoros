@@ -5,6 +5,7 @@ namespace App\Services\Fiscal\Spedy;
 use App\Models\App\Company;
 use App\Models\App\FiscalSetting;
 use App\Models\Tenant;
+use App\Services\Fiscal\FiscalValidationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,15 +22,21 @@ class SpedyCompanyService
     /**
      * Cria (primeira vez) ou atualiza a empresa emissora e reenvia as
      * configurações de emissão. Usa a chave titular: comandado só pelo
-     * RootAdmin (Admin\\FiscalCompanyController). Idempotente.
+     * RootAdmin (Admin\FiscalCompanyController). Idempotente: nunca cria uma
+     * segunda empresa para o mesmo vínculo nem para um CNPJ já presente na conta.
+     *
+     * Toda falha fica gravada em registration_error, para o painel não exibir
+     * apenas "Pendente" sem explicar o motivo.
      */
     public function sync(FiscalSetting $setting): FiscalSetting
     {
         $tenant = Tenant::query()->findOrFail($setting->tenant_id);
         $company = Company::query()->withoutGlobalScopes()->firstOrNew(['tenant_id' => $tenant->id]);
-        $payload = $this->payloads->company($company, $tenant, $setting);
 
         try {
+            $this->guardEnvironment($setting);
+            $payload = $this->payloads->company($company, $tenant, $setting);
+
             if (blank($setting->spedy_company_id)) {
                 $this->create($setting, $payload);
             } else {
@@ -38,12 +45,13 @@ class SpedyCompanyService
 
             SpedyClient::forCompany($setting->api_token)
                 ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
-        } catch (SpedyException $exception) {
+        } catch (SpedyException|FiscalValidationException $exception) {
+            $linked = filled($setting->spedy_company_id) && filled($setting->api_token) && ! $setting->hasEnvironmentMismatch();
+
             $setting->forceFill([
-                'registration_status' => filled($setting->spedy_company_id) && filled($setting->api_token)
-                    ? $setting->registration_status
-                    : FiscalSetting::REGISTRATION_ERROR,
-                'registration_error' => $exception->getMessage(),
+                // Falha de sincronização de um vínculo válido não desfaz o cadastro existente.
+                'registration_status' => $linked ? $setting->registration_status : FiscalSetting::REGISTRATION_ERROR,
+                'registration_error' => mb_substr($exception->getMessage(), 0, 1000),
             ])->save();
 
             throw $exception;
@@ -51,9 +59,11 @@ class SpedyCompanyService
 
         $setting->forceFill([
             'provider' => FiscalSetting::PROVIDER_SPEDY,
+            'spedy_environment' => SpedyPlatformConfig::environment(),
             'registration_status' => FiscalSetting::REGISTRATION_REGISTERED,
             'registration_error' => null,
             'registered_at' => $setting->registered_at ?? now(),
+            'last_synced_at' => now(),
         ])->save();
 
         return $setting;
@@ -128,7 +138,20 @@ class SpedyCompanyService
                 return;
             }
 
-            $response = SpedyClient::forOwner()->createCompany($payload);
+            $owner = SpedyClient::forOwner();
+
+            // Um POST anterior pode ter criado a empresa e caído por timeout. A chave de uma
+            // empresa existente vem ofuscada nas consultas, então não há como religá-la: avisar.
+            $existing = $owner->findCompanyByFederalTaxNumber($payload['federalTaxNumber']);
+            if ($existing !== null) {
+                throw new SpedyException(sprintf(
+                    'O CNPJ já está cadastrado na conta Spedy (%s, empresa %s). A chave dessa empresa só é exibida na criação e não pode ser recuperada pela API: exclua o cadastro duplicado no painel da Spedy ou contate o suporte da Spedy antes de cadastrar de novo.',
+                    SpedyPlatformConfig::environment(),
+                    (string) ($existing['id'] ?? '?'),
+                ));
+            }
+
+            $response = $owner->createCompany($payload);
             $companyId = $response['id'] ?? null;
             $apiKey = $response['apiCredentials']['apiKey'] ?? null;
 
@@ -140,10 +163,40 @@ class SpedyCompanyService
             $locked->forceFill([
                 'spedy_company_id' => $companyId,
                 'api_token' => $apiKey,
+                'spedy_environment' => SpedyPlatformConfig::environment(),
                 'provider' => FiscalSetting::PROVIDER_SPEDY,
             ])->save();
 
             $setting->setRawAttributes($locked->getAttributes(), true);
         });
+    }
+
+    /**
+     * Sandbox e produção são contas Spedy separadas. Um vínculo de sandbox é descartado
+     * quando o RootAdmin cadastra a empresa em produção; um vínculo de produção nunca é
+     * descartado aqui, pois a chave da empresa não pode ser recuperada.
+     */
+    private function guardEnvironment(FiscalSetting $setting): void
+    {
+        if (! $setting->hasEnvironmentMismatch()) {
+            return;
+        }
+
+        if ($setting->spedy_environment === 'production') {
+            throw new SpedyException('O cadastro desta empresa pertence à conta de produção da Spedy, mas a plataforma está em sandbox. Volte a plataforma para produção; o vínculo de produção não será descartado.');
+        }
+
+        $setting->forceFill([
+            'spedy_company_id' => null,
+            'api_token' => null,
+            'spedy_environment' => null,
+            'registration_status' => FiscalSetting::REGISTRATION_PENDING,
+            'certificate_subject' => null,
+            'certificate_expires_at' => null,
+            'production_released_at' => null,
+            'production_released_by' => null,
+            'registered_at' => null,
+            'last_synced_at' => null,
+        ])->save();
     }
 }

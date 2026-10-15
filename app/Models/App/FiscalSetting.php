@@ -3,6 +3,7 @@
 namespace App\Models\App;
 
 use App\Services\Fiscal\Spedy\SpedyClient;
+use App\Services\Fiscal\Spedy\SpedyPlatformConfig;
 use App\Tenantable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,7 @@ class FiscalSetting extends Model
             'webhook_secret' => 'encrypted',
             'nfce_csc' => 'encrypted',
             'registered_at' => 'datetime',
+            'last_synced_at' => 'datetime',
             'certificate_expires_at' => 'datetime',
             'tax_settings_confirmed_at' => 'datetime',
         ];
@@ -57,11 +59,24 @@ class FiscalSetting extends Model
         return $this->nfse_enabled && ($this->nfse_mode ?? 'national') === 'national';
     }
 
+    /**
+     * Cadastro confirmado na conta Spedy do ambiente atual. Sandbox e produção são contas
+     * separadas: um vínculo criado em outro ambiente não serve para emitir nem para o certificado.
+     */
     public function isRegisteredOnSpedy(): bool
     {
         return $this->registration_status === self::REGISTRATION_REGISTERED
             && filled($this->spedy_company_id)
-            && filled($this->api_token);
+            && filled($this->api_token)
+            && ! $this->hasEnvironmentMismatch();
+    }
+
+    /** Vínculo gravado em outro ambiente da plataforma (ex.: variável de ambiente trocada fora do painel). */
+    public function hasEnvironmentMismatch(): bool
+    {
+        return filled($this->spedy_company_id)
+            && filled($this->spedy_environment)
+            && $this->spedy_environment !== SpedyPlatformConfig::environment();
     }
 
     public function hasValidCertificate(): bool
@@ -89,6 +104,7 @@ class FiscalSetting extends Model
             ! $this->isModelAllowed($model) => 'Este tipo de nota ainda não foi liberado para esta conta pela administração.',
             $this->isProductionEnvironment() && $this->production_released_at === null => 'A emissão em produção ainda não foi aprovada pela administração. Use o ambiente de homologação.',
             ! $this->enabled => 'Ative o módulo fiscal nas configurações.',
+            $this->hasEnvironmentMismatch() => 'O cadastro da empresa emissora pertence a outro ambiente da plataforma. A administração precisa refazê-lo.',
             ! $this->isRegisteredOnSpedy() => 'Conclua o cadastro da empresa emissora nas configurações fiscais.',
             ! $modelEnabled => 'Este tipo de nota não está habilitado nas configurações fiscais.',
             ! $this->hasValidCertificate() => 'Envie um certificado digital A1 válido nas configurações fiscais.',

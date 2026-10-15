@@ -106,6 +106,8 @@ class FiscalIntegrationController extends Controller
                 $reset = FiscalSetting::query()->withoutGlobalScopes()->whereNotNull('spedy_company_id')->update([
                     'spedy_company_id' => null,
                     'api_token' => null,
+                    'spedy_environment' => null,
+                    'last_synced_at' => null,
                     'registration_status' => FiscalSetting::REGISTRATION_PENDING,
                     'registration_error' => 'Cadastro descartado na troca de ambiente da plataforma.',
                     'certificate_subject' => null,

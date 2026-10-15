@@ -65,6 +65,9 @@ class FiscalSettingController extends Controller
             'setting' => [
                 'enabled' => (bool) $setting->enabled,
                 'registration_status' => $setting->registration_status,
+                // Cadastro confirmado no ambiente atual; o status sozinho não basta.
+                'registered_on_spedy' => $setting->isRegisteredOnSpedy(),
+                'environment_mismatch' => $setting->hasEnvironmentMismatch(),
                 'registration_error' => $setting->registration_error,
                 'registered_at' => $setting->registered_at?->toIso8601String(),
                 'emission_environment' => $setting->emission_environment,
