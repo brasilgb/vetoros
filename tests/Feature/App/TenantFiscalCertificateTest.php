@@ -78,6 +78,16 @@ class TenantFiscalCertificateTest extends TestCase
         }
     }
 
+    public function test_tenant_root_user_can_upload(): void
+    {
+        Http::fake(['*/companies/own-company/certificates' => Http::response($this->accepted())]);
+        $root = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_ROOT_APP]);
+        $this->actingAs($root)->get(route('app.fiscal-settings.show'))
+            ->assertInertia(fn ($page) => $page->where('certificateUploadAllowed', true));
+        $this->actingAs($root)->post(route('app.fiscal-settings.certificate'), $this->payload())->assertSessionHas('success');
+        Http::assertSentCount(1);
+    }
+
     public function test_operator_with_settings_permission_cannot_upload(): void
     {
         $operator = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_OPERATOR]);

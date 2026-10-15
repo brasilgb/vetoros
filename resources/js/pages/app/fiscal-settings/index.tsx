@@ -299,7 +299,7 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, certi
                                 ? 'O envio depende da liberação da emissão fiscal pela administração.'
                                 : !registered
                                   ? 'O campo será liberado após a administração cadastrar a empresa emissora.'
-                                  : 'Somente o administrador da empresa pode enviar ou substituir o certificado.'}
+                                  : 'Somente o titular ou um administrador da empresa pode enviar ou substituir o certificado.'}
                         </p>
                     )}
                     <div className="grid gap-4 md:grid-cols-3">

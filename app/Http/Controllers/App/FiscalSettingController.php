@@ -59,7 +59,7 @@ class FiscalSettingController extends Controller
         return Inertia::render('app/fiscal-settings/index', [
             'platformAvailable' => SpedyClient::isConfigured(),
             'tenantAllowed' => (bool) $tenant->automatic_fiscal_emission_enabled,
-            'certificateUploadAllowed' => auth()->user()->isAdministrator()
+            'certificateUploadAllowed' => (auth()->user()->isRoot() || auth()->user()->isAdministrator())
                 && SpedyClient::isConfigured() && $tenant->automatic_fiscal_emission_enabled
                 && $setting->isRegisteredOnSpedy(),
             'setting' => [
@@ -190,7 +190,7 @@ class FiscalSettingController extends Controller
     public function certificate(Request $request): RedirectResponse
     {
         Gate::authorize('other-settings.access');
-        abort_unless($request->user()->isAdministrator(), 403);
+        abort_unless($request->user()->isRoot() || $request->user()->isAdministrator(), 403);
 
         $setting = $this->setting();
         $tenant = Tenant::query()->findOrFail($setting->tenant_id);
