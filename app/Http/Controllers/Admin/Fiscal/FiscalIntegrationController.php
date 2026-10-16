@@ -43,7 +43,7 @@ class FiscalIntegrationController extends Controller
                 'last_diagnostic_at' => $platform->last_diagnostic_at?->toIso8601String(),
                 'last_diagnostic_ok' => $platform->last_diagnostic_ok,
                 'last_diagnostic_message' => $platform->last_diagnostic_message,
-                'registered_companies' => FiscalSetting::query()->withoutGlobalScopes()->whereNotNull('spedy_company_id')->count(),
+                'registered_companies' => $this->registeredCompanies(),
             ],
             'audits' => FiscalAdminAudit::query()
                 ->with('user:id,name')
@@ -74,16 +74,18 @@ class FiscalIntegrationController extends Controller
         $platform = SpedyPlatformSetting::current();
         $previousEnvironment = SpedyPlatformConfig::environment();
         $environmentChanged = $data['environment'] !== $previousEnvironment;
-        $registered = FiscalSetting::query()->withoutGlobalScopes()->whereNotNull('spedy_company_id')->count()
-            + AdminFiscalSetting::query()->whereNotNull('spedy_company_id')->count();
+        $registered = $this->registeredCompanies();
 
-        if ($environmentChanged && $registered > 0) {
+        if ($environmentChanged && $registered !== []) {
+            $count = count($registered);
+            $names = implode('; ', array_map(fn ($company) => "{$company['name']} ({$company['location']})", $registered));
+
             if ($previousEnvironment === 'production') {
-                return back()->withErrors(['environment' => "Há {$registered} empresa(s) cadastrada(s) na conta de produção. Voltar para sandbox descartaria chaves que não podem ser recuperadas."]);
+                return back()->withErrors(['environment' => "Há {$count} empresa(s) cadastrada(s) na conta de produção: {$names}. Voltar para sandbox descartaria chaves que não podem ser recuperadas."]);
             }
 
             if (! ($data['confirm_environment_change'] ?? false)) {
-                return back()->withErrors(['confirm_environment_change' => "Confirme: os {$registered} cadastro(s) de sandbox serão descartados e precisarão ser refeitos em produção."]);
+                return back()->withErrors(['confirm_environment_change' => "Confirme: {$count} cadastro(s) de sandbox serão descartados e precisarão ser refeitos em produção: {$names}."]);
             }
         }
 
@@ -145,6 +147,32 @@ class FiscalIntegrationController extends Controller
         });
 
         return back()->with('success', 'Integração Spedy atualizada.');
+    }
+
+    /**
+     * Empresas com cadastro na conta Spedy atual: as dos clientes (aba Empresas emissoras)
+     * e o emitente próprio da plataforma (aba Notas do SaaS).
+     *
+     * @return list<array{name: string, location: string}>
+     */
+    private function registeredCompanies(): array
+    {
+        $tenants = FiscalSetting::query()->withoutGlobalScopes()->with('tenant:id,name,company')
+            ->whereNotNull('spedy_company_id')
+            ->get()
+            ->map(fn (FiscalSetting $setting) => [
+                'name' => $setting->tenant?->company ?: ($setting->tenant?->name ?? "Tenant #{$setting->tenant_id}"),
+                'location' => 'aba Empresas emissoras',
+            ]);
+
+        $issuer = AdminFiscalSetting::query()->whereNotNull('spedy_company_id')
+            ->get()
+            ->map(fn (AdminFiscalSetting $setting) => [
+                'name' => $setting->trade_name ?: ($setting->legal_name ?: 'Emitente da plataforma'),
+                'location' => 'aba Notas do SaaS (emitente da plataforma)',
+            ]);
+
+        return $tenants->concat($issuer)->values()->all();
     }
 
     public function diagnose(): RedirectResponse

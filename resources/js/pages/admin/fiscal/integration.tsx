@@ -27,7 +27,7 @@ type Integration = {
     last_diagnostic_at: string | null;
     last_diagnostic_ok: boolean | null;
     last_diagnostic_message: string | null;
-    registered_companies: number;
+    registered_companies: { name: string; location: string }[];
 };
 
 type Audit = { id: number; action: string; data?: Record<string, unknown> | null; created_at: string; user?: { name: string } | null };
@@ -83,7 +83,7 @@ export default function FiscalIntegration({ integration, audits }: { integration
                             )}
                         </p>
                         <p>Última troca da chave: {formatDate(integration.owner_key_rotated_at)}</p>
-                        <p>Empresas cadastradas na Spedy: {integration.registered_companies}</p>
+                        <p>Empresas cadastradas na Spedy: {integration.registered_companies.length}</p>
                         <p>
                             Último diagnóstico: {formatDate(integration.last_diagnostic_at)}{' '}
                             {integration.last_diagnostic_ok === null ? null : integration.last_diagnostic_ok ? (
@@ -123,15 +123,24 @@ export default function FiscalIntegration({ integration, audits }: { integration
                                 </Select>
                                 <InputError message={errors.environment} />
                             </div>
-                            {data.environment !== integration.environment && integration.registered_companies > 0 && (
+                            {data.environment !== integration.environment && integration.registered_companies.length > 0 && (
                                 <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                                     <Checkbox
                                         id="confirm_environment_change"
                                         checked={data.confirm_environment_change}
                                         onCheckedChange={(checked) => setData('confirm_environment_change', checked === true)}
                                     />
-                                    <Label htmlFor="confirm_environment_change">
-                                        Entendo que os cadastros de empresas do ambiente atual serão descartados e precisarão ser refeitos.
+                                    <Label htmlFor="confirm_environment_change" className="block space-y-1 font-normal">
+                                        <span className="block">
+                                            Entendo que estes cadastros do ambiente atual serão descartados e precisarão ser refeitos:
+                                        </span>
+                                        <ul className="list-disc pl-5">
+                                            {integration.registered_companies.map((company, index) => (
+                                                <li key={index}>
+                                                    <strong>{company.name}</strong> — {company.location}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </Label>
                                 </div>
                             )}
