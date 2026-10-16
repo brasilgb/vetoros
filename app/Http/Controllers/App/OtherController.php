@@ -15,7 +15,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -228,9 +227,7 @@ class OtherController extends Controller
         }
 
         try {
-            TenantMailConfig::applyForTenantId($this->currentTenantId());
-
-            Mail::raw(
+            TenantMailConfig::tenantMailer($this->currentTenantId())->raw(
                 "Este é um e-mail de teste da configuração SMTP do sistema.\n\nEmpresa: ".($company?->companyname ?? config('app.name'))."\nData/Hora: ".now()->format('d/m/Y H:i:s'),
                 function ($message) use ($targetEmail, $company) {
                     $message->to($targetEmail)

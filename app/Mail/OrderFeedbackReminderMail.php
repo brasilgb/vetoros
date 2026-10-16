@@ -25,8 +25,6 @@ class OrderFeedbackReminderMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $this->applyTenantMailConfig($this->tenantId);
-
         return new Envelope(
             subject: 'Como foi seu atendimento? Avalie a ordem #'.$this->order->order_number,
         );

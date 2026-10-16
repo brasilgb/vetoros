@@ -15,8 +15,10 @@ use App\Models\App\WhatsappConnection;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\OrderMessageService;
+use App\Services\OrderNotificationService;
 use App\Services\WahaService;
 use App\Support\OrderStatus;
+use App\Support\TenantMailConfig;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
@@ -210,6 +212,30 @@ class OrderCommunicationTest extends TestCase
         $this->assertSame('budget_generated', $message->template);
         $this->assertSame('cliente@example.com', $message->recipient);
         $this->assertSame(OrderBudget::query()->where('order_id', $order->id)->sole()->id, (int) $message->order_budget_id);
+    }
+
+    public function test_queued_order_without_tenant_smtp_records_failure_without_institutional_fallback(): void
+    {
+        $this->customer->forceFill(['email' => 'cliente@example.test'])->save();
+        $order = $this->order(OrderStatus::OPEN);
+        Other::query()->where('tenant_id', $this->tenant->id)->update([
+            'mail_host' => null, 'mail_port' => null, 'mail_username' => null, 'mail_password' => null,
+        ]);
+        TenantMailConfig::forget();
+        $before = config('mail');
+
+        try {
+            app(OrderNotificationService::class)->deliverCreated($order->id);
+            $this->fail('Envio sem SMTP do tenant deveria falhar.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('SMTP do tenant não configurado.', $exception->getMessage());
+        }
+
+        $message = OrderMessage::query()->where('order_id', $order->id)->sole();
+        $this->assertSame(OrderMessage::STATUS_FAILED, $message->status);
+        $this->assertSame(OrderMessage::CHANNEL_EMAIL, $message->channel);
+        $this->assertSame('order_created', $message->template);
+        $this->assertSame($before, config('mail'));
     }
 
     public function test_sensitive_data_never_reaches_events_audits_or_messages(): void

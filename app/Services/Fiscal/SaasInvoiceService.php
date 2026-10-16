@@ -2,6 +2,7 @@
 
 namespace App\Services\Fiscal;
 
+use App\Jobs\SendSaasFiscalNotice;
 use App\Jobs\StoreFiscalDocumentFiles;
 use App\Mail\SaasFiscalDocumentMail;
 use App\Models\Admin\AdminFiscalDocument;
@@ -9,6 +10,7 @@ use App\Models\Admin\AdminFiscalDocumentDelivery;
 use App\Models\Admin\AdminFiscalSetting;
 use App\Models\Admin\FiscalAdminAudit;
 use App\Models\Admin\Plan;
+use App\Models\Admin\TenantSubscriptionCharge;
 use App\Models\App\FiscalDocument;
 use App\Models\App\Payment;
 use App\Models\Tenant;
@@ -195,7 +197,7 @@ class SaasInvoiceService
 
     // ---- Emissão ---------------------------------------------------------
 
-    public function emit(Payment $payment, Carbon $start, Carbon $end, ?string $description, ?int $userId): AdminFiscalDocument
+    public function emit(Payment $payment, Carbon $start, Carbon $end, ?string $description, ?int $userId, bool $automatic = false): AdminFiscalDocument
     {
         $issuer = AdminFiscalSetting::current();
 
@@ -216,39 +218,105 @@ class SaasInvoiceService
         }
 
         $context = $this->paymentContext($payment);
+        $text = $description ?: $this->defaultDescription($issuer, $context['plan_name'] ? "plano {$context['plan_name']}" : null, $start, $end);
 
         // Trava o pagamento: uma nota ativa por operação faturada.
-        $document = DB::transaction(function () use ($payment, $tenant, $start, $end, $description, $userId, $context, $issuer) {
-            Payment::query()->whereKey($payment->id)->lockForUpdate()->first();
-
-            $existing = AdminFiscalDocument::query()
-                ->where('payment_id', $payment->id)
-                ->where('provider', 'spedy')
-                ->whereIn('status', self::BLOCKING)
-                ->first();
-
-            if ($existing) {
-                throw new FiscalEmissionException($existing->status === FiscalDocument::STATUS_AUTHORIZED
-                    ? 'Este pagamento já possui NFS-e autorizada. Para substituí-la, cancele-a antes.'
-                    : 'Já existe uma NFS-e em processamento para este pagamento.');
-            }
-
-            $text = $description ?: $this->defaultDescription($issuer, $context['plan_name'], $start, $end);
-            $attributes = [
-                'status' => FiscalDocument::STATUS_PROCESSING,
-                'provider_status' => null,
-                'error_message' => null,
+        $document = $this->reserve(
+            'payment_id',
+            $payment->id,
+            fn () => Payment::query()->whereKey($payment->id)->lockForUpdate()->first(),
+            ['Este pagamento já possui NFS-e autorizada. Para substituí-la, cancele-a antes.', 'Já existe uma NFS-e em processamento para este pagamento.'],
+            $tenant,
+            [
                 'amount' => round((float) $payment->amount, 2),
                 'description' => Str::limit($text, 500, ''),
                 'reference_start' => $start->toDateString(),
                 'reference_end' => $end->toDateString(),
                 'registered_by' => $userId,
                 'environment' => $issuer->emission_environment,
+                'automatic' => $automatic,
+            ],
+            fn (AdminFiscalDocument $document) => $payment->forceFill(['admin_fiscal_document_id' => $document->id])->save(),
+        );
+
+        return $this->submit($document, $tenant, $issuer, ['payment_id' => $payment->id]);
+    }
+
+    /**
+     * NFS-e de um ciclo do contrato personalizado (VETOR-SAAS-CONTRATO-01). Independe do pagamento:
+     * a cobrança pode estar em aberto. Valor e competência vêm da própria cobrança; uma nota ativa
+     * por cobrança, com a mesma trava e o mesmo reenvio por integrationId das notas por pagamento.
+     */
+    public function emitForCharge(TenantSubscriptionCharge $charge, ?int $userId = null): AdminFiscalDocument
+    {
+        $issuer = AdminFiscalSetting::current();
+
+        if ($blocker = $this->blocker($issuer)) {
+            throw new FiscalEmissionException($blocker);
+        }
+        if (in_array($charge->status, [TenantSubscriptionCharge::STATUS_CANCELLED, TenantSubscriptionCharge::STATUS_REFUNDED], true) || (float) $charge->amount <= 0) {
+            throw new FiscalEmissionException('Cobranças canceladas, estornadas ou sem valor não geram nota.');
+        }
+
+        $tenant = Tenant::query()->findOrFail($charge->tenant_id);
+        $receiverProblems = $this->receiverProblems($tenant);
+        if ($receiverProblems !== []) {
+            throw new FiscalValidationException($receiverProblems);
+        }
+
+        $contract = $charge->contract;
+        $text = $this->defaultDescription($issuer, "contrato {$contract->contract_number} ({$contract->periodicityLabel()})", $charge->cycle_start, $charge->cycle_end);
+
+        $document = $this->reserve(
+            'tenant_subscription_charge_id',
+            $charge->id,
+            fn () => TenantSubscriptionCharge::query()->whereKey($charge->id)->lockForUpdate()->first(),
+            ['Esta cobrança já possui NFS-e autorizada. Para substituí-la, cancele-a antes.', 'Já existe uma NFS-e em processamento para esta cobrança.'],
+            $tenant,
+            [
+                'amount' => round((float) $charge->amount, 2),
+                'description' => Str::limit($text, 500, ''),
+                'reference_start' => $charge->cycle_start->toDateString(),
+                'reference_end' => $charge->cycle_end->toDateString(),
+                'registered_by' => $userId,
+                'environment' => $issuer->emission_environment,
+                'automatic' => $userId === null,
+            ],
+        );
+
+        return $this->submit($document, $tenant, $issuer, ['tenant_subscription_charge_id' => $charge->id]);
+    }
+
+    /**
+     * Reserva o documento da operação faturada sob trava: recusa uma segunda nota ativa e reaproveita
+     * a última rejeitada/falha (mesmo integrationId, a Spedy atualiza a nota).
+     *
+     * @param  array{0: string, 1: string}  $messages  recusa por nota autorizada / em processamento
+     */
+    private function reserve(string $column, int $id, callable $lock, array $messages, Tenant $tenant, array $attributes, ?callable $created = null): AdminFiscalDocument
+    {
+        return DB::transaction(function () use ($column, $id, $lock, $messages, $tenant, $attributes, $created) {
+            $lock();
+
+            $existing = AdminFiscalDocument::query()
+                ->where($column, $id)
+                ->where('provider', 'spedy')
+                ->whereIn('status', self::BLOCKING)
+                ->first();
+
+            if ($existing) {
+                throw new FiscalEmissionException($existing->status === FiscalDocument::STATUS_AUTHORIZED ? $messages[0] : $messages[1]);
+            }
+
+            $attributes = [
+                ...$attributes,
+                'status' => FiscalDocument::STATUS_PROCESSING,
+                'provider_status' => null,
+                'error_message' => null,
             ];
 
-            // Rejeitada/falha: corrige reenviando o mesmo integrationId (a Spedy atualiza a nota).
             $retry = AdminFiscalDocument::query()
-                ->where('payment_id', $payment->id)
+                ->where($column, $id)
                 ->where('provider', 'spedy')
                 ->whereIn('status', [FiscalDocument::STATUS_REJECTED, FiscalDocument::STATUS_FAILED])
                 ->whereNotNull('integration_id')
@@ -264,17 +332,20 @@ class SaasInvoiceService
             $document = AdminFiscalDocument::query()->create([
                 ...$attributes,
                 'tenant_id' => $tenant->id,
-                'payment_id' => $payment->id,
+                $column => $id,
                 'type' => 'nfse',
                 'provider' => 'spedy',
                 'integration_id' => (string) Str::uuid(),
             ]);
 
-            $payment->forceFill(['admin_fiscal_document_id' => $document->id])->save();
+            $created && $created($document);
 
             return $document;
         });
+    }
 
+    private function submit(AdminFiscalDocument $document, Tenant $tenant, AdminFiscalSetting $issuer, array $auditData): AdminFiscalDocument
+    {
         $payload = [
             'integrationId' => $document->integration_id,
             'description' => $document->description,
@@ -290,7 +361,7 @@ class SaasInvoiceService
         ];
 
         $document->forceFill(['request_payload' => SpedyInvoiceState::redactPayload($payload), 'submitted_at' => now()])->save();
-        FiscalAdminAudit::record('saas.invoice_requested', $tenant->id, $document, ['payment_id' => $payment->id, 'amount' => (float) $document->amount]);
+        FiscalAdminAudit::record('saas.invoice_requested', $tenant->id, $document, [...$auditData, 'amount' => (float) $document->amount]);
 
         try {
             $invoice = SpedyClient::forCompany($issuer->api_token)->createInvoice(SpedyClient::MODEL_NFSE, $payload);
@@ -329,6 +400,11 @@ class SaasInvoiceService
             if (in_array($status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED], true)
                 && ($previous !== $status || blank($document->xml_path))) {
                 StoreFiscalDocumentFiles::dispatch($document->id, saas: true)->afterCommit();
+            }
+
+            // Nota automática recém-autorizada: comunicação fiscal ao cliente, uma vez por autorização.
+            if ($status === FiscalDocument::STATUS_AUTHORIZED && $previous !== $status && $document->automatic) {
+                SendSaasFiscalNotice::dispatch($document->id)->afterCommit();
             }
 
             return $document;
@@ -498,11 +574,11 @@ class SaasInvoiceService
         ]);
     }
 
-    private function defaultDescription(AdminFiscalSetting $issuer, ?string $planName, Carbon $start, Carbon $end): string
+    private function defaultDescription(AdminFiscalSetting $issuer, ?string $reference, Carbon $start, Carbon $end): string
     {
         $base = trim((string) ($issuer->default_service_description ?: 'Licença de uso do software VetorOS'));
 
-        return sprintf('%s%s — referência %s a %s', $base, $planName ? " — plano {$planName}" : '', $start->format('d/m/Y'), $end->format('d/m/Y'));
+        return sprintf('%s%s — referência %s a %s', $base, $reference ? " — {$reference}" : '', $start->format('d/m/Y'), $end->format('d/m/Y'));
     }
 
     private function issuerClient(): SpedyClient

@@ -4,6 +4,7 @@ use App\Http\Controllers\App\PaymentController;
 use App\Http\Controllers\App\SubscriptionController;
 use App\Http\Controllers\OsController;
 use App\Http\Controllers\SharedFiscalDocumentController;
+use App\Http\Controllers\SharedSaasFiscalDocumentController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\PlanController;
 use App\Http\Controllers\TenantFeedbackController;
@@ -38,6 +39,12 @@ Route::get('/nfse/{document}/{format}', SharedFiscalDocumentController::class)
     ->where('format', 'pdf|xml')
     ->middleware('throttle:30,1')
     ->name('fiscal-documents.shared');
+// PDF/XML da NFS-e do SaaS para o cliente contratante: link assinado e temporário (VETOR-SAAS-CONTRATO-01).
+Route::get('/nfse-saas/{document}/{format}', SharedSaasFiscalDocumentController::class)
+    ->whereNumber('document')
+    ->where('format', 'pdf|xml')
+    ->middleware('throttle:30,1')
+    ->name('saas-fiscal-documents.shared');
 Route::post('/os/{token}/feedback', [OsController::class, 'submitFeedback'])
     ->name('os.feedback.submit');
 Route::get('/experience/{token}', [TenantFeedbackController::class, 'show'])->name('tenant.feedback.show');

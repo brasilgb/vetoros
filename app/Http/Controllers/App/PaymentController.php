@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Plan;
 use App\Models\App\Payment;
+use App\Services\Commercial\SaasContractService;
 use App\Services\MercadoPagoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,23 +14,42 @@ use MercadoPago\Exceptions\MPApiException;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly MercadoPagoService $mercadoPagoService) {}
+    public function __construct(
+        private readonly MercadoPagoService $mercadoPagoService,
+        private readonly SaasContractService $saasContracts,
+    ) {}
 
     public function generatePix(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'plan_id' => ['required', 'integer', 'exists:plans,id'],
-            ]);
-
             $tenant = auth()->user()->tenant;
             if (! $tenant) {
                 return response()->json(['error' => 'Tenant não encontrado para o usuário autenticado.'], 422);
             }
 
-            $plan = Plan::findOrFail($validated['plan_id']);
-            if ($plan->isTrial() || (float) $plan->value <= 0) {
-                return response()->json(['error' => 'Plano inválido para cobrança PIX.'], 422);
+            // Contrato personalizado: o PIX quita a cobrança em aberto do ciclo, nunca o preço de um plano.
+            $charge = null;
+            $plan = null;
+            if ($tenant->hasCustomContract()) {
+                $charge = $this->saasContracts->openChargeFor($tenant);
+                if (! $charge) {
+                    return response()->json(['error' => 'Não há cobrança em aberto para pagamento.'], 422);
+                }
+                $amount = (string) $charge->amount;
+                $description = 'Contrato '.$charge->contract->contract_number.' - vencimento '.$charge->due_date->format('d/m/Y').' - '.$tenant->name;
+                $reference = ['tenant_id' => $tenant->id, 'charge_id' => $charge->id];
+            } else {
+                $validated = $request->validate([
+                    'plan_id' => ['required', 'integer', 'exists:plans,id'],
+                ]);
+
+                $plan = Plan::findOrFail($validated['plan_id']);
+                if ($plan->isTrial() || (float) $plan->value <= 0) {
+                    return response()->json(['error' => 'Plano inválido para cobrança PIX.'], 422);
+                }
+                $amount = $plan->value;
+                $description = 'Assinatura '.$plan->name.' - '.$tenant->name;
+                $reference = ['tenant_id' => $tenant->id, 'plan_id' => $plan->id];
             }
 
             $webhookToken = config('services.mercadopago.webhook_token');
@@ -39,8 +59,8 @@ class PaymentController extends Controller
             $idempotencyKey = Str::uuid()->toString();
 
             $paymentRequest = [
-                'transaction_amount' => (float) $plan->value,
-                'description' => 'Assinatura '.$plan->name.' - '.$tenant->name,
+                'transaction_amount' => (float) $amount,
+                'description' => $description,
                 'payment_method_id' => 'pix',
                 'payer' => [
                     'email' => "pix_{$tenant->id}@vetoros.com.br",
@@ -50,10 +70,7 @@ class PaymentController extends Controller
                         'number' => preg_replace('/\D/', '', $tenant->cnpj),
                     ],
                 ],
-                'external_reference' => json_encode([
-                    'tenant_id' => $tenant->id,
-                    'plan_id' => $plan->id,
-                ]),
+                'external_reference' => json_encode($reference),
                 'notification_url' => str_replace('http://', 'https://', route('webhook.mercadopago', ['token' => $webhookToken])),
             ];
 
@@ -64,7 +81,7 @@ class PaymentController extends Controller
                 [
                     'tenant_id' => $tenant->id,
                     'gateway' => 'mercadopago',
-                    'amount' => (float) ($payment->transaction_amount ?? $plan->value),
+                    'amount' => (float) ($payment->transaction_amount ?? $amount),
                     'status' => (string) ($payment->status ?? 'pending'),
                     'idempotency_key' => $idempotencyKey,
                     'expires_at' => $payment->date_of_expiration ?? null,

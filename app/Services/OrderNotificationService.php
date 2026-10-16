@@ -26,7 +26,7 @@ class OrderNotificationService
     private function sendRecorded(Order $order, string $customerEmail, string $template, Mailable $mail): void
     {
         if (! $order->tenant_id) {
-            // OS legada sem tenant não pode ter trilha (tenant obrigatório): só envia, como antes.
+            // Sem tenant não há trilha possível; o transporte recusa o envio sem SMTP próprio.
             Mail::to($customerEmail)->send($mail);
 
             return;
@@ -116,11 +116,10 @@ class OrderNotificationService
 
         $customerEmail = trim((string) ($order->customer?->email ?? ''));
 
-        if (! $this->canSendToCustomer($order, $customerEmail)) {
+        if ($customerEmail === '' || ! filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
         $this->sendRecorded($order, $customerEmail, 'order_created', new OrderCreatedMail($order));
     }
 
@@ -134,11 +133,10 @@ class OrderNotificationService
 
         $customerEmail = trim((string) ($order->customer?->email ?? ''));
 
-        if (! $this->canSendToCustomer($order, $customerEmail)) {
+        if ($customerEmail === '' || ! filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
         // Aviso de "Orçamento Gerado" leva o orçamento: a mensagem fica ligada à versão enviada.
         $template = (int) $order->service_status === OrderStatus::BUDGET_GENERATED ? 'budget_generated' : 'status_updated';
         $this->sendRecorded($order, $customerEmail, $template, new OrderStatusUpdatedMail($order, $statusLabel, $observations));
@@ -154,11 +152,10 @@ class OrderNotificationService
 
         $customerEmail = trim((string) ($order->customer?->email ?? ''));
 
-        if (! $this->canSendToCustomer($order, $customerEmail)) {
+        if ($customerEmail === '' || ! filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
         $this->sendRecorded($order, $customerEmail, 'payment_reminder', new OrderPaymentReminderMail($order, $paymentSummary, $isOverdue));
     }
 
@@ -172,11 +169,10 @@ class OrderNotificationService
 
         $customerEmail = trim((string) ($order->customer?->email ?? ''));
 
-        if (! $this->canSendToCustomer($order, $customerEmail)) {
+        if ($customerEmail === '' || ! filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
         $this->sendRecorded($order, $customerEmail, 'budget_follow_up', new OrderBudgetFollowUpMail($order, $daysPending));
     }
 
@@ -190,11 +186,10 @@ class OrderNotificationService
 
         $customerEmail = trim((string) ($order->customer?->email ?? ''));
 
-        if (! $this->canSendToCustomer($order, $customerEmail)) {
+        if ($customerEmail === '' || ! filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             return;
         }
 
-        TenantMailConfig::applyForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
         $this->sendRecorded($order, $customerEmail, 'feedback_reminder', new OrderFeedbackReminderMail($order));
     }
 }

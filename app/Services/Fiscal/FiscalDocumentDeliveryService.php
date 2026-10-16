@@ -41,9 +41,6 @@ class FiscalDocumentDeliveryService
 
         $links = FiscalDocumentLinks::for($document);
 
-        // SMTP do tenant aplicado antes de Mail::to(): o mailer é resolvido nessa chamada.
-        TenantMailConfig::applyForTenantId((int) $document->tenant_id);
-
         try {
             Mail::to($email)->send(new MaintenanceInvoiceMail($document, $receivable, $contract, $customer, $links['pdf'], $links['xml'], $links['expires_at']));
         } catch (\Throwable $exception) {

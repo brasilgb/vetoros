@@ -2,9 +2,9 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesSystemMailConfig;
 use App\Models\Tenant;
 use App\Models\TenantFeedback;
-use App\Support\TenantMailConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -13,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 
 class TenantFeedbackRequestMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use AppliesSystemMailConfig, Queueable, SerializesModels;
 
     public function __construct(
         public Tenant $tenant,
@@ -22,8 +22,6 @@ class TenantFeedbackRequestMail extends Mailable
 
     public function envelope(): Envelope
     {
-        TenantMailConfig::applySystemDefault();
-
         return new Envelope(
             subject: 'Como esta sua experiencia com o VetorOS?',
         );

@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesSystemMailConfig;
 use App\Models\Admin\AdminFiscalDocument;
-use App\Support\TenantMailConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -14,14 +14,12 @@ use Illuminate\Queue\SerializesModels;
 /** NFS-e da assinatura VetorOS enviada pelo RootAdmin ao cliente contratante. */
 class SaasFiscalDocumentMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use AppliesSystemMailConfig, Queueable, SerializesModels;
 
     public function __construct(public AdminFiscalDocument $document, private readonly string $pdf) {}
 
     public function envelope(): Envelope
     {
-        TenantMailConfig::applySystemDefault();
-
         return new Envelope(subject: 'Nota fiscal de serviço VetorOS nº '.($this->document->number ?: $this->document->id));
     }
 

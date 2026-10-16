@@ -25,7 +25,6 @@ use App\Policies\UserPolicy;
 use App\Services\Payments\ManualOnlyPaymentChannel;
 use App\Services\Payments\ReceivablePaymentChannel;
 use App\Support\RequestCache;
-use App\Support\TenantMailConfig;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
@@ -89,7 +88,5 @@ class AppServiceProvider extends ServiceProvider
             Login::class,
             SetTenantIdInSession::class
         );
-        $tenantId = resolveCurrentTenantId();
-        TenantMailConfig::applyForTenantId($tenantId ? (int) $tenantId : null);
     }
 }

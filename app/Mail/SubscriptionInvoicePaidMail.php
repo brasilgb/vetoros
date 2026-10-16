@@ -2,11 +2,11 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesSystemMailConfig;
 use App\Models\Admin\AdminFiscalDocument;
 use App\Models\Admin\Plan;
 use App\Models\App\Payment;
 use App\Models\Tenant;
-use App\Support\TenantMailConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -15,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 
 class SubscriptionInvoicePaidMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use AppliesSystemMailConfig, Queueable, SerializesModels;
 
     public function __construct(
         public Tenant $tenant,
@@ -26,8 +26,6 @@ class SubscriptionInvoicePaidMail extends Mailable
 
     public function envelope(): Envelope
     {
-        TenantMailConfig::applySystemDefault();
-
         return new Envelope(
             subject: 'Fatura VetorOS paga - '.$this->plan->name,
         );

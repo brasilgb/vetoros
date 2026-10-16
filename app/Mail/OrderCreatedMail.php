@@ -28,8 +28,6 @@ class OrderCreatedMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $this->applyTenantMailConfig($this->tenantId);
-
         return new Envelope(
             subject: 'Ordem de serviço criada #'.$this->order->order_number,
         );

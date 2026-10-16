@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TenantRequest;
 use App\Mail\SubscriptionInvoicePaidMail;
 use App\Mail\SubscriptionStatusMail;
-use App\Models\Admin\Plan;
 use App\Models\Admin\Period;
+use App\Models\Admin\Plan;
 use App\Models\App\Payment;
 use App\Models\Tenant;
 use Carbon\Carbon;
@@ -198,34 +198,34 @@ class TenantController extends Controller
 
         $tenants->setCollection(
             $tenants->getCollection()
-            ->map(function ($tenant) {
-                $tenant->current_plan_period_label = $this->resolveCurrentPlanPeriodLabel($tenant->plan);
-                $tenant->computed_subscription_label = $tenant->subscriptionLabel();
-                $tenant->computed_subscription_bucket = $tenant->subscriptionBucket();
+                ->map(function ($tenant) {
+                    $tenant->current_plan_period_label = $this->resolveCurrentPlanPeriodLabel($tenant->plan);
+                    $tenant->computed_subscription_label = $tenant->subscriptionLabel();
+                    $tenant->computed_subscription_bucket = $tenant->subscriptionBucket();
 
-                if (! $tenant->expires_at) {
-                    $tenant->days_remaining = null;
-                    $tenant->status_label = 'Sem vencimento definido';
+                    if (! $tenant->expires_at) {
+                        $tenant->days_remaining = null;
+                        $tenant->status_label = 'Sem vencimento definido';
+
+                        return $tenant;
+                    }
+
+                    $expires = Carbon::parse($tenant->expires_at)->startOfDay();
+                    $daysRemaining = floor(now()->diffInDays($expires, false));
+
+                    if ($daysRemaining > 0) {
+                        $status = "{$daysRemaining} dias restantes";
+                    } elseif ($daysRemaining === 0) {
+                        $status = 'Expira hoje';
+                    } else {
+                        $status = 'Expirado há '.abs($daysRemaining).' dias';
+                    }
+
+                    $tenant->days_remaining = $daysRemaining;
+                    $tenant->status_label = $status;
 
                     return $tenant;
-                }
-
-                $expires = Carbon::parse($tenant->expires_at)->startOfDay();
-                $daysRemaining = floor(now()->diffInDays($expires, false));
-
-                if ($daysRemaining > 0) {
-                    $status = "{$daysRemaining} dias restantes";
-                } elseif ($daysRemaining === 0) {
-                    $status = 'Expira hoje';
-                } else {
-                    $status = 'Expirado há '.abs($daysRemaining).' dias';
-                }
-
-                $tenant->days_remaining = $daysRemaining;
-                $tenant->status_label = $status;
-
-                return $tenant;
-            })
+                })
         );
 
         return Inertia::render('admin/tenants/index', [
@@ -277,6 +277,7 @@ class TenantController extends Controller
         return Inertia::render('admin/tenants/edit-tenant', [
             'tenant' => $loadedTenant,
             'plans' => $plans,
+            'commercial' => TenantCommercialController::pageData($tenant),
         ]);
     }
 
@@ -373,7 +374,10 @@ class TenantController extends Controller
 
         $data['plan_id'] = $this->normalizeId($data['plan_id'] ?? null);
         $data['period_id'] = $this->resolvePeriod($data['plan_id'], $this->normalizeId($data['period_id'] ?? null))?->id;
-        $data['expires_at'] = $this->resolveExpirationDate($data['plan_id'], $data['period_id'], $tenant);
+        // Com contrato personalizado o plano é só a base de funcionalidades: o vencimento segue as cobranças do contrato.
+        if (! $tenant->hasCustomContract()) {
+            $data['expires_at'] = $this->resolveExpirationDate($data['plan_id'], $data['period_id'], $tenant);
+        }
 
         $tenant->update($data);
 
@@ -385,6 +389,12 @@ class TenantController extends Controller
      */
     public function destroy(Tenant $tenant)
     {
+        // Histórico comercial e financeiro do SaaS não é apagado junto com a empresa.
+        if ($tenant->commercialContract()->exists()) {
+            return redirect()->route('admin.tenants.show', ['tenant' => $tenant->id])
+                ->with('error', 'A empresa tem contrato comercial e cobranças registradas; desative-a em vez de excluir.');
+        }
+
         $tenant->delete();
 
         return redirect()->route('admin.tenants.index')->with('success', 'Empresa excluída com sucesso!');

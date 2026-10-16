@@ -29,6 +29,7 @@ class AdminFiscalDocument extends Model
             'reference_end' => 'date',
             'request_payload' => 'array',
             'response_payload' => 'array',
+            'automatic' => 'boolean',
         ];
     }
 
@@ -40,6 +41,11 @@ class AdminFiscalDocument extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
+    }
+
+    public function subscriptionCharge(): BelongsTo
+    {
+        return $this->belongsTo(TenantSubscriptionCharge::class, 'tenant_subscription_charge_id');
     }
 
     public function deliveries(): HasMany

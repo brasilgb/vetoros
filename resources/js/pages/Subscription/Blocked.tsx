@@ -1,9 +1,10 @@
 import SubscriptionPaymentSuccess from '@/components/Payment/SubscriptionPaymentSuccess';
 import { Head, router } from '@inertiajs/react'; // "router" substitui "Inertia" nas versoes novas
 import axios from 'axios';
+import moment from 'moment';
 import { useEffect, useState } from 'react';
 
-export default function Blocked({ plans, tenant }: any) {
+export default function Blocked({ plans, tenant, charge, active }: any) {
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [loading, setLoading] = useState(false);
     const [pixData, setPixData] = useState<any>(null);
@@ -38,13 +39,12 @@ export default function Blocked({ plans, tenant }: any) {
     }, [pixData]);
 
     const handleGeneratePix = async () => {
-        if (!selectedPlan) return;
+        if (!selectedPlan && !charge) return;
         setLoading(true);
 
         try {
-            const response = await axios.post(route('subscription.pay'), {
-                plan_id: selectedPlan,
-            });
+            // Contrato personalizado: o servidor cobra a parcela em aberto, sem plano.
+            const response = await axios.post(route('subscription.pay'), charge ? {} : { plan_id: selectedPlan });
 
             setPixData(response.data);
             console.log(response);
@@ -96,17 +96,47 @@ export default function Blocked({ plans, tenant }: any) {
                     </svg>
                 </div>
 
-                <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Acesso Suspenso</h2>
+                <h2 className="mt-6 text-3xl font-extrabold text-gray-900">{active ? 'Fatura em aberto' : 'Acesso Suspenso'}</h2>
                 <p className="mt-2 text-sm text-gray-600">
-                    Olá, <span className="font-bold">{tenant.name}</span>. Identificamos pendências financeiras. Para reativar seu acesso
-                    instantaneamente, escolha um plano abaixo.
+                    Olá, <span className="font-bold">{tenant.name}</span>.{' '}
+                    {charge
+                        ? 'Pague a fatura do seu contrato por PIX; a liberação é automática.'
+                        : plans.length > 0
+                          ? 'Identificamos pendências financeiras. Para reativar seu acesso instantaneamente, escolha um plano abaixo.'
+                          : 'Identificamos pendências financeiras. Fale com o atendimento da ABrasil Sistemas para regularizar.'}
                 </p>
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg">
                 <div className="bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
-                    {/* SELEÇÃO DE PLANO */}
-                    {!pixData ? (
+                    {/* COBRANÇA DO CONTRATO PERSONALIZADO */}
+                    {charge && !pixData ? (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border border-gray-300 p-4 text-sm text-gray-700">
+                                <p>
+                                    <span className="font-medium">Contrato:</span> {charge.contract_number}
+                                </p>
+                                <p>
+                                    <span className="font-medium">Competência:</span> {moment(charge.cycle_start).format('DD/MM/YYYY')} a{' '}
+                                    {moment(charge.cycle_end).format('DD/MM/YYYY')}
+                                </p>
+                                <p>
+                                    <span className="font-medium">Vencimento:</span> {moment(charge.due_date).format('DD/MM/YYYY')}
+                                </p>
+                                <p className="mt-2 text-base font-bold text-gray-900">
+                                    {Number(charge.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleGeneratePix}
+                                disabled={loading}
+                                className="mt-6 flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+                            >
+                                {loading ? 'Gerando Cobrança...' : 'Gerar QR Code PIX'}
+                            </button>
+                        </div>
+                    ) : /* SELEÇÃO DE PLANO */
+                    !pixData ? (
                         <div className="space-y-4">
                             <label className="mb-2 block text-sm font-medium text-gray-700">Selecione uma opção de renovação:</label>
 
@@ -192,7 +222,7 @@ export default function Blocked({ plans, tenant }: any) {
                             </div>
 
                             <button onClick={() => setPixData(null)} className="mt-4 text-xs text-gray-400 underline hover:text-gray-600">
-                                Escolher outro plano
+                                {charge ? 'Voltar' : 'Escolher outro plano'}
                             </button>
                         </div>
                     )}

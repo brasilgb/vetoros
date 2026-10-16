@@ -1,317 +1,185 @@
-# VETOR-FISCAL-02 — Publicação, implantação e homologação real da integração Spedy
+# VETOR-SAAS-CONTRATO-01 — Contrato comercial personalizado por tenant
 
-Objetivo: colocar em ambiente operacional a implementação concluída no VETOR-FISCAL-01, validar a migration, configurar corretamente o sandbox da Spedy e comprovar o fluxo completo de cadastro do emitente e certificado A1.
+## Objetivo
 
-## 1. Antes de alterar qualquer coisa
+Implementar no RootAdmin do VetorOS a possibilidade de estabelecer condições comerciais personalizadas para cada empresa (tenant), sem depender da seleção de planos tradicionais.
 
-Trabalhar no repositório oficial do VetorOS dentro de:
+**Não criar um novo sistema financeiro ou fiscal.** Reutilizar os serviços existentes de assinaturas, cobrança, pagamentos, inadimplência, bloqueio, emissão Spedy, entrega de faturas e auditoria.
 
-`/opt/infra-abrasil` em produção  
-e no submódulo correspondente `gateway/vetoros`.
+## 1. Auditoria inicial obrigatória
 
-Não usar `infra-vetor`.
+Inspecionar o código existente e identificar:
 
-Verificar:
+- Cadastro e edição de empresas no RootAdmin.
+- Tabelas e serviços dos planos e assinaturas.
+- Geração de cobranças recorrentes e vencimentos.
+- Regras de inadimplência, tolerância, suspensão e reativação.
+- Integração atual com Mercado Pago ou outros canais disponíveis.
+- Emissão da NFS-e da ABrasil Sistemas aos tenants.
+- Serviços de envio de faturas, SMTP e links fiscais.
+- Jobs, scheduler e webhooks existentes.
 
-- branch atual;
-- `git status`;
-- HEAD local;
-- `origin/main`;
-- commit `3ffec982`;
-- migrations pendentes;
-- serviços `vetoros`, `vetoros-worker`, `vetoros-scheduler`, `nginx` e `mysql`;
-- estado atual da integração Spedy.
+Não presumir nomes de tabelas, métodos ou contratos. Reutilizar o desenho comprovado no repositório.
 
-Não imprimir nenhuma chave, certificado, senha ou segredo.
+## 2. Modalidade de contratação
 
-## 2. Segurança antes do push
+Adicionar ao cadastro administrativo da empresa:
 
-Antes de publicar, conferir a situação atual dos P0 registrados anteriormente.
+**Checkbox: "Contrato personalizado — não utilizar planos tradicionais".**
 
-Verificar especialmente:
+Quando ativado:
 
-- se `brasilgb/vetoros` está privado;
-- se `brasilgb/infraabrasil` está privado;
-- se o procedimento anteriormente definido para credenciais/histórico já foi resolvido ou formalmente aceito.
+- Ignorar o preço e a periodicidade dos planos tradicionais.
+- Informar valor comercial contratado.
+- Informar periodicidade mensal, semestral ou anual.
+- Informar data de início e próximo vencimento.
+- Informar vendedor ou responsável pela negociação.
+- Permitir observações comerciais internas.
+- Preservar regras existentes de autorização, módulos e funcionalidades.
+- Manter integralmente o controle de assinatura e bloqueio do tenant.
 
-Não executar force push nem reescrita de histórico sem autorização explícita.
+O preço personalizado é o **valor total de cada ciclo**, não um valor mensal automaticamente multiplicado por 6 ou 12.
 
-Caso os bloqueios de segurança permaneçam, não realizar push e informar objetivamente o bloqueio.
+Não conceder funcionalidades indiscriminadamente pelo simples fato de a empresa possuir contrato personalizado.
 
-Caso estejam resolvidos ou o responsável tenha autorizado a publicação no estado atual, prosseguir com push convencional.
+## 3. Cobrança e ciclo de vida
 
-## 3. Publicação
+Integrar a modalidade personalizada ao mecanismo atual de assinaturas.
 
-Confirmar que o commit:
+Garantir:
 
-`3ffec982`
+- Uma cobrança por ciclo.
+- Idempotência em jobs e webhooks.
+- Registro de pagamento e estorno.
+- Histórico de cobranças.
+- Regras atuais de vencimento e tolerância.
+- Bloqueio por inadimplência.
+- Reativação mediante regularização.
+- Nenhuma duplicação de cobrança ao converter plano tradicional em contrato personalizado.
+- Preservação das cobranças anteriores.
+- Alterações de valor aplicadas aos próximos ciclos, salvo operação explícita e auditada.
 
-é o HEAD esperado e contém somente as alterações do VETOR-FISCAL-01 e dependências já aprovadas.
+Na reversão para plano tradicional, exigir seleção de plano válido e confirmação administrativa, sem apagar histórico nem produzir cobranças sobrepostas.
 
-Executar a suíte relevante antes do push.
+## 4. Emissão fiscal do SaaS
 
-Se estiver íntegro:
+Adicionar a configuração individual:
 
-- push da `main`;
-- atualizar o ponteiro do submódulo em `infra-abrasil`;
-- commit do ponteiro da infra;
-- push da infra.
+**"Emitir NFS-e para este cliente SaaS".**
 
-Não executar force push.
+Essa opção deve funcionar independentemente de o cliente utilizar contrato tradicional ou personalizado.
 
-## 4. Backup de produção
+Usar exclusivamente o emitente fiscal da ABrasil Sistemas, mantido no RootAdmin, e a integração Spedy já implementada.
 
-Antes de migrations ou recriação de containers:
+O tomador será a empresa contratante (tenant).
 
-- gerar backup completo do banco `vetoros`;
-- compactar;
-- validar integridade do arquivo;
-- registrar nome e data do backup;
-- não versionar o backup.
+Não utilizar o certificado nem as credenciais fiscais próprias do tenant para emitir a nota da assinatura do SaaS.
 
-## 5. Migration
+A opção fiscal só poderá ser efetivada quando o emitente da ABrasil estiver apto e os dados obrigatórios do tomador estiverem corretos.
 
-Revisar com:
+Respeitar competência, fato gerador e calendário fiscal aplicável. Não presumir que a emissão deve ocorrer apenas após o pagamento nem que todo vencimento exige automaticamente uma nova nota.
 
-`php artisan migrate:status`
+Reutilizar documentos fiscais existentes, reconciliação, status, idempotência e tratamento de rejeições.
 
-e:
+## 5. Comunicação ao cliente
 
-`php artisan migrate --pretend`
+Enviar automaticamente a fatura conforme a programação de cobrança.
 
-Aplicar somente após conferir as migrations pendentes.
+A fatura deverá conter:
 
-A migration do VETOR-FISCAL-01 deverá adicionar em `fiscal_settings`:
+- Nome da empresa contratante.
+- Identificação da ABrasil Sistemas.
+- Número ou referência do contrato.
+- Competência.
+- Valor contratado.
+- Vencimento.
+- Situação financeira.
+- Meio ou instruções de pagamento disponível.
 
-- `spedy_environment`;
-- `last_synced_at`.
+Quando a opção fiscal estiver habilitada e a NFS-e for autorizada:
 
-Confirmar que é aditiva e não destrói informações existentes.
-
-Depois executar:
-
-`php artisan migrate --force`
-
-## 6. Atualização dos serviços
-
-Rebuild/recriação somente dos serviços necessários do VetorOS:
-
-- `vetoros`;
-- `vetoros-worker`;
-- `vetoros-scheduler`.
-
-Depois validar nginx e health checks.
-
-Não alterar MySQL, Redis, WAHA, n8n ou outros sistemas sem necessidade.
-
-## 7. Configuração real da Spedy Sandbox
-
-No RootAdmin:
-
-### Fiscal → Integração
-
-Confirmar:
-
-- ambiente = Sandbox;
-- chave titular da conta Sandbox configurada;
-- diagnóstico funcionando;
-- webhook configurado;
-- URL HTTPS correta.
-
-Importante:
-
-Sandbox e Produção são contas/credenciais independentes.
-
-Nunca utilizar chave ou vínculo de produção como se fosse sandbox.
-
-## 8. Tenant de homologação
-
-Escolher uma empresa de teste controlada.
-
-No cadastro da empresa conferir:
-
-- CNPJ;
-- razão social;
-- nome fantasia;
-- CEP;
-- endereço;
-- número;
-- bairro;
-- município;
-- UF;
-- e-mail;
-- telefone.
-
-Em Emissão Fiscal conferir:
-
-- regime tributário;
-- inscrição estadual, quando aplicável;
-- inscrição municipal, quando aplicável;
-- demais dados necessários ao modelo que será homologado.
-
-## 9. RootAdmin → Fiscal → Empresas emissoras
-
-Para o tenant de teste:
-
-1. habilitar o fiscal;
-2. liberar inicialmente somente NFS-e, se esse for o primeiro modelo homologado;
-3. clicar **Cadastrar na Spedy**.
-
-Resultado esperado:
-
-- status `Cadastrada`;
-- ID Spedy presente;
-- indicação `(Sandbox)`;
-- data da última sincronização;
-- ausência de erro.
-
-Se ocorrer erro, NÃO contornar manualmente.
-
-Registrar:
-
-- `registration_status`;
-- `registration_error`;
-- `spedy_company_id`;
-- `spedy_environment`;
-- `last_synced_at`.
-
-Não exibir credenciais.
-
-## 10. Certificado A1
-
-Depois que a empresa estiver realmente cadastrada:
-
-entrar como administrador do tenant em:
-
-Sistema e módulos → Emissão fiscal.
-
-Confirmar que o campo de certificado foi liberado.
-
-Enviar certificado:
-
-- `.pfx` ou `.p12`;
-- certificado A1 válido;
-- senha correta.
-
-Resultado esperado:
-
-`Ativo — válido até ...`
-
-A senha não pode ser persistida nem aparecer em logs.
-
-## 11. Sincronização
-
-Voltar ao RootAdmin e executar:
-
-**Consultar cadastro e certificado**
-
-Esperado:
-
-- empresa encontrada;
-- certificado ativo;
-- validade coerente;
-- titular identificado quando retornado pela Spedy;
-- `last_synced_at` atualizado.
-
-## 12. Configuração da NFS-e
-
-No tenant configurar somente os campos realmente necessários para NFS-e, incluindo:
-
-- série;
-- item da LC 116;
-- ISS;
-- tipo de tributação;
-- município/código IBGE quando necessário;
-- confirmação dos dados fiscais/contábeis.
-
-Não pré-preencher artificialmente dados tributários.
-
-Salvar e confirmar que `/companies/{id}/settings` foi sincronizado com sucesso.
-
-## 13. Primeira emissão real de homologação
-
-Emitir uma NFS-e de teste com valor pequeno e cliente controlado.
-
-Registrar:
-
-- `integrationId`;
-- status inicial;
-- retorno Spedy;
-- número da nota, se autorizado;
-- código de verificação;
-- PDF;
-- XML;
-- webhook recebido;
-- eventual reconciliação por `fiscal:sync-spedy`.
-
-Não registrar chave API ou conteúdo sensível.
-
-Comprovar que uma segunda tentativa não gera duplicidade.
-
-## 14. Contrato de manutenção
-
-Depois da emissão manual estar homologada, testar o fluxo que já foi implementado:
-
-- contrato com NFS-e automática;
-- cobrança com vencimento do ciclo;
-- nota emitida pela competência, independentemente do pagamento;
-- autorização;
-- envio da fatura ao cliente;
-- links assinados PDF/XML;
-- pagamento posterior;
-- nenhuma segunda nota criada pelo pagamento.
-
-Executar também novamente o agendador para comprovar idempotência.
-
-## 15. Critério de aprovação
-
-Somente considerar o fiscal homologado quando estiver comprovado:
-
-- integração Sandbox válida;
-- empresa cadastrada automaticamente pelo VetorOS;
-- vínculo gravado no ambiente correto;
-- certificado A1 enviado pelo próprio tenant;
-- certificado confirmado pela Spedy;
-- configurações fiscais sincronizadas;
-- NFS-e emitida;
-- webhook/reconciliação funcionando;
-- PDF/XML disponíveis;
-- nenhuma emissão duplicada;
-- nenhum segredo exposto em tela/log;
-- isolamento entre tenants mantido.
-
-## 16. Não migrar para produção ainda
-
-Mesmo depois da homologação Sandbox, NÃO alterar o ambiente da plataforma para Produção nesta etapa.
-
-Produção deverá ser uma etapa própria, porque exige:
-
-- conta/chave de produção;
-- novo cadastro das empresas na conta de produção;
-- novos vínculos;
-- revisão de certificado;
-- aprovação explícita do RootAdmin;
-- emissão real controlada.
-
-## 17. Relatório
-
-Ao final, atualizar `executed.md` com:
-
-- commit publicado;
-- migration aplicada;
-- serviços atualizados;
-- situação do sandbox;
-- resultado do cadastro do emitente;
-- resultado do certificado;
-- resultado da emissão;
-- resultado do webhook;
-- resultado da reconciliação;
-- resultado do contrato automático;
-- testes executados;
-- erros encontrados;
-- pendências;
-- rollback disponível.
-
-Não registrar chaves, senhas, conteúdo do certificado nem outros segredos.
-
-Se surgir qualquer falha da Spedy durante a homologação, diagnosticar e corrigir a integração antes de avançar para produção.
+- Incluir links assinados e temporários para PDF e XML.
+- Se a nota ainda estiver processando, enviar primeiro a fatura e posteriormente a comunicação fiscal.
+- Nunca enviar link de nota inexistente ou ainda não autorizada.
+- Registrar tentativas, sucessos e falhas de entrega.
+- Permitir reenvio administrativo sem emitir nota duplicada.
+
+Quando a opção fiscal estiver desabilitada, enviar somente a fatura.
+
+Utilizar a infraestrutura SMTP central da plataforma, quando disponível. A ausência dessa infraestrutura não deve provocar implementação de outro sistema de e-mails.
+
+## 6. Interface administrativa
+
+No RootAdmin → Empresas → Editar:
+
+Criar seção "Condições comerciais e faturamento".
+
+Exibir:
+
+- Tipo de contratação: plano tradicional ou personalizado.
+- Checkbox de contrato personalizado.
+- Valor e periodicidade.
+- Início, vencimento e responsável comercial.
+- Situação da assinatura.
+- Próxima cobrança.
+- Emissão fiscal habilitada ou desabilitada.
+- Histórico resumido de cobranças.
+- Acesso às cobranças e às notas fiscais correspondentes.
+
+Impedir que o tenant altere preço, tipo de contratação, vencimento contratual ou autorização fiscal da assinatura do SaaS.
+
+## 7. Segurança e integridade
+
+- Alterações comerciais exclusivas do RootAdmin.
+- Validação de valores monetários decimais, positivos e dentro dos limites suportados.
+- Armazenamento financeiro em DECIMAL, nunca float.
+- Auditoria com usuário, horário, estado anterior e posterior.
+- Isolamento entre tenants.
+- Ausência de credenciais em logs e respostas públicas.
+- Compatibilidade com assinaturas e planos existentes.
+- Migration aditiva, com padrão de contrato tradicional.
+- Não recalcular retroativamente cobranças quitadas.
+
+## 8. Testes obrigatórios
+
+Cobrir ao menos:
+
+1. Contrato tradicional permanece inalterado.
+2. Contrato personalizado mensal.
+3. Contrato personalizado semestral.
+4. Contrato personalizado anual.
+5. Alteração de valor entre ciclos.
+6. Vencimento e inadimplência.
+7. Suspensão e reativação.
+8. Cobrança repetida não gera duplicidade.
+9. Pagamento integrado e manual, conforme canais existentes.
+10. Estorno preserva auditoria.
+11. Emissão fiscal desabilitada.
+12. Emissão fiscal habilitada.
+13. Emissão sem depender indevidamente do pagamento.
+14. Fatura enviada antes da autorização fiscal.
+15. PDF e XML disponibilizados após autorização.
+16. Reenvio não duplica nota.
+17. Falha da Spedy não elimina cobrança.
+18. Falha SMTP não elimina nota.
+19. Tenant não altera condições comerciais.
+20. Retorno ao plano tradicional sem duplicação.
+21. Isolamento completo entre tenants.
+
+## 9. Entrega
+
+Implementar localmente, executar testes, TypeScript, Pint, Prettier e build.
+
+Registrar no `executed.md`:
+
+- Arquitetura reaproveitada.
+- Arquivos modificados.
+- Migrations.
+- Regras comerciais e fiscais.
+- Resultados dos testes.
+- Pendências.
+- Plano de homologação.
+
+Preservar trabalhos de outras frentes, especialmente SMTP universal e integração Spedy.
+
+Não executar deploy, migrations em produção, force push ou alterações de credenciais sem instrução posterior.

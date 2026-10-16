@@ -1,5 +1,4 @@
-import { statusSaas } from '@/Utils/dataSelect';
-import { maskCep, maskCpfCnpj, maskPhone, unMask } from '@/Utils/mask';
+import TenantCommercialSection from '@/components/admin/tenant-commercial-section';
 import { toastSuccess } from '@/components/app-toast-messages';
 import { Icon } from '@/components/icon';
 import InputError from '@/components/input-error';
@@ -11,11 +10,13 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
+import { statusSaas } from '@/Utils/dataSelect';
+import { maskCep, maskCpfCnpj, maskPhone, unMask } from '@/Utils/mask';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building, Save } from 'lucide-react';
-import Select from 'react-select';
 import moment from 'moment';
+import Select from 'react-select';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -32,7 +33,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function EditTenant({ plans, tenant }: any) {
+export default function EditTenant({ plans, tenant, commercial }: any) {
     const allPlans = plans.map((plan: any) => ({
         value: plan.id,
         label: plan.name,
@@ -104,7 +105,12 @@ export default function EditTenant({ plans, tenant }: any) {
 
     const selectedPlan = allPlans.find((option: any) => String(option.value) === String(data.plan_id)) ?? null;
     const defaultStatusSaas = statusSaas?.filter((o: any) => o.value == tenant?.status).map((opt: any) => ({ value: opt.value, label: opt.label }));
-    const subscriptionStatusLabel = tenant.subscription_status === 'active' ? 'Ativa' : tenant.subscription_status === 'blocked' ? 'Bloqueada' : tenant.subscription_status ?? 'Nao definido';
+    const subscriptionStatusLabel =
+        tenant.subscription_status === 'active'
+            ? 'Ativa'
+            : tenant.subscription_status === 'blocked'
+              ? 'Bloqueada'
+              : (tenant.subscription_status ?? 'Nao definido');
     const expirationLabel = tenant.expires_at ? moment(tenant.expires_at).format('DD/MM/YYYY') : 'Sem vencimento definido';
     const daysRemainingLabel = tenant.status_label ?? 'Sem informacao';
     const renewalReferenceLabel = tenant.period?.name ?? tenant.plan?.name ?? 'Sem plano definido';
@@ -140,21 +146,21 @@ export default function EditTenant({ plans, tenant }: any) {
 
             <div className="p-4">
                 <div className="mb-4 grid gap-4 md:grid-cols-4">
-                    <div className="rounded-lg border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Plano atual</p>
+                    <div className="bg-card rounded-lg border p-4">
+                        <p className="text-muted-foreground text-sm">Plano atual</p>
                         <p className="mt-2 text-lg font-semibold">{tenant.plan?.name ?? 'Sem plano definido'}</p>
                     </div>
-                    <div className="rounded-lg border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Periodo atual</p>
+                    <div className="bg-card rounded-lg border p-4">
+                        <p className="text-muted-foreground text-sm">Periodo atual</p>
                         <p className="mt-2 text-lg font-semibold">{currentPlanPeriodLabel}</p>
                     </div>
-                    <div className="rounded-lg border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Vence em</p>
+                    <div className="bg-card rounded-lg border p-4">
+                        <p className="text-muted-foreground text-sm">Vence em</p>
                         <p className="mt-2 text-lg font-semibold">{expirationLabel}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">{daysRemainingLabel}</p>
+                        <p className="text-muted-foreground mt-1 text-sm">{daysRemainingLabel}</p>
                     </div>
-                    <div className="rounded-lg border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Assinatura</p>
+                    <div className="bg-card rounded-lg border p-4">
+                        <p className="text-muted-foreground text-sm">Assinatura</p>
                         <div className="mt-2 flex items-center gap-2">
                             <Badge variant="outline" className={subscriptionBadgeClassName}>
                                 {subscriptionStatusLabel}
@@ -164,15 +170,21 @@ export default function EditTenant({ plans, tenant }: any) {
                     </div>
                 </div>
 
-                <div className="mb-4 rounded-lg border bg-card p-4">
+                <TenantCommercialSection tenantId={tenant.id} commercial={commercial} plans={plans} />
+
+                <div className="bg-card mb-4 rounded-lg border p-4">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <p className="text-sm text-muted-foreground">Prévias de comunicação</p>
-                            <p className="mt-1 text-sm text-muted-foreground">Abra os modelos automáticos de assinatura sem enviar e-mail real.</p>
+                            <p className="text-muted-foreground text-sm">Prévias de comunicação</p>
+                            <p className="text-muted-foreground mt-1 text-sm">Abra os modelos automáticos de assinatura sem enviar e-mail real.</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" asChild>
-                                <a href={route('admin.tenants.subscription-email-preview', [tenant.id, 'expires_in_3_days'])} target="_blank" rel="noreferrer">
+                                <a
+                                    href={route('admin.tenants.subscription-email-preview', [tenant.id, 'expires_in_3_days'])}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
                                     Vence em 3 dias
                                 </a>
                             </Button>
@@ -180,7 +192,11 @@ export default function EditTenant({ plans, tenant }: any) {
                                 Enviar 3 dias
                             </Button>
                             <Button variant="outline" asChild>
-                                <a href={route('admin.tenants.subscription-email-preview', [tenant.id, 'expires_tomorrow'])} target="_blank" rel="noreferrer">
+                                <a
+                                    href={route('admin.tenants.subscription-email-preview', [tenant.id, 'expires_tomorrow'])}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
                                     Vence amanhã
                                 </a>
                             </Button>
@@ -188,7 +204,11 @@ export default function EditTenant({ plans, tenant }: any) {
                                 Enviar amanhã
                             </Button>
                             <Button variant="outline" asChild>
-                                <a href={route('admin.tenants.subscription-email-preview', [tenant.id, 'expires_today'])} target="_blank" rel="noreferrer">
+                                <a
+                                    href={route('admin.tenants.subscription-email-preview', [tenant.id, 'expires_today'])}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
                                     Vence hoje
                                 </a>
                             </Button>

@@ -2,7 +2,7 @@
 
 namespace App\Mail;
 
-use App\Support\TenantMailConfig;
+use App\Mail\Concerns\AppliesSystemMailConfig;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -13,7 +13,7 @@ use Illuminate\Queue\SerializesModels;
 
 class UserRegisteredMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use AppliesSystemMailConfig, Queueable, SerializesModels;
 
     public User $user;
 
@@ -30,8 +30,6 @@ class UserRegisteredMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        TenantMailConfig::applySystemDefault();
-
         return new Envelope(
             subject: 'Bem-vindo ao VetorOS'
         );

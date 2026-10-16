@@ -31,8 +31,6 @@ class OrderBudgetFollowUpMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $this->applyTenantMailConfig($this->tenantId);
-
         return new Envelope(
             subject: 'Lembrete de orçamento da ordem #'.$this->order->order_number,
         );

@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesSystemMailConfig;
 use App\Models\Tenant;
-use App\Support\TenantMailConfig;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 class SubscriptionStatusMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use AppliesSystemMailConfig, Queueable, SerializesModels;
 
     public function __construct(
         public Tenant $tenant,
@@ -21,8 +21,6 @@ class SubscriptionStatusMail extends Mailable
 
     public function envelope(): Envelope
     {
-        TenantMailConfig::applySystemDefault();
-
         return new Envelope(
             subject: (string) ($this->notice['subject'] ?? 'Atualização da sua assinatura'),
         );

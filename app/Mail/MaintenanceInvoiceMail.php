@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\AppliesTenantMailConfig;
 use App\Mail\Concerns\ResolvesTenantBranding;
 use App\Models\App\AccountReceivable;
 use App\Models\App\Customer;
@@ -17,11 +18,13 @@ use Illuminate\Support\Carbon;
 /**
  * Fatura de manutenção com a NFS-e autorizada (VETOR-FISCAL-05.3). Os documentos vão por links
  * assinados e temporários (FiscalDocumentLinks), não como anexo nem por caminho de armazenamento.
- * O SMTP do tenant é aplicado por quem envia, antes de Mail::to() (FiscalDocumentDeliveryService).
+ * O transporte isolado do tenant é escolhido no momento do envio.
  */
 class MaintenanceInvoiceMail extends Mailable
 {
-    use Queueable, ResolvesTenantBranding, SerializesModels;
+    use AppliesTenantMailConfig, Queueable, ResolvesTenantBranding, SerializesModels;
+
+    public ?int $tenantId;
 
     public const PAYMENT_LABELS = [
         AccountReceivable::STATUS_PENDING => 'Em aberto',
@@ -39,6 +42,7 @@ class MaintenanceInvoiceMail extends Mailable
         public string $xmlUrl,
         public Carbon $linksExpireAt,
     ) {
+        $this->tenantId = (int) $document->tenant_id;
         $this->resolveTenantBranding((int) $document->tenant_id);
     }
 

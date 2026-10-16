@@ -57,6 +57,11 @@ return [
         'days' => (int) env('FISCAL_SHARED_LINK_DAYS', 30),
     ],
 
+    // Fatura do contrato SaaS personalizado: texto opcional com o meio de pagamento combinado.
+    'saas_billing' => [
+        'payment_instructions' => env('SAAS_BILLING_PAYMENT_INSTRUCTIONS'),
+    ],
+
     'spedy' => [
         'environment' => env('SPEDY_ENVIRONMENT', 'sandbox'),
         'base_urls' => [

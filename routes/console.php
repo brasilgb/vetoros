@@ -26,6 +26,11 @@ Schedule::command('vetoros:process-maintenance-contracts')
     ->timezone('America/Sao_Paulo')
     ->withoutOverlapping();
 
+Schedule::command('vetoros:process-saas-contracts')
+    ->dailyAt('07:00')
+    ->timezone('America/Sao_Paulo')
+    ->withoutOverlapping();
+
 Schedule::command('vetoros:send-tenant-feedback-requests')
     ->dailyAt('11:00')
     ->withoutOverlapping();

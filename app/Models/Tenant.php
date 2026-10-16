@@ -6,6 +6,8 @@ use App\Models\Admin\AdminFiscalDocument;
 use App\Models\Admin\Branch;
 use App\Models\Admin\Period;
 use App\Models\Admin\Plan;
+use App\Models\Admin\TenantCommercialContract;
+use App\Models\Admin\TenantSubscriptionCharge;
 use App\Models\App\Customer;
 use App\Models\App\Order;
 use App\Observers\CompanyIdentityObserver;
@@ -28,12 +30,18 @@ class Tenant extends Model
 
     public const SUBSCRIPTION_BLOCKED = 'blocked';
 
+    public const BILLING_PLAN = 'plan';
+
+    public const BILLING_CUSTOM = 'custom';
+
     protected $guarded = ['_method'];
 
     protected $casts = [
         'expires_at' => 'datetime',
         'last_subscription_notice_sent_at' => 'datetime',
         'automatic_fiscal_emission_enabled' => 'boolean',
+        'saas_invoice_enabled' => 'boolean',
+        'saas_invoice_enabled_at' => 'datetime',
     ];
 
     public function plan(): BelongsTo
@@ -44,6 +52,22 @@ class Tenant extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(Period::class, 'period_id');
+    }
+
+    public function commercialContract(): HasOne
+    {
+        return $this->hasOne(TenantCommercialContract::class);
+    }
+
+    public function subscriptionCharges(): HasMany
+    {
+        return $this->hasMany(TenantSubscriptionCharge::class);
+    }
+
+    /** Contrato personalizado ativo: preço e periodicidade dos planos deixam de valer. */
+    public function hasCustomContract(): bool
+    {
+        return $this->billing_mode === self::BILLING_CUSTOM;
     }
 
     public function branches(): HasMany

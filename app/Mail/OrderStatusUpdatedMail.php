@@ -34,8 +34,6 @@ class OrderStatusUpdatedMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $this->applyTenantMailConfig($this->tenantId);
-
         return new Envelope(
             subject: 'Atualização da sua ordem #'.$this->order->order_number,
         );

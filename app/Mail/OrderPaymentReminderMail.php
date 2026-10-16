@@ -34,8 +34,6 @@ class OrderPaymentReminderMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $this->applyTenantMailConfig($this->tenantId);
-
         return new Envelope(
             subject: $this->isOverdue
                 ? 'Cobrança pendente da ordem #'.$this->order->order_number

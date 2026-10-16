@@ -3,20 +3,25 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\EmitSaasPaymentInvoice;
 use App\Models\Admin\Plan;
+use App\Models\Admin\TenantSubscriptionCharge;
 use App\Models\App\Payment;
 use App\Models\Tenant;
+use App\Services\Commercial\SaasContractService;
 use App\Services\MercadoPagoService;
 use App\Services\SubscriptionInvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class WebhookController extends Controller
 {
     public function __construct(
         private readonly MercadoPagoService $mercadoPagoService,
-        private readonly SubscriptionInvoiceService $subscriptionInvoiceService
+        private readonly SubscriptionInvoiceService $subscriptionInvoiceService,
+        private readonly SaasContractService $saasContracts,
     ) {}
 
     public function handle(Request $request, $token)
@@ -45,6 +50,11 @@ class WebhookController extends Controller
         try {
             $payment = $this->mercadoPagoService->getPayment($paymentId);
             $this->syncPaymentRecord($payment);
+
+            $metadata = $this->parseExternalReference($payment->external_reference ?? null);
+            if (! empty($metadata['charge_id'])) {
+                return $this->processContractCharge($payment, $metadata);
+            }
 
             if ($payment->status === 'approved') {
                 return $this->processApproval($payment);
@@ -90,6 +100,16 @@ class WebhookController extends Controller
                 return null;
             }
 
+            // PIX de plano gerado antes da conversão para contrato: não renova por plano (evita ciclo sobreposto).
+            if ($tenant->hasCustomContract()) {
+                Log::warning('PIX de plano aprovado para tenant com contrato personalizado; renovação por plano ignorada.', [
+                    'payment_id' => (string) $payment->id,
+                    'tenant_id' => $tenant->id,
+                ]);
+
+                return ['tenant_id' => $tenant->id, 'payment_id' => (string) $payment->id, 'skipped' => true];
+            }
+
             if ((string) $tenant->last_payment_id === (string) $payment->id) {
                 return [
                     'tenant_id' => $tenant->id,
@@ -129,14 +149,59 @@ class WebhookController extends Controller
             return response()->json(['error' => 'Tenant not found'], 404);
         }
 
+        if (! empty($result['skipped'])) {
+            return response()->json(['status' => 'ignored_custom_contract']);
+        }
+
         $tenant = Tenant::query()->find($result['tenant_id']);
         $paymentRecord = Payment::query()->where('payment_id', $result['payment_id'])->first();
 
         if ($tenant && $paymentRecord) {
+            // NFS-e automática do plano tradicional ("Emitir NFS-e para este cliente SaaS"): o fato faturado é o pagamento.
+            if ($tenant->saas_invoice_enabled) {
+                EmitSaasPaymentInvoice::dispatch($paymentRecord->id);
+            }
+
             $this->subscriptionInvoiceService->sendPaidInvoice($paymentRecord, $tenant, $plan);
         }
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * PIX de cobrança do contrato personalizado: aprovado quita a cobrança; estornado/contestado
+     * estorna. Webhook repetido é no-op (registerPayment e refund são idempotentes).
+     */
+    private function processContractCharge($payment, array $metadata)
+    {
+        $charge = TenantSubscriptionCharge::query()->find($metadata['charge_id']);
+        $record = Payment::query()->where('payment_id', (string) $payment->id)->first();
+
+        if (! $charge || ! $record || (int) $charge->tenant_id !== (int) ($metadata['tenant_id'] ?? 0)) {
+            Log::error('Pagamento de contrato sem cobrança válida.', ['payment_id' => (string) $payment->id]);
+
+            return response()->json(['error' => 'Invalid metadata'], 422);
+        }
+
+        try {
+            if ($payment->status === 'approved') {
+                $this->saasContracts->registerPayment($charge, (string) ($payment->transaction_amount ?? 0), 'pix', $record);
+
+                return response()->json(['status' => 'success']);
+            }
+
+            if (in_array($payment->status, ['refunded', 'charged_back'], true) && (int) $charge->payment_id === (int) $record->id) {
+                $this->saasContracts->refund($charge, 'Estorno informado pelo Mercado Pago ('.$payment->status.').');
+
+                return response()->json(['status' => 'refunded']);
+            }
+        } catch (ValidationException $exception) {
+            Log::warning('Pagamento de contrato não aplicado.', ['payment_id' => (string) $payment->id, 'charge_id' => $charge->id, 'errors' => $exception->errors()]);
+
+            return response()->json(['status' => 'not_applied']);
+        }
+
+        return response()->json(['status' => 'processed_not_approved']);
     }
 
     private function syncPaymentRecord($payment): void

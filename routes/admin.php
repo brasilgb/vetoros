@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\PeriodController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\TenantCommercialController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\TenantFeedbackController;
 use App\Http\Controllers\Admin\TenantImprovementRequestController;
@@ -23,6 +24,15 @@ Route::get('/tenants/{tenant}/subscription-invoice-email-preview', [TenantContro
     ->name('tenants.subscription-invoice-email-preview');
 Route::post('/tenants/{tenant}/subscription-email-send/{scenario}', [TenantController::class, 'sendSubscriptionEmail'])
     ->name('tenants.subscription-email-send');
+// Condições comerciais e faturamento do SaaS (VETOR-SAAS-CONTRATO-01).
+Route::put('/tenants/{tenant}/commercial', [TenantCommercialController::class, 'update'])->name('tenants.commercial.update');
+Route::post('/tenants/{tenant}/commercial/revert', [TenantCommercialController::class, 'revert'])->name('tenants.commercial.revert');
+Route::post('/tenants/{tenant}/charges/{charge}/pay', [TenantCommercialController::class, 'pay'])->name('tenants.charges.pay');
+Route::post('/tenants/{tenant}/charges/{charge}/refund', [TenantCommercialController::class, 'refund'])->name('tenants.charges.refund');
+Route::post('/tenants/{tenant}/charges/{charge}/adjust', [TenantCommercialController::class, 'adjust'])->name('tenants.charges.adjust');
+Route::post('/tenants/{tenant}/charges/{charge}/emit', [TenantCommercialController::class, 'emit'])->name('tenants.charges.emit');
+Route::post('/tenants/{tenant}/charges/{charge}/resend-invoice', [TenantCommercialController::class, 'resendInvoice'])->middleware('throttle:10,1')->name('tenants.charges.resend-invoice');
+Route::post('/tenants/{tenant}/charges/{charge}/resend-fiscal', [TenantCommercialController::class, 'resendFiscal'])->middleware('throttle:10,1')->name('tenants.charges.resend-fiscal');
 Route::get('/tenant-feedbacks', [TenantFeedbackController::class, 'index'])->name('tenant-feedbacks.index');
 Route::patch('/tenant-feedbacks/{tenantFeedback}', [TenantFeedbackController::class, 'update'])->name('tenant-feedbacks.update');
 Route::get('/tenant-improvement-requests', [TenantImprovementRequestController::class, 'index'])->name('tenant-improvement-requests.index');

@@ -3,88 +3,88 @@
 namespace App\Support;
 
 use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Mail\Mailer;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class TenantMailConfig
 {
-    public static function applySystemDefault(): void
+    /** Build a fresh institutional transport without changing the default mailer. */
+    public static function systemMailer(): Mailer
     {
         $system = config('mail.system', []);
+        $driver = $system['mailer'] ?? 'smtp';
+        $config = config('mail.mailers.'.$driver, []);
+        if ($driver === 'smtp') {
+            $config = array_merge($config, [
+                'transport' => 'smtp',
+                'host' => $system['host'] ?? null,
+                'port' => (int) ($system['port'] ?? 587),
+                'scheme' => $system['scheme'] ?? ((int) ($system['port'] ?? 587) === 465 ? 'smtps' : 'smtp'),
+                'url' => $system['url'] ?? null,
+                'username' => $system['username'] ?? null,
+                'password' => $system['password'] ?? null,
+            ]);
+        }
 
-        Config::set('mail.default', $system['mailer'] ?? 'smtp');
-        Config::set('mail.mailers.smtp.transport', 'smtp');
-        Config::set('mail.mailers.smtp.host', $system['host'] ?? null);
-        Config::set('mail.mailers.smtp.port', (int) ($system['port'] ?? 587));
-        Config::set('mail.mailers.smtp.encryption', $system['encryption'] ?? 'tls');
-        Config::set('mail.mailers.smtp.scheme', $system['scheme'] ?? ((int) ($system['port'] ?? 587) === 465 ? 'smtps' : 'smtp'));
-        Config::set('mail.mailers.smtp.url', $system['url'] ?? null);
-        Config::set('mail.mailers.smtp.username', $system['username'] ?? null);
-        Config::set('mail.mailers.smtp.password', $system['password'] ?? null);
-        Config::set('mail.from.address', $system['from_address'] ?? config('mail.from.address'));
-        Config::set('mail.from.name', $system['from_name'] ?? config('app.name'));
-        app('mail.manager')->purge();
+        $mailer = app('mail.manager')->build($config);
+        $mailer->alwaysFrom($system['from_address'] ?? config('mail.from.address'), $system['from_name'] ?? config('mail.from.name'));
+
+        return $mailer;
     }
 
     public static function hasConfiguredForTenantId(?int $tenantId): bool
     {
         if (! $tenantId || ! self::othersTableExists()) {
-            return self::hasSystemDefaultConfigured();
+            return false;
         }
 
         $mailConfig = self::tenantRow($tenantId);
 
-        if (! $mailConfig) {
-            return false;
-        }
-
-        return ! empty($mailConfig->mail_host)
+        return $mailConfig
+            && ! empty($mailConfig->mail_host)
             && ! empty($mailConfig->mail_port)
             && ! empty($mailConfig->mail_username)
             && ! empty($mailConfig->mail_password);
     }
 
-    public static function applyForTenantId(?int $tenantId): void
+    /** Tenant credentials never enter global config or the MailManager cache. */
+    public static function tenantMailer(?int $tenantId): Mailer
     {
-        if (! $tenantId || ! self::othersTableExists()) {
-            self::applySystemDefault();
-
-            return;
+        if (! self::hasConfiguredForTenantId($tenantId)) {
+            throw new \RuntimeException('SMTP do tenant não configurado.');
         }
 
         $mailConfig = self::tenantRow($tenantId);
-
-        if (! $mailConfig || empty($mailConfig->mail_host) || empty($mailConfig->mail_username)) {
-            Config::set('mail.default', 'log');
-            app('mail.manager')->purge();
-
-            return;
+        try {
+            $password = Crypt::decryptString($mailConfig->mail_password);
+        } catch (DecryptException) {
+            throw new \RuntimeException('Credenciais SMTP do tenant indisponíveis.');
+        }
+        if ($password === '') {
+            throw new \RuntimeException('SMTP do tenant não configurado.');
         }
 
-        $password = null;
-        if (! empty($mailConfig->mail_password)) {
-            try {
-                $password = Crypt::decryptString($mailConfig->mail_password);
-            } catch (DecryptException) {
-                $password = null;
-            }
+        // A missing sender may use the tenant's own SMTP login, never MAIL_FROM_*.
+        $from = $mailConfig->mail_from_address ?: $mailConfig->mail_username;
+        if (! filter_var($from, FILTER_VALIDATE_EMAIL)) {
+            throw new \RuntimeException('Remetente SMTP do tenant não configurado.');
         }
 
-        Config::set('mail.default', $mailConfig->mail_mailer ?: 'smtp');
-        Config::set('mail.mailers.smtp.transport', 'smtp');
-        Config::set('mail.mailers.smtp.host', $mailConfig->mail_host);
-        Config::set('mail.mailers.smtp.port', (int) ($mailConfig->mail_port ?: 587));
-        Config::set('mail.mailers.smtp.encryption', $mailConfig->mail_encryption ?: 'tls');
-        // O tenant não herda smtps/MAIL_URL do SMTP corporativo.
-        Config::set('mail.mailers.smtp.scheme', ($mailConfig->mail_encryption === 'ssl' || (int) $mailConfig->mail_port === 465) ? 'smtps' : 'smtp');
-        Config::set('mail.mailers.smtp.url', null);
-        Config::set('mail.mailers.smtp.username', $mailConfig->mail_username);
-        Config::set('mail.mailers.smtp.password', $password);
-        Config::set('mail.from.address', $mailConfig->mail_from_address ?: config('mail.from.address'));
-        Config::set('mail.from.name', $mailConfig->mail_from_name ?: config('app.name'));
-        app('mail.manager')->purge();
+        $mailer = app('mail.manager')->build([
+            'transport' => 'smtp',
+            'host' => $mailConfig->mail_host,
+            'port' => (int) $mailConfig->mail_port,
+            'scheme' => ($mailConfig->mail_encryption === 'ssl' || (int) $mailConfig->mail_port === 465) ? 'smtps' : 'smtp',
+            'username' => $mailConfig->mail_username,
+            'password' => $password,
+            'timeout' => config('mail.mailers.smtp.timeout'),
+            'local_domain' => config('mail.mailers.smtp.local_domain'),
+        ]);
+        $mailer->alwaysFrom($from, $mailConfig->mail_from_name ?: config('app.name'));
+
+        return $mailer;
     }
 
     /** Esquece a configuração lida nesta requisição (chamado quando `others` é gravado). */
@@ -118,10 +118,5 @@ class TenantMailConfig
     private static function othersTableExists(): bool
     {
         return RequestCache::remember('tenant-mail:schema', fn () => Schema::hasTable('others'));
-    }
-
-    private static function hasSystemDefaultConfigured(): bool
-    {
-        return ! empty(config('mail.system.host')) && ! empty(config('mail.system.port'));
     }
 }

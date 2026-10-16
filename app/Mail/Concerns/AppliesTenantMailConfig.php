@@ -6,8 +6,8 @@ use App\Support\TenantMailConfig;
 
 trait AppliesTenantMailConfig
 {
-    protected function applyTenantMailConfig(?int $tenantId): void
+    public function send($mailer)
     {
-        TenantMailConfig::applyForTenantId($tenantId);
+        return parent::send(TenantMailConfig::tenantMailer($this->tenantId));
     }
 }

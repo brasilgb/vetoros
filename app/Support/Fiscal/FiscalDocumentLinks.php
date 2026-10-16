@@ -2,6 +2,7 @@
 
 namespace App\Support\Fiscal;
 
+use App\Models\Admin\AdminFiscalDocument;
 use App\Models\App\FiscalDocument;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
@@ -26,6 +27,18 @@ final class FiscalDocumentLinks
         return [
             'pdf' => URL::temporarySignedRoute('fiscal-documents.shared', $expiresAt, ['document' => $document->id, 'format' => 'pdf']),
             'xml' => URL::temporarySignedRoute('fiscal-documents.shared', $expiresAt, ['document' => $document->id, 'format' => 'xml']),
+            'expires_at' => $expiresAt,
+        ];
+    }
+
+    /** Mesmos links para a NFS-e do SaaS (emitente ABrasil Sistemas → cliente contratante). */
+    public static function forSaas(AdminFiscalDocument $document): array
+    {
+        $expiresAt = self::expiresAt();
+
+        return [
+            'pdf' => URL::temporarySignedRoute('saas-fiscal-documents.shared', $expiresAt, ['document' => $document->id, 'format' => 'pdf']),
+            'xml' => URL::temporarySignedRoute('saas-fiscal-documents.shared', $expiresAt, ['document' => $document->id, 'format' => 'xml']),
             'expires_at' => $expiresAt,
         ];
     }
