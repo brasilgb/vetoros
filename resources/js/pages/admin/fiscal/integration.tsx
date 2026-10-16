@@ -124,27 +124,33 @@ export default function FiscalIntegration({ integration, audits }: { integration
                                 <InputError message={errors.environment} />
                             </div>
                             {data.environment !== integration.environment && integration.registered_companies.length > 0 && (
-                                <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                                    <Checkbox
-                                        id="confirm_environment_change"
-                                        checked={data.confirm_environment_change}
-                                        onCheckedChange={(checked) => setData('confirm_environment_change', checked === true)}
-                                    />
-                                    <Label htmlFor="confirm_environment_change" className="block space-y-1 font-normal">
-                                        <span className="block">
-                                            Entendo que estes cadastros do ambiente atual serão descartados e precisarão ser refeitos:
-                                        </span>
-                                        <ul className="list-disc pl-5">
+                                <div className="rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-100">
+                                    <Label
+                                        htmlFor="confirm_environment_change"
+                                        className="flex cursor-pointer items-start gap-3 leading-snug font-normal"
+                                    >
+                                        <Checkbox
+                                            id="confirm_environment_change"
+                                            className="mt-0.5 size-5 border-amber-800 hover:border-amber-950 dark:border-amber-300 dark:hover:border-amber-100"
+                                            checked={data.confirm_environment_change}
+                                            onCheckedChange={(checked) => setData('confirm_environment_change', checked === true)}
+                                            aria-invalid={errors.confirm_environment_change ? true : undefined}
+                                            aria-describedby={errors.confirm_environment_change ? 'confirm_environment_change_error' : undefined}
+                                        />
+                                        <span className="space-y-1">
+                                            <span className="block font-medium">
+                                                Entendo que estes cadastros do ambiente atual serão descartados e precisarão ser refeitos:
+                                            </span>
                                             {integration.registered_companies.map((company, index) => (
-                                                <li key={index}>
-                                                    <strong>{company.name}</strong> — {company.location}
-                                                </li>
+                                                <span key={index} className="block pl-1">
+                                                    • <strong>{company.name}</strong> — {company.location}
+                                                </span>
                                             ))}
-                                        </ul>
+                                        </span>
                                     </Label>
                                 </div>
                             )}
-                            <InputError message={errors.confirm_environment_change} />
+                            <InputError id="confirm_environment_change_error" message={errors.confirm_environment_change} />
                             <div className="grid gap-2">
                                 <Label htmlFor="owner_api_key">Nova chave da empresa titular</Label>
                                 <Input
