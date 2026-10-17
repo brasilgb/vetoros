@@ -9,7 +9,9 @@ use App\Models\App\FiscalSetting;
 use App\Models\App\MaintenanceContract;
 use App\Models\App\Order;
 use App\Models\App\OrderItem;
+use App\Models\App\Part;
 use App\Models\App\Sale;
+use App\Models\App\StandaloneInvoice;
 use App\Models\Tenant;
 use App\Services\Fiscal\FiscalValidationException;
 use App\Services\OrderTotalsService;
@@ -161,11 +163,86 @@ class SpedyPayloadBuilder
     public function productInvoice(Sale $sale, Company $company, FiscalSetting $setting, string $integrationId): array
     {
         $sale->loadMissing(['items.part', 'customer']);
-        $customer = $sale->customer;
+
+        return $this->productPayload(
+            $sale->customer,
+            $sale->items,
+            (float) $sale->total_amount,
+            $sale->payment_method,
+            $company,
+            $setting,
+            $integrationId,
+            'A NF-e exige um cliente identificado na venda. Para consumidor final no balcão, emita NFC-e.',
+            'A venda não possui itens.',
+        );
+    }
+
+    public function consumerInvoice(Sale $sale, FiscalSetting $setting, string $integrationId): array
+    {
+        $sale->loadMissing(['items.part', 'customer']);
+
+        return $this->consumerPayload($sale->customer, $sale->items, (float) $sale->total_amount, $sale->payment_method, $setting, $integrationId, 'A venda não possui itens.');
+    }
+
+    /**
+     * Nota avulsa (VETOR-FISCAL-AVULSA-01): mesma validação e mesmos DTOs das notas de venda e de
+     * OS, a partir dos dados da própria solicitação. Produtos vêm do cadastro de peças (NCM/CFOP
+     * de cada peça); a NFS-e usa a tributação guardada na solicitação, que parte das configurações
+     * fiscais do tenant. Nada é presumido: faltando dado, a emissão é bloqueada com a lista.
+     */
+    public function standaloneInvoice(StandaloneInvoice $invoice, Company $company, FiscalSetting $setting, string $integrationId): array
+    {
+        $customer = $invoice->customer_id
+            ? Customer::query()->withoutGlobalScopes()->where('tenant_id', $invoice->tenant_id)->find($invoice->customer_id)
+            : null;
+
+        if ($invoice->type === SpedyClient::MODEL_NFSE) {
+            return $this->standaloneServicePayload($invoice, $customer, $setting, $integrationId);
+        }
+
+        $problems = [];
+        $parts = Part::query()->withoutGlobalScopes()
+            ->where('tenant_id', $invoice->tenant_id)
+            ->whereIn('id', collect($invoice->items ?? [])->pluck('part_id')->filter()->all())
+            ->get()
+            ->keyBy('id');
+
+        $items = collect($invoice->items ?? [])->values()->map(function (array $item, int $index) use ($parts, &$problems) {
+            $part = $parts->get((int) ($item['part_id'] ?? 0));
+
+            if (! $part) {
+                $problems[] = sprintf('O produto da linha %d não foi encontrado no cadastro de peças.', $index + 1);
+            }
+
+            return (object) [
+                'id' => $index + 1,
+                'part' => $part,
+                'quantity' => (float) ($item['quantity'] ?? 0),
+                'unit_price' => round((float) ($item['unit_price'] ?? 0), 2),
+            ];
+        });
+
+        foreach ($items as $index => $item) {
+            if ($item->quantity <= 0 || $item->unit_price <= 0) {
+                $problems[] = sprintf('Informe quantidade e valor unitário maiores que zero na linha %d.', $index + 1);
+            }
+        }
+
+        $this->guard($problems);
+
+        $total = round((float) $items->sum(fn ($item) => round($item->quantity * $item->unit_price, 2)), 2);
+
+        return $invoice->type === SpedyClient::MODEL_NFE
+            ? $this->productPayload($customer, $items, $total, $invoice->payment_method, $company, $setting, $integrationId, 'A NF-e exige um cliente identificado. Para consumidor final no balcão, emita NFC-e.', 'Adicione ao menos um produto à nota.')
+            : $this->consumerPayload($customer, $items, $total, $invoice->payment_method, $setting, $integrationId, 'Adicione ao menos um produto à nota.');
+    }
+
+    private function productPayload(?Customer $customer, $saleItems, float $total, ?string $paymentMethod, Company $company, FiscalSetting $setting, string $integrationId, string $missingCustomer, string $emptyItems): array
+    {
         $problems = [];
 
         if (! $customer) {
-            $problems[] = 'A NF-e exige um cliente identificado na venda. Para consumidor final no balcão, emita NFC-e.';
+            $problems[] = $missingCustomer;
         } else {
             $document = $this->digits($customer->cpfcnpj);
             if (! in_array(strlen($document), [11, 14], true)) {
@@ -184,7 +261,7 @@ class SpedyPayloadBuilder
         $interstate = $customer && filled($customer->state) && filled($company->state)
             && Str::upper(trim($customer->state)) !== Str::upper(trim($company->state));
 
-        $items = $this->saleItems($sale, $setting, $problems, $interstate);
+        $items = $this->productItems($saleItems, $total, $setting, $problems, $interstate, $emptyItems);
         $this->guard($problems);
 
         $isCompany = strlen($this->digits($customer->cpfcnpj)) === 14;
@@ -199,16 +276,15 @@ class SpedyPayloadBuilder
             'isFinalCustomer' => ! $isCompany,
             'sendEmailToCustomer' => filled($customer->email),
             'receiver' => $this->receiver($customer, withAddress: true),
-            'payments' => $this->payments($sale),
+            'payments' => $this->payments($paymentMethod, $total),
             'items' => $items,
         ];
     }
 
-    public function consumerInvoice(Sale $sale, FiscalSetting $setting, string $integrationId): array
+    private function consumerPayload(?Customer $customer, $saleItems, float $total, ?string $paymentMethod, FiscalSetting $setting, string $integrationId, string $emptyItems): array
     {
-        $sale->loadMissing(['items.part', 'customer']);
         $problems = [];
-        $items = $this->saleItems($sale, $setting, $problems, false);
+        $items = $this->productItems($saleItems, $total, $setting, $problems, false, $emptyItems);
         $this->guard($problems);
 
         $payload = [
@@ -216,12 +292,11 @@ class SpedyPayloadBuilder
             'operationNature' => 'Venda de mercadoria',
             'presenceType' => 'presence',
             'isFinalCustomer' => true,
-            'payments' => $this->payments($sale),
+            'payments' => $this->payments($paymentMethod, $total),
             'items' => $items,
         ];
 
         // Consumidor identificado só quando há CPF/CNPJ válido; senão, NFC-e sem destinatário.
-        $customer = $sale->customer;
         if ($customer && in_array(strlen($this->digits($customer->cpfcnpj)), [11, 14], true)) {
             $payload['receiver'] = array_filter([
                 'name' => $customer->name,
@@ -368,6 +443,60 @@ class SpedyPayloadBuilder
         return $payload;
     }
 
+    private function standaloneServicePayload(StandaloneInvoice $invoice, ?Customer $customer, FiscalSetting $setting, string $integrationId): array
+    {
+        $tax = (array) ($invoice->tax_data ?? []);
+        $serviceCode = trim((string) ($tax['service_list_item'] ?? $setting->service_list_item));
+        $issRate = $tax['iss_rate'] ?? $setting->default_iss_rate;
+        $amount = round((float) $invoice->total_amount, 2);
+        $description = trim((string) $invoice->description);
+        $problems = [];
+
+        if ($amount <= 0) {
+            $problems[] = 'Informe o valor do serviço.';
+        }
+        if (! $customer) {
+            $problems[] = 'A NFS-e precisa de um cliente (tomador).';
+        } elseif (! in_array(strlen($this->digits($customer->cpfcnpj)), [11, 14], true)) {
+            $problems[] = 'Informe o CPF ou CNPJ do cliente (tomador).';
+        }
+        if ($description === '') {
+            $problems[] = 'Descreva o serviço prestado.';
+        }
+        if ($serviceCode === '') {
+            $problems[] = 'Informe o item da lista de serviços (LC 116) nas configurações fiscais.';
+        }
+        if ($issRate === null || $issRate === '') {
+            $problems[] = 'Informe a alíquota de ISS nas configurações fiscais.';
+        } elseif ((float) $issRate < 0 || (float) $issRate > 5) {
+            $problems[] = 'A alíquota de ISS deve ficar entre 0% e 5% (LC 116, art. 8º).';
+        }
+        if (blank($setting->nfse_taxation_type)) {
+            $problems[] = 'Informe o tipo de tributação da NFS-e nas configurações fiscais.';
+        }
+
+        $this->guard($problems);
+
+        $payload = [
+            'integrationId' => $integrationId,
+            'description' => Str::limit($description, 2000, ''),
+            'federalServiceCode' => $serviceCode,
+            'taxationType' => $setting->nfse_taxation_type,
+            'sendEmailToCustomer' => filled($customer->email),
+            'receiver' => $this->receiver($customer, withAddress: filled($customer->zipcode) && filled($customer->street)),
+            'total' => [
+                'invoiceAmount' => $amount,
+                'issRate' => (float) $issRate,
+            ],
+        ];
+
+        if (filled($setting->service_city_code)) {
+            $payload['location'] = ['code' => (int) $this->digits($setting->service_city_code)];
+        }
+
+        return $payload;
+    }
+
     /** Configurações obrigatórias de qualquer NFS-e (sem valores presumidos). */
     private function nfseSettingProblems(FiscalSetting $setting): array
     {
@@ -396,14 +525,17 @@ class SpedyPayloadBuilder
      * Itens da NF-e/NFC-e. Nenhum valor tributário é presumido: CFOP e NCM vêm
      * de cada peça e ICMS/PIS/COFINS/unidade das configurações confirmadas pelo
      * tenant; faltando algo, a emissão é bloqueada com a lista do que corrigir.
+     *
+     * @param  iterable<object{id: int, part: ?Part, quantity: float|string, unit_price: float|string}>  $saleItems  itens da venda ou da nota avulsa
      */
-    private function saleItems(Sale $sale, FiscalSetting $setting, array &$problems, bool $interstate): array
+    private function productItems($saleItems, float $total, FiscalSetting $setting, array &$problems, bool $interstate, string $emptyItems): array
     {
+        $saleItems = collect($saleItems)->values();
         $simples = in_array((string) $setting->company_tax_regime, ['1', '2', '4'], true);
         $items = [];
 
-        if ($sale->items->isEmpty()) {
-            $problems[] = 'A venda não possui itens.';
+        if ($saleItems->isEmpty()) {
+            $problems[] = $emptyItems;
         }
 
         $unit = trim((string) $setting->default_commercial_unit);
@@ -425,17 +557,17 @@ class SpedyPayloadBuilder
             $problems[] = 'CST de PIS/COFINS com alíquota ainda não é suportado na emissão automática.';
         }
 
-        $gross = round((float) $sale->items->sum(fn ($item) => round((float) $item->quantity * round((float) $item->unit_price, 2), 2)), 2);
-        $total = round((float) $sale->total_amount, 2);
+        $gross = round((float) $saleItems->sum(fn ($item) => round((float) $item->quantity * round((float) $item->unit_price, 2), 2)), 2);
+        $total = round($total, 2);
         $discount = round($gross - $total, 2);
 
         if ($discount < 0) {
             $problems[] = 'O total da venda é maior que a soma dos itens; acréscimos não são suportados na emissão automática.';
         }
 
-        $discounts = $this->distributeDiscount($sale->items->all(), max(0, $discount), $gross);
+        $discounts = $this->distributeDiscount($saleItems->all(), max(0, $discount), $gross);
 
-        foreach ($sale->items->values() as $index => $item) {
+        foreach ($saleItems as $index => $item) {
             $part = $item->part;
             $name = $part?->name ?: 'Item '.$item->id;
             $ncm = $this->digits($part?->ncm);
@@ -514,11 +646,11 @@ class SpedyPayloadBuilder
         return $shares;
     }
 
-    private function payments(Sale $sale): array
+    private function payments(?string $paymentMethod, float $total): array
     {
         return [[
-            'method' => self::PAYMENT_METHODS[$sale->payment_method] ?? 'other',
-            'amount' => round((float) $sale->total_amount, 2),
+            'method' => self::PAYMENT_METHODS[$paymentMethod] ?? 'other',
+            'amount' => round($total, 2),
         ]];
     }
 

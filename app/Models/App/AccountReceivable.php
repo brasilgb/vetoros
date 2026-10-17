@@ -19,6 +19,7 @@ class AccountReceivable extends Model
     public const SOURCE_ORDER = 'order';
     public const SOURCE_SALE = 'sale';
     public const SOURCE_MAINTENANCE_CONTRACT = 'maintenance_contract';
+    public const SOURCE_STANDALONE_INVOICE = 'standalone_invoice';
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_PARTIAL = 'partial';

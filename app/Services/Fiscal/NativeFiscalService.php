@@ -12,6 +12,7 @@ use App\Models\App\FiscalSetting;
 use App\Models\App\MaintenanceContractLog;
 use App\Models\App\Order;
 use App\Models\App\Sale;
+use App\Models\App\StandaloneInvoice;
 use App\Models\Tenant;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyException;
@@ -112,6 +113,23 @@ class NativeFiscalService
         }
 
         return $this->emit($receivable, SpedyClient::MODEL_NFSE, $userId, fn (FiscalSetting $setting, string $integrationId) => $this->payloads->contractServiceInvoice($receivable, $contract, $setting, $integrationId));
+    }
+
+    /**
+     * Nota avulsa (VETOR-FISCAL-AVULSA-01). Mesma reserva com trava e mesmo integrationId do
+     * emit(): reenvio após rejeição ou falha atualiza a nota na Spedy em vez de criar outra.
+     */
+    public function emitStandalone(StandaloneInvoice $invoice, ?int $userId): FiscalDocument
+    {
+        if ($invoice->isDiscarded()) {
+            throw new FiscalEmissionException('Esta solicitação de nota avulsa foi descartada.');
+        }
+
+        return $this->emit($invoice, $invoice->type, $userId, function (FiscalSetting $setting, string $integrationId) use ($invoice) {
+            $company = Company::query()->withoutGlobalScopes()->firstOrNew(['tenant_id' => $invoice->tenant_id]);
+
+            return $this->payloads->standaloneInvoice($invoice, $company, $setting, $integrationId);
+        });
     }
 
     /** Consulta a Spedy (sem acionar a SEFAZ) e aplica o status atual. */

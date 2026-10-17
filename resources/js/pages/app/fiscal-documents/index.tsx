@@ -1,3 +1,4 @@
+import StandaloneInvoiceDialog, { type StandaloneOptions } from '@/components/fiscal/standalone-invoice-dialog';
 import { Icon } from '@/components/icon';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Ban, ExternalLink, FileText, ReceiptText, RefreshCw } from 'lucide-react';
+import { Ban, ExternalLink, FileText, Plus, ReceiptText, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 type FiscalDocument = {
@@ -30,6 +31,23 @@ type FiscalDocument = {
     created_at?: string | null;
     can_refresh?: boolean;
     can_cancel?: boolean;
+    standalone?: {
+        id: number;
+        customer?: string | null;
+        total_amount: number;
+        discarded: boolean;
+        finance_mode: 'none' | 'receivable' | 'received';
+        receivable_status?: string | null;
+        can_reprocess: boolean;
+        can_discard: boolean;
+    } | null;
+};
+
+const receivableLabels: Record<string, string> = {
+    pending: 'a receber',
+    partial: 'parcialmente recebido',
+    paid: 'recebido',
+    cancelled: 'cancelado',
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -63,18 +81,36 @@ function sourceLabel(document: FiscalDocument) {
 }
 
 function documentTargetLabel(document: FiscalDocument) {
+    if (document.standalone)
+        return `Nota avulsa #${document.standalone.id}${document.standalone.customer ? ` — ${document.standalone.customer}` : ''}`;
     if (document.documentable_type.endsWith('\\Sale')) return `Venda #${document.documentable_id}`;
     if (document.documentable_type.endsWith('\\Order')) return `OS #${document.documentable_id}`;
 
     return `Registro #${document.documentable_id}`;
 }
 
-export default function FiscalDocuments({ documents = [] }: { documents?: FiscalDocument[] }) {
+export default function FiscalDocuments({ documents = [], standalone }: { documents?: FiscalDocument[]; standalone: StandaloneOptions }) {
     const [cancelling, setCancelling] = useState<FiscalDocument | null>(null);
+    const [emitting, setEmitting] = useState(false);
+    const [discarding, setDiscarding] = useState<FiscalDocument | null>(null);
     const { data, setData, post, processing, errors, reset } = useForm({ reason: '' });
 
     const refresh = (document: FiscalDocument) => {
         router.post(route('app.fiscal-documents.refresh', document.id), {}, { preserveScroll: true });
+    };
+
+    const reprocess = (document: FiscalDocument) => {
+        if (!document.standalone) return;
+        router.post(route('app.fiscal-documents.standalone.reprocess', document.standalone.id), {}, { preserveScroll: true });
+    };
+
+    const confirmDiscard = () => {
+        if (!discarding?.standalone) return;
+        router.post(
+            route('app.fiscal-documents.standalone.discard', discarding.standalone.id),
+            {},
+            { preserveScroll: true, onFinish: () => setDiscarding(null) },
+        );
     };
 
     const submitCancel = () => {
@@ -93,11 +129,14 @@ export default function FiscalDocuments({ documents = [] }: { documents?: Fiscal
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Notas fiscais" />
 
-            <div className="flex min-h-16 flex-col justify-center gap-1 px-4 py-3">
+            <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div className="flex items-center gap-2">
                     <Icon iconNode={ReceiptText} className="h-8 w-8" />
                     <h2 className="text-xl font-semibold tracking-tight">Notas fiscais</h2>
                 </div>
+                <Button onClick={() => setEmitting(true)}>
+                    <Plus className="mr-1 h-4 w-4" /> Emitir nota avulsa
+                </Button>
             </div>
 
             <div className="space-y-4 p-4">
@@ -127,13 +166,29 @@ export default function FiscalDocuments({ documents = [] }: { documents?: Fiscal
                                         return (
                                             <TableRow key={document.id}>
                                                 <TableCell>{document.type.toUpperCase()}</TableCell>
-                                                <TableCell>{sourceLabel(document)}</TableCell>
-                                                <TableCell>{documentTargetLabel(document)}</TableCell>
+                                                <TableCell className="min-w-[120px] whitespace-normal">{sourceLabel(document)}</TableCell>
+                                                <TableCell className="min-w-[160px] whitespace-normal">
+                                                    {documentTargetLabel(document)}
+                                                    {document.standalone?.discarded && (
+                                                        <p className="text-muted-foreground text-xs">Solicitação descartada</p>
+                                                    )}
+                                                    {document.standalone &&
+                                                        document.standalone.finance_mode !== 'none' &&
+                                                        document.standalone.receivable_status && (
+                                                            <p className="text-muted-foreground text-xs">
+                                                                Financeiro:{' '}
+                                                                {receivableLabels[document.standalone.receivable_status] ??
+                                                                    document.standalone.receivable_status}
+                                                            </p>
+                                                        )}
+                                                </TableCell>
                                                 <TableCell>{document.number || '-'}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={status.variant}>{status.label}</Badge>
                                                     {document.error_message && (
-                                                        <p className="text-destructive mt-1 max-w-xs text-xs">{document.error_message}</p>
+                                                        <p className="text-destructive mt-1 max-w-xs text-xs whitespace-normal">
+                                                            {document.error_message}
+                                                        </p>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
@@ -182,6 +237,26 @@ export default function FiscalDocuments({ documents = [] }: { documents?: Fiscal
                                                                 </a>
                                                             </Button>
                                                         )}
+                                                        {document.standalone?.can_reprocess && (
+                                                            <Button
+                                                                size="icon"
+                                                                variant="outline"
+                                                                title="Reprocessar nota avulsa"
+                                                                onClick={() => reprocess(document)}
+                                                            >
+                                                                <RotateCcw className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {document.standalone?.can_discard && (
+                                                            <Button
+                                                                size="icon"
+                                                                variant="outline"
+                                                                title="Descartar solicitação"
+                                                                onClick={() => setDiscarding(document)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                         {document.can_cancel && (
                                                             <Button
                                                                 size="icon"
@@ -209,6 +284,29 @@ export default function FiscalDocuments({ documents = [] }: { documents?: Fiscal
                     </CardContent>
                 </Card>
             </div>
+
+            <StandaloneInvoiceDialog open={emitting} onOpenChange={setEmitting} options={standalone} />
+
+            <Dialog open={discarding !== null} onOpenChange={(open) => !open && setDiscarding(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Descartar nota avulsa #{discarding?.standalone?.id}</DialogTitle>
+                        <DialogDescription>
+                            A nota não foi autorizada e não será mais reprocessada.
+                            {discarding?.standalone?.finance_mode !== 'none' &&
+                                ' A conta a receber em aberto será cancelada; se houver recebimento, estorne-o antes.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setDiscarding(null)}>
+                            Voltar
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDiscard}>
+                            Descartar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={cancelling !== null} onOpenChange={(open) => !open && setCancelling(null)}>
                 <DialogContent>
