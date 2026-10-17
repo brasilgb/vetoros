@@ -20,4 +20,4 @@ O `correio.md` está diferente da versão anterior (`d566b8cf`): acrescenta o ob
 
 ## Publicação
 
-Nenhum deploy foi executado. Commits e push serão registrados após a revisão final das alterações.
+Nenhum deploy foi executado. Commits e push concluídos no branch `main`: VetorOS `03591fb8` e VetorLeads `d7c3892`.
