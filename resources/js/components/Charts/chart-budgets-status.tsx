@@ -1,10 +1,11 @@
-import { connectBackend } from '@/Utils/connectApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
+import { connectBackend } from '@/Utils/connectApi';
 import moment from 'moment';
 import { useEffect, useMemo, useState } from 'react';
 import { Pie, PieChart } from 'recharts';
+import { type ChartLoad, ChartLoadState } from './chart-load-state';
 
 type BudgetsStatusResponse = {
     generated: number;
@@ -37,6 +38,8 @@ export default function ChartBudgetsStatus({
     dateRange?: DateRangeValue;
     customRange?: boolean;
 }) {
+    const [load, setLoad] = useState<ChartLoad>({ status: 'loading' });
+    const [attempt, setAttempt] = useState(0);
     const [statusData, setStatusData] = useState<BudgetsStatusResponse>({
         generated: 0,
         approved: 0,
@@ -45,7 +48,10 @@ export default function ChartBudgetsStatus({
     });
 
     useEffect(() => {
+        let current = true;
+
         const getBudgetsStatus = async () => {
+            setLoad({ status: 'loading' });
             try {
                 const query = new URLSearchParams();
 
@@ -55,14 +61,26 @@ export default function ChartBudgetsStatus({
                 }
 
                 const response = await connectBackend.get(`budgetsStatusChart/${timerange}${query.toString() ? `?${query.toString()}` : ''}`);
+                if (!current) return;
+                // Falha não pode aparecer como "0 gerados / 0 aprovados".
+                if (typeof response.data !== 'object' || response.data === null || Array.isArray(response.data)) {
+                    setLoad({ status: 'error', message: 'Resposta inesperada do servidor.' });
+                    return;
+                }
                 setStatusData(response.data);
+                setLoad({ status: 'ready' });
             } catch (error) {
                 console.error('Erro ao carregar dados de orçamentos gerados/aprovados', error);
+                if (current) setLoad({ status: 'error', message: 'Não foi possível carregar o gráfico.' });
             }
         };
 
         getBudgetsStatus();
-    }, [timerange, customRange, dateRange]);
+
+        return () => {
+            current = false;
+        };
+    }, [timerange, customRange, dateRange, attempt]);
 
     const chartConfig = {
         generated: {
@@ -96,7 +114,9 @@ export default function ChartBudgetsStatus({
             </CardHeader>
 
             <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-                {pieData.length === 0 ? (
+                {load.status !== 'ready' ? (
+                    <ChartLoadState load={load} onRetry={() => setAttempt((value) => value + 1)} />
+                ) : pieData.length === 0 ? (
                     <div className="flex h-[200px] w-full flex-col items-center justify-center rounded-md border border-dashed px-4 text-center">
                         <p className="text-sm font-medium">Sem orçamentos no período</p>
                         <p className="text-muted-foreground mt-1 text-xs">Altere o período ou gere um orçamento para acompanhar o aproveitamento.</p>
@@ -111,7 +131,7 @@ export default function ChartBudgetsStatus({
                                     align="left"
                                     verticalAlign="middle"
                                     layout="vertical"
-                                    content={<ChartLegendContent nameKey="key" className="flex-col items-start justify-start pl-2 pt-0" />}
+                                    content={<ChartLegendContent nameKey="key" className="flex-col items-start justify-start pt-0 pl-2" />}
                                 />
                             </PieChart>
                         </ChartContainer>

@@ -2,6 +2,7 @@ import { connectBackend } from '@/Utils/connectApi';
 import moment from 'moment';
 import { useEffect, useState } from 'react';
 import { Pie, PieChart } from 'recharts';
+import { type ChartLoad, ChartLoadState } from './chart-load-state';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -14,8 +15,18 @@ type OrdersPoint = {
     entregues: number;
 };
 
-export default function ChartFluxoOrders({ timerange, dateRange, customRange }: { timerange: string | number; dateRange?: any; customRange?: boolean }) {
+export default function ChartFluxoOrders({
+    timerange,
+    dateRange,
+    customRange,
+}: {
+    timerange: string | number;
+    dateRange?: any;
+    customRange?: boolean;
+}) {
     const [orders, setOrders] = useState<OrdersPoint[]>([]);
+    const [load, setLoad] = useState<ChartLoad>({ status: 'loading' });
+    const [attempt, setAttempt] = useState(0);
 
     function formatIsoDate(date: Date | string) {
         const d = date instanceof Date ? date : new Date(date);
@@ -28,7 +39,10 @@ export default function ChartFluxoOrders({ timerange, dateRange, customRange }: 
     }
 
     useEffect(() => {
+        let current = true;
+
         const getOrders = async () => {
+            setLoad({ status: 'loading' });
             try {
                 const query = new URLSearchParams();
 
@@ -38,13 +52,25 @@ export default function ChartFluxoOrders({ timerange, dateRange, customRange }: 
                 }
 
                 const response = await connectBackend.get(`fluxsOrders/${timerange}${query.toString() ? `?${query.toString()}` : ''}`);
+                if (!current) return;
+                // A API devolve uma lista por dia; outro formato (ex.: página de login) é erro, não "sem dados".
+                if (!Array.isArray(response.data)) {
+                    setLoad({ status: 'error', message: 'Resposta inesperada do servidor.' });
+                    return;
+                }
                 setOrders(response.data);
+                setLoad({ status: 'ready' });
             } catch (error) {
                 console.error('Erro ao carregar dados do gráfico Fluxo de ordens', error);
+                if (current) setLoad({ status: 'error', message: 'Não foi possível carregar o gráfico.' });
             }
         };
         getOrders();
-    }, [timerange, customRange, dateRange]);
+
+        return () => {
+            current = false;
+        };
+    }, [timerange, customRange, dateRange, attempt]);
 
     const chartConfig = {
         entradas: {
@@ -97,7 +123,9 @@ export default function ChartFluxoOrders({ timerange, dateRange, customRange }: 
             </CardHeader>
 
             <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-                {pieData.length === 0 ? (
+                {load.status !== 'ready' ? (
+                    <ChartLoadState load={load} onRetry={() => setAttempt((value) => value + 1)} />
+                ) : pieData.length === 0 ? (
                     <div className="flex h-[200px] w-full flex-col items-center justify-center rounded-md border border-dashed px-4 text-center">
                         <p className="text-sm font-medium">Sem movimentação de ordens no período</p>
                         <p className="text-muted-foreground mt-1 text-xs">Altere o período ou registre uma ordem para acompanhar o fluxo.</p>
@@ -111,7 +139,7 @@ export default function ChartFluxoOrders({ timerange, dateRange, customRange }: 
                                 align="left"
                                 verticalAlign="middle"
                                 layout="vertical"
-                                content={<ChartLegendContent nameKey="key" className="flex-col items-start justify-start pl-2 pt-0" />}
+                                content={<ChartLegendContent nameKey="key" className="flex-col items-start justify-start pt-0 pl-2" />}
                             />
                         </PieChart>
                     </ChartContainer>

@@ -3,6 +3,7 @@
 namespace Tests\Feature\App;
 
 use App\Models\App\Customer;
+use App\Models\App\Equipment;
 use App\Models\App\Message;
 use App\Models\App\Order;
 use App\Models\App\OrderLog;
@@ -386,6 +387,35 @@ class DashboardControllerTest extends TestCase
             ->assertJsonPath('kpis.average_service_minutes', 90)
             ->assertJsonPath('kpis.completion_rate', 33.3)
             ->assertJsonPath('kpis.comparison.total.previous', 1);
+    }
+
+    public function test_equipment_chart_without_chart_equipments_returns_empty_lines_and_days(): void
+    {
+        // Sem equipamento marcado para o gráfico: a resposta é vazia, mas completa (VETOR-STABILIZE-02).
+        Equipment::factory()->forTenant($this->tenant->id)->create(['chart' => false]);
+
+        $response = $this->getJson(route('app.chartEquipments', ['timerange' => 7]))->assertOk();
+
+        $this->assertSame([], $response->json('lines'));
+        $this->assertNotEmpty($response->json('data'));
+        $this->assertSame(['date'], array_keys($response->json('data.0')));
+    }
+
+    public function test_equipment_chart_returns_lines_and_daily_counts_for_chart_equipments(): void
+    {
+        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create(['equipment' => 'Celular', 'chart' => true]);
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
+        Order::factory()->forTenant($this->tenant->id)->count(2)->create([
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->getJson(route('app.chartEquipments', ['timerange' => 7]))->assertOk();
+        $key = 'eq_'.$equipment->id;
+
+        $this->assertSame([['key' => $key, 'label' => 'Celular']], $response->json('lines'));
+        $this->assertSame(2, (int) collect($response->json('data'))->firstWhere('date', now()->toDateString())[$key]);
     }
 
     public function test_schedules_status_chart_returns_daily_status_series(): void

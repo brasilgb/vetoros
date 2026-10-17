@@ -5,22 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import moment from 'moment';
 
+import { buildEquipmentBars, type ChartLine, type ChartPoint, parseEquipmentChart } from '@/lib/equipment-chart';
 import { connectBackend } from '@/Utils/connectApi';
 import { useEffect, useState } from 'react';
-
-type ChartLine = {
-    key: string;
-    label: string;
-};
-
-type ChartPoint = {
-    date: string;
-    [key: string]: string | number;
-};
+import { type ChartLoad, ChartLoadState } from './chart-load-state';
 
 export function ChartAreaDashboard({ timerange, dateRange, customRange }: { timerange: string | number; dateRange?: any; customRange?: boolean }) {
     const [chartData, setChartData] = useState<ChartPoint[]>([]);
     const [lines, setLines] = useState<ChartLine[]>([]);
+    const [load, setLoad] = useState<ChartLoad>({ status: 'loading' });
+    const [attempt, setAttempt] = useState(0);
 
     function formatIsoDate(date: Date | string) {
         const d = date instanceof Date ? date : new Date(date);
@@ -33,6 +27,9 @@ export function ChartAreaDashboard({ timerange, dateRange, customRange }: { time
     }
 
     useEffect(() => {
+        // Ignora a resposta de um período anterior que chegue depois da troca de período.
+        let current = true;
+
         const getChartData = async () => {
             const query = new URLSearchParams();
 
@@ -41,42 +38,35 @@ export function ChartAreaDashboard({ timerange, dateRange, customRange }: { time
                 query.set('to', formatIsoDate(dateRange.to));
             }
 
-            const response = await connectBackend.get(`chartEquipments/${timerange}${query.toString() ? `?${query.toString()}` : ''}`);
+            setLoad({ status: 'loading' });
 
-            setChartData(response.data.data);
-            setLines(response.data.lines);
+            try {
+                const response = await connectBackend.get(`chartEquipments/${timerange}${query.toString() ? `?${query.toString()}` : ''}`);
+                if (!current) return;
+
+                // Sem `lines`/`data` = sem dados (estado vazio); resposta que não é JSON = erro, nunca gráfico fictício.
+                const parsed = parseEquipmentChart(response.data);
+                if (!parsed.ok) {
+                    setLoad({ status: 'error', message: parsed.reason });
+                    return;
+                }
+
+                setChartData(parsed.data);
+                setLines(parsed.lines);
+                setLoad({ status: 'ready' });
+            } catch {
+                if (current) setLoad({ status: 'error', message: 'Não foi possível carregar o gráfico.' });
+            }
         };
 
         getChartData();
-    }, [timerange, customRange, dateRange]);
 
-    const barData = React.useMemo(() => {
-        const grouped = new Map<string, { key: string; label: string; value: number; fill: string }>();
+        return () => {
+            current = false;
+        };
+    }, [timerange, customRange, dateRange, attempt]);
 
-        lines.forEach((line, index) => {
-            const label = String(line.label || '').trim() || 'Sem nome';
-            const value = chartData.reduce((acc, item) => acc + Number(item[line.key] || 0), 0);
-
-            if (value <= 0) {
-                return;
-            }
-
-            const existing = grouped.get(label);
-            if (existing) {
-                existing.value += value;
-                return;
-            }
-
-            grouped.set(label, {
-                key: `equipment_${grouped.size + 1}`,
-                label,
-                value,
-                fill: `var(--chart-${index + 1})`,
-            });
-        });
-
-        return Array.from(grouped.values());
-    }, [chartData, lines]);
+    const barData = React.useMemo(() => buildEquipmentBars(lines, chartData), [chartData, lines]);
 
     const chartConfig = React.useMemo(() => {
         return {
@@ -106,7 +96,9 @@ export function ChartAreaDashboard({ timerange, dateRange, customRange }: { time
             </CardHeader>
 
             <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-                {barData.length === 0 ? (
+                {load.status !== 'ready' ? (
+                    <ChartLoadState load={load} onRetry={() => setAttempt((value) => value + 1)} />
+                ) : barData.length === 0 ? (
                     <div className="flex h-[200px] w-full flex-col items-center justify-center rounded-md border border-dashed px-4 text-center">
                         <p className="text-sm font-medium">Sem equipamentos recebidos no período</p>
                         <p className="text-muted-foreground mt-1 text-xs">Altere o período ou registre uma ordem para gerar o gráfico.</p>
@@ -115,14 +107,7 @@ export function ChartAreaDashboard({ timerange, dateRange, customRange }: { time
                     <ChartContainer config={chartConfig} className="aspect-auto h-[200px] w-full">
                         <BarChart data={barData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                             <CartesianGrid vertical={false} />
-                            <XAxis
-                                dataKey="label"
-                                tickLine={false}
-                                axisLine={false}
-                                tickMargin={8}
-                                minTickGap={12}
-                                tickFormatter={formatAxisLabel}
-                            />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} tickFormatter={formatAxisLabel} />
                             <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} />
                             <ChartTooltip
                                 cursor={false}
