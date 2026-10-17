@@ -6,7 +6,7 @@ import { FAQ, faqSchema } from '../components/faq';
 import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 import { Pricing } from '../components/pricing';
-import { whatsappLink } from '../components/site-contact';
+import { contactLink, useContactChannel } from '../components/site-contact';
 import { WhatsAppFloat } from '../components/whatsapp-float';
 
 const benefits = [
@@ -17,6 +17,8 @@ const benefits = [
 ];
 
 export default function Plans() {
+    const contactChannel = useContactChannel();
+    const contactUrl = contactLink(contactChannel);
     return (
         <main className="min-h-screen bg-white text-slate-900">
             <Head title="Planos e teste grátis">
@@ -66,17 +68,19 @@ export default function Plans() {
                 <div className="mx-auto max-w-5xl rounded-3xl bg-blue-700 px-6 py-14 text-white shadow-2xl shadow-blue-700/15 sm:px-12">
                     <h2 className="text-3xl font-bold">Ainda tem dúvidas?</h2>
                     <p className="mt-3 text-blue-100">Converse diretamente com nossa equipe antes de começar.</p>
-                    <Button
-                        asChild
-                        variant="outline"
-                        size="lg"
-                        className="mt-6 border-white bg-white font-bold text-blue-800 hover:bg-blue-50 hover:text-blue-900"
-                    >
-                        <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
-                            <MessageCircle className="mr-2 h-5 w-5" />
-                            Falar no WhatsApp
-                        </a>
-                    </Button>
+                    {contactUrl && (
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="lg"
+                            className="mt-6 border-white bg-white font-bold text-blue-800 hover:bg-blue-50 hover:text-blue-900"
+                        >
+                            <a href={contactUrl} target="_blank" rel="noopener noreferrer">
+                                <MessageCircle className="mr-2 h-5 w-5" />
+                                Falar no WhatsApp
+                            </a>
+                        </Button>
+                    )}
                 </div>
             </section>
 

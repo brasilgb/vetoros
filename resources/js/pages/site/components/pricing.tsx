@@ -3,10 +3,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { usePage } from '@inertiajs/react';
 import { Check, MessageCircle } from 'lucide-react';
 import { commonFeatures, PublicPlan, quoteMessage } from './pricing-data';
-import { whatsappLink } from './site-contact';
+import { contactLink } from './site-contact';
 
 export function Pricing() {
     const { publicPlans = [] } = usePage<{ publicPlans?: PublicPlan[] }>().props;
+    const { contactChannel } = usePage<{ contactChannel?: import('./site-contact').ContactChannel }>().props;
 
     return (
         <section id="precos" className="border-y border-slate-200 bg-slate-50 py-24 text-slate-900 sm:py-32">
@@ -58,21 +59,23 @@ export function Pricing() {
                             </CardContent>
 
                             <CardFooter className="flex flex-col gap-3 pt-6">
-                                <a
-                                    href={whatsappLink(quoteMessage(plan.name, plan.periodicity))}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full"
-                                >
-                                    <Button
-                                        size="lg"
-                                        className="w-full rounded-lg bg-blue-700 font-bold text-white hover:bg-blue-800"
-                                        aria-label={`Consultar o plano ${plan.name} pelo WhatsApp`}
+                                {contactLink(contactChannel, quoteMessage(plan.name, plan.periodicity)) && (
+                                    <a
+                                        href={contactLink(contactChannel, quoteMessage(plan.name, plan.periodicity))!}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full"
                                     >
-                                        <MessageCircle className="mr-2 h-5 w-5" />
-                                        Consultar pelo WhatsApp
-                                    </Button>
-                                </a>
+                                        <Button
+                                            size="lg"
+                                            className="w-full rounded-lg bg-blue-700 font-bold text-white hover:bg-blue-800"
+                                            aria-label={`Consultar o plano ${plan.name} pelo WhatsApp`}
+                                        >
+                                            <MessageCircle className="mr-2 h-5 w-5" />
+                                            Consultar pelo WhatsApp
+                                        </Button>
+                                    </a>
+                                )}
 
                                 <span className="text-xs text-slate-400">14 dias grátis para testar tudo</span>
                             </CardFooter>

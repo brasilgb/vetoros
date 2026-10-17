@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Setting;
+use App\Support\WhatsAppPhone;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -60,19 +61,34 @@ class SettingController extends Controller
      */
     public function update(Request $request, Setting $setting)
     {
-        $data = $request->all();
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:100'],
+            'commercial_whatsapp' => ['nullable', 'string', 'max:30'],
+            'commercial_whatsapp_name' => ['nullable', 'string', 'max:100'],
+            'commercial_whatsapp_message' => ['nullable', 'string', 'max:500'],
+            'commercial_whatsapp_public' => ['required', 'boolean'],
+            'commercial_whatsapp_internal' => ['required', 'boolean'],
+            'logo' => ['nullable', 'image', 'max:2048'],
+        ]);
+
+        $phone = trim((string) ($validated['commercial_whatsapp'] ?? ''));
+        $normalizedPhone = WhatsAppPhone::normalize($phone);
+        if ($phone !== '' && ! preg_match('/^55\d{10,11}$/', $normalizedPhone)) {
+            return back()->withErrors(['commercial_whatsapp' => 'Informe um número com DDI, DDD e telefone válidos.']);
+        }
+        $validated['commercial_whatsapp'] = $phone === '' ? null : $normalizedPhone;
 
         $storePath = public_path('storage/logos');
         if ($request->hasfile('logo')) {
             $fileName = time().'.'.$request->logo->extension();
             $request->logo->move($storePath, $fileName);
-            if (file_exists($storePath.DIRECTORY_SEPARATOR.$setting->logo && $setting->logo)) {
-                unlink($storePath.DIRECTORY_SEPARATOR.$setting->logo);
+            $previousLogo = $storePath.DIRECTORY_SEPARATOR.$setting->logo;
+            if ($setting->logo && file_exists($previousLogo)) {
+                unlink($previousLogo);
             }
         }
-        $data = $request->except(['_method']);
-        $data['logo'] = $request->hasfile('logo') ? $fileName : $setting->logo;
-        $setting->update($data);
+        $validated['logo'] = $request->hasfile('logo') ? $fileName : $setting->logo;
+        $setting->update($validated);
 
         return redirect()->route('admin.settings.index')->with('success', 'Dados das configurções alterados com sucesso!');
     }

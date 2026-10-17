@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
 import { ArrowRight, MessageCircle } from 'lucide-react';
-import { whatsappLink } from './site-contact';
+import { contactLink, useContactChannel } from './site-contact';
 
 export function CTA() {
+    const contactChannel = useContactChannel();
+    const contactUrl = contactLink(contactChannel);
     return (
         <section className="relative overflow-hidden bg-[#08111f] py-20 text-white sm:py-28">
             <div className="absolute inset-0">
@@ -36,17 +38,19 @@ export function CTA() {
                             </Link>
                         </Button>
 
-                        <Button
-                            size="lg"
-                            variant="outline"
-                            className="gap-2 rounded-full border-white/18 bg-white/8 px-8 text-base font-semibold text-white hover:bg-white/14 hover:text-white"
-                            asChild
-                        >
-                            <a href={whatsappLink()} target="_blank" rel="noopener noreferrer">
-                                <MessageCircle className="h-5 w-5" />
-                                Falar no WhatsApp
-                            </a>
-                        </Button>
+                        {contactUrl && (
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="gap-2 rounded-full border-white/18 bg-white/8 px-8 text-base font-semibold text-white hover:bg-white/14 hover:text-white"
+                                asChild
+                            >
+                                <a href={contactUrl} target="_blank" rel="noopener noreferrer">
+                                    <MessageCircle className="h-5 w-5" />
+                                    Falar no WhatsApp
+                                </a>
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>

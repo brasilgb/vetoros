@@ -1,10 +1,12 @@
 import { MessageCircle } from 'lucide-react';
-import { whatsappLink } from './site-contact';
+import { contactLink, useContactChannel } from './site-contact';
 
 export function WhatsAppFloat() {
+    const href = contactLink(useContactChannel());
+    if (!href) return null;
     return (
         <a
-            href={whatsappLink()}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Falar com a equipe VetorOS pelo WhatsApp"

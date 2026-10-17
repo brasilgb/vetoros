@@ -1,9 +1,11 @@
 import { BrandHorizontalLogo } from '@/components/brand-logo';
 import { Link } from '@inertiajs/react';
 import { MessageCircle } from 'lucide-react';
-import { whatsappLink } from './site-contact';
+import { contactLink, useContactChannel } from './site-contact';
 
 export function Footer() {
+    const contactChannel = useContactChannel();
+    const contactUrl = contactLink(contactChannel);
     return (
         <footer id="contato" className="border-t border-white/10 bg-[#0B1220] py-16 text-white">
             <div className="mx-auto max-w-7xl px-4">
@@ -99,17 +101,19 @@ export function Footer() {
                         </p>
 
                         <ul className="space-y-3 text-sm">
-                            <li>
-                                <a
-                                    href={whatsappLink()}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 text-white/58 transition-colors hover:text-white"
-                                >
-                                    <MessageCircle className="h-4 w-4" />
-                                    WhatsApp
-                                </a>
-                            </li>
+                            {contactUrl && (
+                                <li>
+                                    <a
+                                        href={contactUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-white/58 transition-colors hover:text-white"
+                                    >
+                                        <MessageCircle className="h-4 w-4" />
+                                        WhatsApp
+                                    </a>
+                                </li>
+                            )}
 
                             <li>
                                 <a href="mailto:contato@vetoros.com.br" className="text-white/58 transition-colors hover:text-white">

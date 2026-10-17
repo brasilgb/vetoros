@@ -13,8 +13,8 @@ import {
     Printer,
     ReceiptText,
     Settings,
-    Signature,
     ShoppingCart,
+    Signature,
     Smartphone,
     Users,
     Wrench,
@@ -24,8 +24,7 @@ const appFeatures = [
     {
         icon: Smartphone,
         title: 'Vetor Atendimento',
-        description:
-            'Cadastre clientes, consulte orçamentos e colete pelo celular a assinatura do cliente em uma ordem de serviço já aberta.',
+        description: 'Cadastre clientes, consulte orçamentos e colete pelo celular a assinatura do cliente em uma ordem de serviço já aberta.',
     },
     {
         icon: Wrench,
@@ -43,54 +42,52 @@ const features = [
     {
         icon: ClipboardList,
         title: 'Ordens de Serviço',
-        description: 'Abra a entrada pela plataforma web e controle diagnóstico, execução, status, fotos e histórico completo do atendimento.',
+        description: 'Acompanhe cada etapa do diagnóstico à entrega, com responsáveis, fotos e histórico para manter o atendimento previsível.',
     },
     {
         icon: Users,
         title: 'Clientes e Equipamentos',
-        description: 'Centralize clientes, contatos, equipamentos e histórico técnico em um só lugar.',
+        description: 'Consulte contatos, equipamentos e histórico em um só cadastro e retome cada relacionamento com contexto.',
     },
     {
         icon: Eye,
         title: 'Acompanhamento da Ordem',
-        description: 'Ofereça uma página exclusiva para o cliente acompanhar status, comprovantes, orçamento e próximos passos.',
+        description: 'Mantenha o cliente informado sobre status, comprovantes e próximos passos em uma página própria da ordem.',
     },
     {
         icon: CheckCircle,
         title: 'Orçamentos e Aprovação',
-        description: 'Monte pré-orçamentos, envie para análise e receba aprovação ou reprovação com registro no sistema.',
+        description: 'Envie propostas para aprovação e mantenha a decisão registrada junto ao atendimento.',
     },
     {
         icon: Package,
         title: 'Estoque e Peças',
-        description: 'Gerencie peças, produtos e movimentações com mais controle sobre disponibilidade e reposição.',
+        description: 'Acompanhe disponibilidade e movimentações para planejar reposições e reduzir surpresas na execução.',
     },
     {
         icon: ShoppingCart,
         title: 'Vendas e Recibos',
-        description: 'Registre vendas de produtos e peças no mesmo ambiente, com recibos e documentos prontos para impressão.',
+        description: 'Registre vendas e gere recibos no mesmo fluxo usado para serviços e peças.',
     },
     {
         icon: ReceiptText,
         title: 'Notas Fiscais',
-        description:
-            'Emita NF-e, NFC-e e NFS-e direto das vendas, do PDV e das ordens de serviço, com os documentos vinculados à operação.',
+        description: 'Emita NF-e, NFC-e e NFS-e a partir das vendas e ordens, com os documentos ligados à operação.',
     },
     {
         icon: HandCoins,
         title: 'Financeiro e Caixa',
-        description: 'Acompanhe recebimentos, despesas, abertura e fechamento de caixa com conferência da rotina diária.',
+        description: 'Confira entradas, despesas e movimentação do caixa para decidir com base na rotina financeira.',
     },
     {
         icon: MessageSquare,
         title: 'Comunicação Automática',
-        description: 'Envie e-mails, WhatsApp e lembretes de pagamento com mensagens claras para cada etapa da operação.',
+        description: 'Comunique status e cobranças em cada etapa, com modelos e canais integrados à operação.',
     },
     {
         icon: Signature,
         title: 'Assinatura Digital no App',
-        description:
-            'Colete a assinatura do cliente no Vetor Atendimento, vincule-a à OS existente e exiba o registro no recibo de entrada.',
+        description: 'Colete a assinatura do cliente no Vetor Atendimento, vincule-a à OS existente e exiba o registro no recibo de entrada.',
     },
     {
         icon: CalendarCheck,
@@ -110,7 +107,7 @@ const features = [
     {
         icon: BarChart3,
         title: 'Relatórios e Dashboard',
-        description: 'Visualize faturamento, ordens, vendas e desempenho com relatórios e indicadores em tempo real.',
+        description: 'Leia faturamento, ordens e vendas em indicadores que ajudam a priorizar a próxima ação.',
     },
     {
         icon: Settings,
@@ -124,15 +121,15 @@ export function Features() {
         <section id="recursos" className="relative overflow-hidden bg-white py-24 text-slate-900 sm:py-32">
             <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
                 <div className="mx-auto mb-16 max-w-3xl text-center">
-                    <p className="text-sm font-bold text-blue-700">Recursos essenciais</p>
+                    <p className="text-sm font-bold text-blue-700">Uma operação conectada</p>
 
                     <h2 className="mt-3 text-4xl font-bold tracking-[-0.04em] text-balance text-slate-950 sm:text-5xl">
-                        Plataforma web e apps móveis para atendimento técnico, financeiro, campo e relacionamento com clientes
+                        Da entrada do equipamento ao resultado financeiro, cada etapa com contexto e acompanhamento
                     </h2>
 
                     <p className="mt-5 text-lg leading-8 text-slate-600">
-                        Da entrada do equipamento ao fechamento do caixa, o VetorOS reúne os módulos mais importantes da rotina em uma única
-                        plataforma, com apps para assinatura no atendimento, imagens da OS e trabalho técnico em campo.
+                        O VetorOS conecta serviços, clientes, estoque, financeiro e equipe em campo. Os apps complementam a operação com assinatura,
+                        registro de imagens e acompanhamento técnico.
                     </p>
                     <p className="mt-3 text-xs text-slate-400">
                         Emissão de NF-e, NFC-e e NFS-e pelo próprio sistema, mediante liberação e certificado digital A1 da empresa.

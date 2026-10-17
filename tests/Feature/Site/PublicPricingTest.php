@@ -94,10 +94,10 @@ class PublicPricingTest extends TestCase
 
         $this->assertStringContainsString('solicitar um orçamento do plano ${planName} (periodicidade ${periodicity})', $data);
         $this->assertStringContainsString('Consultar pelo WhatsApp', $pricing);
-        $this->assertStringContainsString('whatsappLink(quoteMessage(plan.name, plan.periodicity))', $pricing);
+        $this->assertStringContainsString('contactLink(contactChannel, quoteMessage(plan.name, plan.periodicity))', $pricing);
 
-        // Mesmo número comercial que o site já usava; nenhum número novo.
-        $this->assertStringContainsString("COMMERCIAL_WHATSAPP = '5551998931325'", $contact);
+        $this->assertStringContainsString('https://wa.me/${number}', $contact);
+        $this->assertStringNotContainsString('5551998931325', $contact);
         foreach (File::allFiles(resource_path('js/pages/site')) as $file) {
             if ($file->getFilename() !== 'site-contact.ts') {
                 $this->assertStringNotContainsString('wa.me/', $file->getContents(), $file->getRelativePathname());
