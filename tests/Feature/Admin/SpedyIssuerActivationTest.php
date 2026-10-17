@@ -40,9 +40,11 @@ class SpedyIssuerActivationTest extends TestCase
             'services.spedy.technical_responsible' => [],
         ]);
 
-        $this->root = User::factory()->create(['tenant_id' => null, 'user_number' => null, 'roles' => User::ROLE_ROOT_APP]);
+        // O tenant vem antes do root: a UserFactory cria um tenant aleatório quando não há nenhum,
+        // e esse segundo tenant podia ocupar a primeira linha da listagem ordenada por empresa.
         $this->tenant = Tenant::factory()->create(['automatic_fiscal_emission_enabled' => true, 'cnpj' => '11.222.333/0001-81', 'company' => 'Cliente LTDA',
             'street' => 'Rua A', 'number' => '1', 'district' => 'Centro', 'zip_code' => '90000000', 'city' => 'Porto Alegre', 'state' => 'RS']);
+        $this->root = User::factory()->create(['tenant_id' => null, 'user_number' => null, 'roles' => User::ROLE_ROOT_APP]);
     }
 
     private function setting(array $attributes = []): FiscalSetting
