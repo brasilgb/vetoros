@@ -1,88 +1,63 @@
-# VETOR-UX-ADMIN-03 — Reorganização das telas Empresas e Empresas Emissoras
+# VETOR-STABILIZE-01 — Proteção dos bancos e consolidação fiscal
 
-**Objetivo:** simplificar as duas principais áreas administrativas do RootAdmin, eliminando excesso de informações e controles visíveis simultaneamente.
+## Objetivo
 
-## 1. RootAdmin → Empresas
+Consolidar as entregas UX-ADMIN-03 e FISCAL-AVULSA-01, corrigir definitivamente o risco de exclusão acidental do banco e preparar a homologação da emissão fiscal avulsa na VPS.
 
-Auditar a listagem, o cadastro e a edição atuais antes de alterar o frontend.
+## 1. Proteção obrigatória do banco
 
-### Listagem
-- Mostrar empresa, CNPJ, modalidade de assinatura, situação e ação de gerenciamento.
-- Manter busca, filtros, paginação e indicadores essenciais.
-- Remover da tabela detalhes que pertencem à edição.
-- Usar badges discretos e alinhamento consistente.
-- Criar uma apresentação responsiva.
+- Auditar `tests/TestCase.php`, `phpunit.xml`, `.env.testing` e a configuração de banco.
+- Manter a proteção já implementada contra testes que utilizem MySQL operacional.
+- Reforçar a proteção para impedir `migrate:fresh`, `db:wipe` e operações destrutivas nos bancos reais de desenvolvimento e produção.
+- Criar configuração isolada e exclusiva para testes.
+- Garantir que cache de configuração não consiga redirecionar testes para o banco operacional.
+- Revisar scripts e entrypoints que executam `php artisan optimize`.
+- Validar a proteção com testes seguros, sem executar operações destrutivas sobre bancos reais.
 
-### Cadastro e edição
-Organizar em abas:
+## 2. Recuperação e integridade
 
-1. Dados gerais.
-2. Assinatura e planos.
-3. Financeiro e cobranças.
-4. Módulos e funcionalidades.
-5. Fiscal.
+- Preservar os backups disponíveis.
+- Verificar se o MySQL local possui binlogs ou outros mecanismos de recuperação.
+- Não executar nova restauração sobre o banco atual sem backup verificado e autorização.
+- Comparar as estruturas e contagens do banco restaurado.
+- Registrar eventuais dados não recuperados.
 
-Utilizar Dialog do shadcn/ui, com rolagem interna e dimensões apropriadas. Para formulários extensos, permitir expansão ou manter uma página de edição organizada com a mesma estrutura de abas, caso seja mais seguro e utilizável.
+## 3. Consolidação das entregas
 
-Preservar todos os campos e comportamentos atuais, inclusive os controles que não aparecem na listagem.
+- Revisar as alterações não commitadas das frentes anteriores.
+- Preservar CONTRATO-02, EFI-02/03/04, UX-FISCAL-02, UX-ADMIN-03 e FISCAL-AVULSA-01.
+- Executar novamente a suíte completa.
+- Validar migrations em banco de testes isolado, compatível com MySQL 8.4.
+- Verificar permissões, isolamento multitenant e integração financeira das notas avulsas.
+- Revisar a interface da emissão avulsa em desktop e celular.
 
-## 2. RootAdmin → Fiscal → Empresas emissoras
+## 4. Preparação da homologação Spedy
 
-Aplicar a simplificação definida na VETOR-UX-FISCAL-02.
+Preparar os seguintes cenários, utilizando empresa e credenciais de homologação:
 
-Tabela principal:
-- Empresa e CNPJ.
-- Cadastro Spedy.
-- Ambiente.
-- Botão Configurações.
+- NFS-e avulsa sem financeiro.
+- NFS-e com conta a receber.
+- NF-e avulsa de produtos.
+- NFC-e avulsa.
+- Pagamento já recebido com caixa aberto.
+- Rejeição, reprocessamento e cancelamento.
+- Verificação de PDF/XML e conciliação.
 
-Modal:
-- Geral.
-- Modelos fiscais.
-- Certificado.
-- Integração Spedy.
+Não emitir documentos fiscais reais em produção durante essa etapa.
 
-Preservar os controles de cadastro e sincronização, aprovação de produção, permissões e bloqueios fiscais.
+## 5. Publicação
 
-## 3. Regras de negócio obrigatórias
+Preparar commits e checklist de publicação, verificando previamente a segurança dos repositórios, as credenciais e a compatibilidade das migrations.
 
-- Contratos personalizados continuam bloqueando a seleção de planos tradicionais.
-- Manter cobranças recorrentes pela Efí Bank e as regras de carência, bloqueio e reativação.
-- Preservar todos os controles fiscais da Spedy.
-- Não alterar credenciais ou ambientes durante a refatoração.
-- Não introduzir novos gateways.
-- Não criar migrations sem necessidade comprovada.
-- Não remover funcionalidades, rotas ou validações existentes.
+Não executar push, deploy, force push ou alterações de produção sem autorização específica.
 
-## 4. Padrão visual
+## Resultado esperado
 
-- Aproveitar Tailwind e shadcn/ui existentes.
-- Menos colunas e menos textos explicativos permanentes.
-- Abas para separar assuntos.
-- Diálogos de confirmação para ações críticas.
-- Contraste adequado em checkboxes e switches.
-- Layout consistente no tema escuro.
-- Estados de loading, sucesso e erro claros.
-- Layout responsivo em desktop, tablet e celular.
+Entregar relatório em `executed.md` contendo:
 
-## 5. Validação
-
-Realizar auditoria visual e funcional das duas telas.
-
-Testar:
-- Cadastro e edição de empresas.
-- Alteração de planos e contratos.
-- Trava do plano quando há contrato personalizado.
-- Cobranças e vencimentos.
-- Ativação e suspensão de funcionalidades.
-- Habilitações fiscais.
-- Navegação dos modais e abas.
-- Permissões do RootAdmin.
-- Preservação das alterações ao trocar de aba.
-- Testes PHP, TypeScript e build.
-
-Registrar o resultado em `executed.md`.
-
-**Importante:** preservar dados, regras comerciais e configurações existentes. Esta entrega é prioritariamente uma refatoração de UX/UI, não uma reconstrução dos módulos.
-
-Não executar push, deploy ou migrations de produção sem autorização específica.
+- Proteções implementadas e comprovadas.
+- Situação dos dados recuperados.
+- Testes executados.
+- Migrations pendentes.
+- Estado dos commits.
+- Condições objetivas para homologação na VPS.
