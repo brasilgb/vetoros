@@ -94,5 +94,9 @@ jobs:
       - name: Run TypeScript checks
         run: npm run types
 
+      # As páginas Inertia renderizam @vite: sem o manifest, os testes de tela falham com 500.
+      - name: Build assets
+        run: npm run build
+
       - name: Run test suite
         run: php artisan test
