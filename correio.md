@@ -1,20 +1,42 @@
-# VETOR-UX-MONEY-02 — Consolidação e publicação
+# VETOR-STABILIZE-02 — Correção do dashboard e preparação de deploy
 
-A VETOR-UX-MONEY-01 está aprovada.
+A VETOR-UX-MONEY-02 está aprovada, com o commit `559d0111` publicado na branch `main` e CI verde.
 
-Executar os seguintes ajustes finais:
+## 1. Corrigir o gráfico do dashboard
 
-1. Padronizar todos os campos monetários restantes no modo `cents` do componente `MoneyInput`.
-2. Preservar a colagem de valores em formatos brasileiro e internacional.
-3. Garantir que os valores enviados ao Laravel permaneçam no formato decimal normalizado.
-4. Não alterar migrations, valores existentes ou regras financeiras.
-5. Manter percentuais, quantidades e alíquotas fora da máscara monetária.
-6. Revisar a apresentação da licença em Sistema e módulos, mantendo informações essenciais visíveis e detalhes complementares em modal, quando apropriado.
-7. Preservar integralmente os fluxos de pagamento Efí Bank e a tela de desbloqueio.
-8. Executar testes PHP, JavaScript, TypeScript, build e testes visuais no Firefox e Chromium.
-9. Verificar o `git status`, incluindo alterações anteriores não relacionadas, para evitar commits acidentais.
-10. Estando tudo aprovado, realizar commit e push na branch atual, sem executar deploy ou migrations em produção.
+Investigar `resources/js/components/Charts/chart-area-dashboard.tsx`.
 
-Registrar os resultados e o hash do commit no `executed.md`.
+- Tratar respostas da API com `lines` ausente, `null` ou vazio.
+- Exibir um estado vazio amigável quando não houver dados.
+- Não substituir erros reais da API silenciosamente por valores fictícios.
+- Preservar o gráfico e seus indicadores quando houver informações válidas.
+- Garantir que o dashboard não apresente erro fatal por ausência de dados.
 
-Não modificar regras de negócio, emissão fiscal ou cobrança recorrente além do necessário para os ajustes de interface.
+## 2. Validar
+
+- Criar testes de regressão para resposta vazia, incompleta e válida.
+- Validar no Chromium e Firefox.
+- Executar testes PHP e JavaScript, TypeScript e build.
+- Não alterar regras financeiras, fiscais ou de assinatura.
+
+## 3. Git
+
+- Revisar `git status`.
+- Realizar commit e push após aprovação dos testes.
+- Confirmar CI verde.
+- Registrar resultados em `executed.md`.
+
+## 4. Preparação da VPS
+
+Após a publicação, verificar o procedimento de deploy pelo repositório `infra-abrasil`.
+
+- Confirmar o caminho real do submódulo `gateway/vetoros`.
+- Conferir o commit remoto e o ponteiro do submódulo.
+- Conferir o estado do ambiente e eventuais alterações locais.
+- Planejar backup do banco e rollback.
+- Confirmar que não existem migrations necessárias nesta entrega.
+- Preparar os comandos para implantação.
+
+**Não executar deploy, reiniciar containers ou modificar o banco de produção nesta etapa.**
+
+Entregar relatório com a correção, commits, testes e procedimento de implantação.
