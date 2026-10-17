@@ -266,7 +266,8 @@ class Tenant extends Model
         }
 
         $today = ($today ?? Carbon::today())->copy()->startOfDay();
-        $paymentUrl = rtrim((string) config('app.url'), '/').'/subscription/blocked';
+        // Minha assinatura (VETOR-SAAS-EFI-04): atende todos os estados; bloqueado, o middleware não intercepta.
+        $paymentUrl = rtrim((string) config('app.url'), '/').'/subscription';
 
         return match ($scenario) {
             'expires_in_3_days' => [

@@ -1,185 +1,88 @@
-# VETOR-SAAS-CONTRATO-01 — Contrato comercial personalizado por tenant
+# VETOR-UX-ADMIN-03 — Reorganização das telas Empresas e Empresas Emissoras
 
-## Objetivo
+**Objetivo:** simplificar as duas principais áreas administrativas do RootAdmin, eliminando excesso de informações e controles visíveis simultaneamente.
 
-Implementar no RootAdmin do VetorOS a possibilidade de estabelecer condições comerciais personalizadas para cada empresa (tenant), sem depender da seleção de planos tradicionais.
+## 1. RootAdmin → Empresas
 
-**Não criar um novo sistema financeiro ou fiscal.** Reutilizar os serviços existentes de assinaturas, cobrança, pagamentos, inadimplência, bloqueio, emissão Spedy, entrega de faturas e auditoria.
+Auditar a listagem, o cadastro e a edição atuais antes de alterar o frontend.
 
-## 1. Auditoria inicial obrigatória
+### Listagem
+- Mostrar empresa, CNPJ, modalidade de assinatura, situação e ação de gerenciamento.
+- Manter busca, filtros, paginação e indicadores essenciais.
+- Remover da tabela detalhes que pertencem à edição.
+- Usar badges discretos e alinhamento consistente.
+- Criar uma apresentação responsiva.
 
-Inspecionar o código existente e identificar:
+### Cadastro e edição
+Organizar em abas:
 
-- Cadastro e edição de empresas no RootAdmin.
-- Tabelas e serviços dos planos e assinaturas.
-- Geração de cobranças recorrentes e vencimentos.
-- Regras de inadimplência, tolerância, suspensão e reativação.
-- Integração atual com Mercado Pago ou outros canais disponíveis.
-- Emissão da NFS-e da ABrasil Sistemas aos tenants.
-- Serviços de envio de faturas, SMTP e links fiscais.
-- Jobs, scheduler e webhooks existentes.
+1. Dados gerais.
+2. Assinatura e planos.
+3. Financeiro e cobranças.
+4. Módulos e funcionalidades.
+5. Fiscal.
 
-Não presumir nomes de tabelas, métodos ou contratos. Reutilizar o desenho comprovado no repositório.
+Utilizar Dialog do shadcn/ui, com rolagem interna e dimensões apropriadas. Para formulários extensos, permitir expansão ou manter uma página de edição organizada com a mesma estrutura de abas, caso seja mais seguro e utilizável.
 
-## 2. Modalidade de contratação
+Preservar todos os campos e comportamentos atuais, inclusive os controles que não aparecem na listagem.
 
-Adicionar ao cadastro administrativo da empresa:
+## 2. RootAdmin → Fiscal → Empresas emissoras
 
-**Checkbox: "Contrato personalizado — não utilizar planos tradicionais".**
+Aplicar a simplificação definida na VETOR-UX-FISCAL-02.
 
-Quando ativado:
+Tabela principal:
+- Empresa e CNPJ.
+- Cadastro Spedy.
+- Ambiente.
+- Botão Configurações.
 
-- Ignorar o preço e a periodicidade dos planos tradicionais.
-- Informar valor comercial contratado.
-- Informar periodicidade mensal, semestral ou anual.
-- Informar data de início e próximo vencimento.
-- Informar vendedor ou responsável pela negociação.
-- Permitir observações comerciais internas.
-- Preservar regras existentes de autorização, módulos e funcionalidades.
-- Manter integralmente o controle de assinatura e bloqueio do tenant.
+Modal:
+- Geral.
+- Modelos fiscais.
+- Certificado.
+- Integração Spedy.
 
-O preço personalizado é o **valor total de cada ciclo**, não um valor mensal automaticamente multiplicado por 6 ou 12.
+Preservar os controles de cadastro e sincronização, aprovação de produção, permissões e bloqueios fiscais.
 
-Não conceder funcionalidades indiscriminadamente pelo simples fato de a empresa possuir contrato personalizado.
+## 3. Regras de negócio obrigatórias
 
-## 3. Cobrança e ciclo de vida
+- Contratos personalizados continuam bloqueando a seleção de planos tradicionais.
+- Manter cobranças recorrentes pela Efí Bank e as regras de carência, bloqueio e reativação.
+- Preservar todos os controles fiscais da Spedy.
+- Não alterar credenciais ou ambientes durante a refatoração.
+- Não introduzir novos gateways.
+- Não criar migrations sem necessidade comprovada.
+- Não remover funcionalidades, rotas ou validações existentes.
 
-Integrar a modalidade personalizada ao mecanismo atual de assinaturas.
+## 4. Padrão visual
 
-Garantir:
+- Aproveitar Tailwind e shadcn/ui existentes.
+- Menos colunas e menos textos explicativos permanentes.
+- Abas para separar assuntos.
+- Diálogos de confirmação para ações críticas.
+- Contraste adequado em checkboxes e switches.
+- Layout consistente no tema escuro.
+- Estados de loading, sucesso e erro claros.
+- Layout responsivo em desktop, tablet e celular.
 
-- Uma cobrança por ciclo.
-- Idempotência em jobs e webhooks.
-- Registro de pagamento e estorno.
-- Histórico de cobranças.
-- Regras atuais de vencimento e tolerância.
-- Bloqueio por inadimplência.
-- Reativação mediante regularização.
-- Nenhuma duplicação de cobrança ao converter plano tradicional em contrato personalizado.
-- Preservação das cobranças anteriores.
-- Alterações de valor aplicadas aos próximos ciclos, salvo operação explícita e auditada.
+## 5. Validação
 
-Na reversão para plano tradicional, exigir seleção de plano válido e confirmação administrativa, sem apagar histórico nem produzir cobranças sobrepostas.
+Realizar auditoria visual e funcional das duas telas.
 
-## 4. Emissão fiscal do SaaS
+Testar:
+- Cadastro e edição de empresas.
+- Alteração de planos e contratos.
+- Trava do plano quando há contrato personalizado.
+- Cobranças e vencimentos.
+- Ativação e suspensão de funcionalidades.
+- Habilitações fiscais.
+- Navegação dos modais e abas.
+- Permissões do RootAdmin.
+- Preservação das alterações ao trocar de aba.
+- Testes PHP, TypeScript e build.
 
-Adicionar a configuração individual:
+Registrar o resultado em `executed.md`.
 
-**"Emitir NFS-e para este cliente SaaS".**
+**Importante:** preservar dados, regras comerciais e configurações existentes. Esta entrega é prioritariamente uma refatoração de UX/UI, não uma reconstrução dos módulos.
 
-Essa opção deve funcionar independentemente de o cliente utilizar contrato tradicional ou personalizado.
-
-Usar exclusivamente o emitente fiscal da ABrasil Sistemas, mantido no RootAdmin, e a integração Spedy já implementada.
-
-O tomador será a empresa contratante (tenant).
-
-Não utilizar o certificado nem as credenciais fiscais próprias do tenant para emitir a nota da assinatura do SaaS.
-
-A opção fiscal só poderá ser efetivada quando o emitente da ABrasil estiver apto e os dados obrigatórios do tomador estiverem corretos.
-
-Respeitar competência, fato gerador e calendário fiscal aplicável. Não presumir que a emissão deve ocorrer apenas após o pagamento nem que todo vencimento exige automaticamente uma nova nota.
-
-Reutilizar documentos fiscais existentes, reconciliação, status, idempotência e tratamento de rejeições.
-
-## 5. Comunicação ao cliente
-
-Enviar automaticamente a fatura conforme a programação de cobrança.
-
-A fatura deverá conter:
-
-- Nome da empresa contratante.
-- Identificação da ABrasil Sistemas.
-- Número ou referência do contrato.
-- Competência.
-- Valor contratado.
-- Vencimento.
-- Situação financeira.
-- Meio ou instruções de pagamento disponível.
-
-Quando a opção fiscal estiver habilitada e a NFS-e for autorizada:
-
-- Incluir links assinados e temporários para PDF e XML.
-- Se a nota ainda estiver processando, enviar primeiro a fatura e posteriormente a comunicação fiscal.
-- Nunca enviar link de nota inexistente ou ainda não autorizada.
-- Registrar tentativas, sucessos e falhas de entrega.
-- Permitir reenvio administrativo sem emitir nota duplicada.
-
-Quando a opção fiscal estiver desabilitada, enviar somente a fatura.
-
-Utilizar a infraestrutura SMTP central da plataforma, quando disponível. A ausência dessa infraestrutura não deve provocar implementação de outro sistema de e-mails.
-
-## 6. Interface administrativa
-
-No RootAdmin → Empresas → Editar:
-
-Criar seção "Condições comerciais e faturamento".
-
-Exibir:
-
-- Tipo de contratação: plano tradicional ou personalizado.
-- Checkbox de contrato personalizado.
-- Valor e periodicidade.
-- Início, vencimento e responsável comercial.
-- Situação da assinatura.
-- Próxima cobrança.
-- Emissão fiscal habilitada ou desabilitada.
-- Histórico resumido de cobranças.
-- Acesso às cobranças e às notas fiscais correspondentes.
-
-Impedir que o tenant altere preço, tipo de contratação, vencimento contratual ou autorização fiscal da assinatura do SaaS.
-
-## 7. Segurança e integridade
-
-- Alterações comerciais exclusivas do RootAdmin.
-- Validação de valores monetários decimais, positivos e dentro dos limites suportados.
-- Armazenamento financeiro em DECIMAL, nunca float.
-- Auditoria com usuário, horário, estado anterior e posterior.
-- Isolamento entre tenants.
-- Ausência de credenciais em logs e respostas públicas.
-- Compatibilidade com assinaturas e planos existentes.
-- Migration aditiva, com padrão de contrato tradicional.
-- Não recalcular retroativamente cobranças quitadas.
-
-## 8. Testes obrigatórios
-
-Cobrir ao menos:
-
-1. Contrato tradicional permanece inalterado.
-2. Contrato personalizado mensal.
-3. Contrato personalizado semestral.
-4. Contrato personalizado anual.
-5. Alteração de valor entre ciclos.
-6. Vencimento e inadimplência.
-7. Suspensão e reativação.
-8. Cobrança repetida não gera duplicidade.
-9. Pagamento integrado e manual, conforme canais existentes.
-10. Estorno preserva auditoria.
-11. Emissão fiscal desabilitada.
-12. Emissão fiscal habilitada.
-13. Emissão sem depender indevidamente do pagamento.
-14. Fatura enviada antes da autorização fiscal.
-15. PDF e XML disponibilizados após autorização.
-16. Reenvio não duplica nota.
-17. Falha da Spedy não elimina cobrança.
-18. Falha SMTP não elimina nota.
-19. Tenant não altera condições comerciais.
-20. Retorno ao plano tradicional sem duplicação.
-21. Isolamento completo entre tenants.
-
-## 9. Entrega
-
-Implementar localmente, executar testes, TypeScript, Pint, Prettier e build.
-
-Registrar no `executed.md`:
-
-- Arquitetura reaproveitada.
-- Arquivos modificados.
-- Migrations.
-- Regras comerciais e fiscais.
-- Resultados dos testes.
-- Pendências.
-- Plano de homologação.
-
-Preservar trabalhos de outras frentes, especialmente SMTP universal e integração Spedy.
-
-Não executar deploy, migrations em produção, force push ou alterações de credenciais sem instrução posterior.
+Não executar push, deploy ou migrations de produção sem autorização específica.

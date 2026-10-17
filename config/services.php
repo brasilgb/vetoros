@@ -34,11 +34,6 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-    'mercadopago' => [
-        'token' => env('MP_ACCESS_TOKEN'),
-        'webhook_token' => env('MP_WEBHOOK_TOKEN'),
-    ],
-
     'crm_abrasil' => [
         'registration_check_token' => env('CRM_REGISTRATION_CHECK_TOKEN'),
     ],

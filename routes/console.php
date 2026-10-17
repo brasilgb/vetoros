@@ -31,6 +31,11 @@ Schedule::command('vetoros:process-saas-contracts')
     ->timezone('America/Sao_Paulo')
     ->withoutOverlapping();
 
+// Efí: conciliação das transações pendentes das assinaturas SaaS (webhook perdido, pagamento atrasado).
+Schedule::command('vetoros:reconcile-saas-payments')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping();
+
 Schedule::command('vetoros:send-tenant-feedback-requests')
     ->dailyAt('11:00')
     ->withoutOverlapping();

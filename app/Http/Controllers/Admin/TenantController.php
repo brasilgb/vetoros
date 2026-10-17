@@ -8,6 +8,7 @@ use App\Mail\SubscriptionInvoicePaidMail;
 use App\Mail\SubscriptionStatusMail;
 use App\Models\Admin\Period;
 use App\Models\Admin\Plan;
+use App\Models\App\Other;
 use App\Models\App\Payment;
 use App\Models\Tenant;
 use Carbon\Carbon;
@@ -15,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class TenantController extends Controller
@@ -271,13 +273,23 @@ class TenantController extends Controller
     public function show(Tenant $tenant)
     {
         $plans = Plan::query()->with('periods')->get();
-        $loadedTenant = $tenant->load('plan.periods', 'period');
+        $loadedTenant = $tenant->load('plan.periods.features', 'period');
         $loadedTenant->current_plan_period_label = $this->resolveCurrentPlanPeriodLabel($loadedTenant->plan);
+
+        // Módulos ligados pelo próprio cliente em "Sistema e módulos" (somente leitura no RootAdmin; sem criar registro).
+        $modules = Other::query()->withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->first(['enableparts', 'enablesales', 'enable_purchases', 'enable_finance']);
 
         return Inertia::render('admin/tenants/edit-tenant', [
             'tenant' => $loadedTenant,
             'plans' => $plans,
             'commercial' => TenantCommercialController::pageData($tenant),
+            'modules' => $modules ? [
+                'parts' => (bool) $modules->enableparts,
+                'sales' => (bool) $modules->enablesales,
+                'purchases' => (bool) $modules->enable_purchases,
+                'finance' => (bool) $modules->enable_finance,
+            ] : null,
         ]);
     }
 
@@ -303,17 +315,19 @@ class TenantController extends Controller
 
         $payment = Payment::query()
             ->where('tenant_id', $tenant->id)
-            ->where('status', 'approved')
+            ->settled()
             ->latest()
             ->first();
 
         if (! $payment) {
             $payment = new Payment([
                 'tenant_id' => $tenant->id,
-                'gateway' => 'mercadopago',
+                'gateway' => Payment::GATEWAY_EFI,
+                'method' => 'pix',
                 'payment_id' => 'preview-'.$tenant->id,
                 'amount' => (float) ($plan->value ?? 0),
-                'status' => 'approved',
+                'status' => Payment::STATUS_PAID,
+                'paid_at' => now(),
                 'idempotency_key' => 'preview-'.$tenant->id,
                 'raw_response' => ['preview' => true],
             ]);
@@ -374,6 +388,17 @@ class TenantController extends Controller
 
         $data['plan_id'] = $this->normalizeId($data['plan_id'] ?? null);
         $data['period_id'] = $this->resolvePeriod($data['plan_id'], $this->normalizeId($data['period_id'] ?? null))?->id;
+
+        // Trava de planos: com contrato personalizado o plano (base de funcionalidades) só muda pela volta ao plano tradicional.
+        if ($tenant->hasCustomContract()) {
+            if ((int) $data['plan_id'] !== (int) $tenant->plan_id) {
+                throw ValidationException::withMessages([
+                    'plan_id' => 'Empresa com contrato personalizado: o plano só muda em "Voltar ao plano tradicional", com data efetiva e confirmação.',
+                ]);
+            }
+            $data['period_id'] = $tenant->period_id;
+        }
+
         // Com contrato personalizado o plano é só a base de funcionalidades: o vencimento segue as cobranças do contrato.
         if (! $tenant->hasCustomContract()) {
             $data['expires_at'] = $this->resolveExpirationDate($data['plan_id'], $data['period_id'], $tenant);
@@ -381,7 +406,7 @@ class TenantController extends Controller
 
         $tenant->update($data);
 
-        return redirect()->route('admin.tenants.show', ['tenant' => $tenant->id])->with('success', 'Empresa atualizada com sucess!');
+        return redirect()->route('admin.tenants.show', ['tenant' => $tenant->id])->with('success', 'Empresa atualizada com sucesso!');
     }
 
     /**

@@ -1,3 +1,728 @@
+# VETOR-UX-ADMIN-03 — Reorganização das telas Empresas e Empresas Emissoras. Resultado: **IMPLEMENTADO E HOMOLOGADO LOCALMENTE; SEM COMMIT, SEM PUSH, SEM DEPLOY, SEM MIGRATION**
+
+Data: 2026-10-17. Executor: estação de desenvolvimento local (WSL).
+
+## Comparação do correio
+
+O `correio.md` mudou desde a execução anterior (VETOR-UX-FISCAL-02, logo abaixo). A instrução atual é a VETOR-UX-ADMIN-03.
+- **Parte 2 (Empresas emissoras):** já tinha sido entregue na UX-FISCAL-02 e foi só revalidada (item 5).
+- **Parte 1 (RootAdmin → Empresas):** é o trabalho novo.
+- As alterações não commitadas das frentes anteriores (CONTRATO-02, EFI-02/03/04, UX-FISCAL-02) foram preservadas.
+
+## 1. Auditoria (antes de alterar)
+
+- **Listagem:**
+  - 14 colunas: #, contato, razão social, CNPJ, e-mail, telefone, status, assinatura, criação, plano, período, vencimento, restante e ações.
+  - 4 botões por linha: WhatsApp, editar, prévia do e-mail e excluir.
+  - Linhas coloridas sem variante escura.
+- **Cadastro:** formulário único (dados, endereço, plano, status, observações).
+- **Edição:** página longa com:
+  - 4 cards de resumo;
+  - seção comercial (contrato, NFS-e do SaaS, cobranças e diálogos);
+  - 10 botões de e-mail (5 prévias e 5 envios reais, sem confirmação);
+  - formulário de dados com plano, status e emissão fiscal.
+- **Módulos e funcionalidades:** não existe controle por empresa no RootAdmin.
+  - Os módulos (peças, vendas, compras, financeiro) são ligados pelo próprio cliente em "Sistema e módulos" (`others`).
+  - As funcionalidades pertencem ao plano (`periods.features`).
+  - Nenhuma funcionalidade nova foi criada. A aba mostra essas informações em modo leitura, junto com a situação da conta (status), que é o controle de ativação e suspensão que já existia.
+- **Decisão:** a edição continua como **página com abas**, e não como Dialog. O formulário é extenso e tem tabela de cobranças com diálogos próprios; o correio permite essa opção quando ela é "mais segura e utilizável". O cadastro usa a mesma estrutura de abas.
+
+## 2. Listagem (RootAdmin → Empresas)
+
+- **Colunas:**
+  - **Empresa:** razão social e contato.
+  - **CNPJ.**
+  - **Modalidade:** "Plano X" ou "Contrato personalizado".
+  - **Situação:** selo Ativa/Carência/Bloqueada, mais vencimento e dias restantes.
+  - **Ação:** **Gerenciar** e um menu "…" com Enviar WhatsApp, Prévia do e-mail da fatura e Excluir empresa.
+- **Mantidos:** busca, os 8 filtros, contador e paginação. A ordem continua sendo a do backend (prioridade de atenção).
+- **Exclusão:** passou a usar um AlertDialog controlado, com texto fiel à regra do backend (empresa com contrato não é excluída).
+- **Responsivo:** tabela a partir de 768 px e cartões no celular.
+- **Estado vazio** com mensagem conforme os filtros. **Selos** com variantes para o tema escuro.
+
+## 3. Cadastro e edição em abas
+
+As 5 abas são Dados gerais, Assinatura e planos, Financeiro e cobranças, Módulos e funcionalidades, e Fiscal.
+- **Abas sempre montadas** (`forceMount`; as inativas ficam só ocultas): o que foi digitado continua ao trocar de aba.
+- **Aviso de alterações:** "Alterações não salvas…" aparece para o formulário principal e para o comercial.
+- **Aba no endereço (`#aba`):** recarregar mantém a aba.
+  - Bug encontrado na homologação: o redirecionamento depois de salvar apagava o `#aba`. Corrigido reaplicando a aba no fim de cada visita do Inertia, só na mesma página.
+- **Erros de validação:** selo com a contagem em cada aba. Se a aba atual não tem erro, a tela vai para a primeira aba com problema.
+
+**Edição:**
+- **Dados gerais:** identificação, contato, observações e endereço com ViaCEP.
+- **Assinatura e planos:**
+  - Resumo: plano, período, vencimento e dias restantes, agora calculados na tela; antes mostravam "Sem informacao".
+  - Plano tradicional, **bloqueado com contrato personalizado**.
+  - Contrato personalizado, com volta ao plano tradicional e desagendamento.
+- **Financeiro e cobranças:**
+  - Próxima cobrança e histórico, com as ações existentes (registrar pagamento, ajustar, estornar, reenviar fatura, emitir e reenviar NFS-e).
+  - Comunicações de assinatura: Prévia e Enviar.
+- **Módulos e funcionalidades:** situação da conta (status), funcionalidades do plano e módulos ligados pelo cliente, em modo leitura.
+- **Fiscal:** emissão fiscal automática, NFS-e do SaaS e um link para Fiscal → Empresas emissoras.
+- **Botão "Salvar dados da empresa":** fica numa barra fixa no rodapé. As seções comerciais mantêm o próprio botão.
+
+**Cadastro:** abas Dados gerais, Assinatura e planos, e Módulos (status). Financeiro e Fiscal ficam desativadas, com o aviso "Disponível depois do cadastro".
+
+**Confirmações de ações críticas:**
+- **Mantidas:** registrar pagamento, estorno (com senha), ajuste e volta ao plano (com senha e confirmação).
+- **Novas:**
+  - Ativar contrato personalizado: mostra valor e primeiro vencimento.
+  - Desagendar a volta ao plano.
+  - **Enviar e-mail real** ao cliente. Antes, um clique enviava direto.
+
+**Outros pontos:**
+- **Carregamento:** indicador girando nos botões de salvar e confirmar.
+- **Visitas:** usam `preserveState` e `preserveScroll`.
+- **Contraste no tema escuro:** switches desligados com borda `slate-300`; medido `oklch(0.869…)` contra fundo `rgb(11,18,32)`, cerca de 12:1. Selos com variantes escuras.
+
+## 4. Backend (mínimo, sem migration)
+
+- **`TenantController::show`:**
+  - Carrega `plan.periods.features`.
+  - Envia `modules` (os 4 módulos do cliente, só leitura) via `Other::withoutGlobalScopes()->first()`, **sem criar registro**.
+- **`TenantController::update`:** corrigido o texto "Empresa atualizada com sucess!" para "sucesso".
+- **Inalterados:** rotas, validações, permissões, a trava de plano do contrato (backend), Efí, carência, bloqueio e reativação, Spedy, credenciais e ambientes.
+
+## 5. Homologação (Playwright/Chromium, servidor local com `MAIL_MAILER=log` e `QUEUE_CONNECTION=sync`)
+
+- **Massa de teste:** RootAdmin e plano "HOMOLOG UXA03" (com 2 funcionalidades), mais 3 empresas: plano, bloqueada e contrato com cobrança em aberto.
+  - No navegador foram bloqueados os envios de e-mail e as exclusões.
+  - **Tudo removido ao final**, incluindo a empresa criada pelo teste (conferido: 0 empresas, usuários e planos de homologação).
+- **Cenários:** desktop claro (1366×800), tablet (820×1180), celular (390×844) e desktop escuro. **0 erros de JS e 0 respostas 5xx** em todos.
+
+| Verificação | Resultado |
+|---|---|
+| Colunas da listagem | Empresa, CNPJ, Modalidade, Situação, Ação (cartões no celular) |
+| Filtro "Bloqueadas" | Só a empresa bloqueada |
+| Menu "…" e confirmação de exclusão | Itens corretos; Cancelar não exclui |
+| Abas da edição e setas do teclado | 5 abas; seta → "Assinatura e planos"; `#subscription` na URL |
+| Valor preservado ao trocar de aba | Sim, com aviso de alteração não salva |
+| Salvar dados gerais | Persistido após recarregar; revertido depois |
+| Emissão fiscal: salvar e reverter | `false → true`, aba mantida (`#fiscal`) depois de salvar |
+| Validação | Razão social vazia salva na aba Fiscal → vai a "Dados gerais" com selo de erro |
+| Trava do plano no contrato | Seletor de plano desabilitado, aviso exibido, switch do contrato travado |
+| Ativar contrato | Confirmação com valor (R$ 1.200,00) e vencimento; Cancelar não grava |
+| Cobranças | Cobrança em aberto listada; "Registrar pagamento" abre o diálogo; Cancelar não grava |
+| Enviar e-mail | Pede confirmação; Cancelar não envia |
+| Módulos e funcionalidades | Funcionalidades do plano listadas; aviso de módulos do cliente |
+| Cadastro | Financeiro/Fiscal desativadas; envio vazio marca 3 abas com erro; empresa válida criada (contagem 3 → 4) |
+| Rolagem horizontal | Nenhuma em todos os tamanhos |
+
+**Empresas emissoras (parte 2, revalidada):** colunas, selos, abas por teclado, switch sem fechar o modal, senha errada mantendo a confirmação, Esc com foco devolvido e nenhuma chamada à Spedy, nos três cenários. A massa foi removida.
+
+## 6. Testes
+
+- **Novo `tests/Feature/Admin/TenantAdminScreensTest.php`** (3 testes, 70 asserções):
+  - Campos e filtros da listagem.
+  - Funcionalidades do plano e módulos só leitura na edição, sem criar registro.
+  - Bloqueio das telas para usuários de empresa.
+- **Suíte completa (`--parallel`):** **761 aprovados**.
+- **Frontend:** `tsc --noEmit`, `eslint` e `prettier --check` limpos; `vite build` OK.
+- **Permissões do RootAdmin:** cobertas pelo `RootAdminAccessTest` (existente) e pelo teste novo.
+
+## 7. Arquivos
+
+- **Alterados:**
+  - `resources/js/pages/admin/tenants/index.tsx`, `create-tenant.tsx` e `edit-tenant.tsx`.
+  - `resources/js/components/admin/tenant-commercial-section.tsx`: dividida em `useTenantCommercial`, `CommercialContractPanel`, `SaasInvoicePanel`, `CommercialChargesPanel` e `CommercialDialogs`.
+  - `app/Http/Controllers/Admin/TenantController.php`.
+- **Novos:**
+  - `resources/js/components/admin/tenant-form-fields.tsx` e `resources/js/components/admin/tenant-tabs.tsx`.
+  - `tests/Feature/Admin/TenantAdminScreensTest.php`.
+- **Empresas emissoras:** `resources/js/pages/admin/fiscal/companies.tsx`, sem mudanças nesta entrega (feito na UX-FISCAL-02).
+
+## 8. Pendências e observações
+
+- **Busca de Empresas emissoras (backend, já existia):** o termo é reduzido aos dígitos para comparar com o CNPJ. "zz-nao-existe-uxf02" vira "02" e encontra qualquer CNPJ que contenha "02". Não alterei, porque esta entrega não muda o backend fiscal. Sugestão: só comparar o CNPJ quando o termo for numérico.
+- **Ativação e suspensão de módulos por empresa** não existe no RootAdmin (os módulos são do cliente). Se for desejada, é funcionalidade nova, com regra e auditoria a definir.
+- **Mensagem do cadastro:** "Empresa cadastrado com sucesso!" (concordância) continua no backend; não alterei.
+- **Vite em modo dev:** durante a homologação havia um processo do Vite rodando nesta máquina (`public/hot`), que não foi iniciado por mim e continua ativo.
+
+---
+
+# VETOR-UX-FISCAL-02 — Simplificação das Empresas Emissoras. Resultado: **IMPLEMENTADO E HOMOLOGADO LOCALMENTE; SEM COMMIT, SEM PUSH, SEM DEPLOY, SEM CHAMADAS À SPEDY**
+
+Data: 2026-10-16. Executor: estação de desenvolvimento local (WSL).
+
+## Comparação do correio
+
+O `correio.md` mudou desde a execução anterior (VETOR-SAAS-EFI-04, logo abaixo). A instrução atual é a VETOR-UX-FISCAL-02, sem execução anterior registrada. As alterações não commitadas das frentes CONTRATO-02 e EFI-02/03/04 foram preservadas.
+
+## 1. Escopo
+
+- **Só frontend:** `resources/js/pages/admin/fiscal/companies.tsx`.
+- **Inalterados:** controller (`FiscalCompanyController`), rotas, contratos JSON e Inertia, permissões (`root.admin`), serviços Spedy e migrations.
+- **Backend:** todas as regras e bloqueios continuam lá, incluindo a senha obrigatória para aprovar produção, o bloqueio de cadastro sem fiscal habilitado e a auditoria.
+
+## 2. Tabela principal
+
+- **Colunas:**
+  - **Empresa:** razão social e CNPJ.
+  - **Cadastro Spedy:** Cadastrada, Pendente ou Erro. "Vínculo de outro ambiente" conta como Erro; o detalhe aparece no modal.
+  - **Ambiente:** Produção ou Homologação.
+  - **Ação:** botão **Configurações**, com `aria-label` que inclui o nome da empresa.
+- **Mantidos:** busca por nome/CNPJ e paginação.
+- **Novo estado vazio:** "Nenhuma empresa encontrada para …" ou "Nenhuma empresa cadastrada". Antes, a tabela ficava vazia sem aviso.
+
+## 3. Modal de configurações
+
+O modal usa o `Dialog` do shadcn/ui, com `max-w-3xl`, `max-h-[90vh]` e rolagem interna. As abas usam `Tabs`.
+
+- **Geral:**
+  - Empresa e CNPJ.
+  - Switch "Fiscal habilitado".
+  - Situação da emissão por modelo.
+  - Ambiente de emissão, com Aprovar ou Revogar produção.
+- **Modelos fiscais:** NF-e, NFC-e e NFS-e, cada uma com switch próprio, selo Pronta/Impedida, impedimento detalhado e aviso de "desativada pelo cliente".
+- **Certificado digital:** situação (Vigente/Pendente), titular, validade, bloqueios ligados ao certificado e orientação de envio pelo titular no VetorOS.
+- **Integração Spedy:**
+  - Dados: situação do cadastro, identificador remoto, ambiente do vínculo, data do cadastro, última sincronização e erro da integração.
+  - Ações existentes: Cadastrar/Sincronizar e Consultar cadastro e certificado.
+  - O retorno do diagnóstico aparece dentro do modal.
+
+## 4. Regras atendidas
+
+- **Confirmação de ação crítica:**
+  - O `window.prompt` foi substituído por um `AlertDialog` com campo de senha.
+  - Senha errada mostra "Senha incorreta." e mantém a confirmação aberta.
+  - Revogar produção também passou a pedir confirmação; antes, não pedia.
+- **Switches não fecham o modal:** as ações usam `preserveState` e `preserveScroll`. A empresa exibida é relida das props pelo id, então os dados se atualizam sem perder a empresa nem a aba.
+- **Retorno de cada ação:** a mensagem de sucesso ou erro aparece no topo do modal (`role=status`/`alert`), além do toast global.
+- **Carregamento:** indicador girando na ação em andamento e uma ação por vez.
+  - Os controles não ficam `disabled` durante o envio. O `disabled` tirava o foco do teclado (bug encontrado na homologação); agora é usado `aria-disabled` com trava no envio.
+- **Foco:**
+  - Ao fechar o modal, o foco volta ao botão "Configurações" que o abriu.
+  - Ao fechar a confirmação, volta ao botão de produção.
+  - A confirmação fica dentro da árvore do modal, para o Radix não ler o clique nela como "clique fora".
+- **Tema escuro:** o trilho desligado do switch ganhou a borda `slate-300` sobre `slate-600`.
+  - Medido: borda `oklch(0.869 …)` contra o fundo `rgb(11,18,32)`, contraste ≈ 12:1 (WCAG 1.4.11 pede 3:1).
+  - Sem a borda, o trilho medido ficava entre 1,04 e 2,21:1.
+  - A página não tem checkboxes. O componente global `Switch` não foi alterado; o ajuste vale só para esta tela.
+
+## 5. Homologação (Playwright/Chromium headless, servidor local)
+
+- **Massa de teste:** um RootAdmin e 3 empresas descartáveis "HOMOLOG UXF02": cadastrada, com erro e pendente.
+  - O vínculo Spedy da empresa cadastrada é falso. **As rotas `register` e `check` foram bloqueadas no navegador**, e nenhuma requisição chegou a elas.
+  - **Tudo foi removido ao final** (conferido: 0 empresas e 0 usuários restantes).
+- **Cenários:** desktop claro (1366×800), celular claro (390×844) e desktop escuro.
+
+| Verificação | Resultado nos 3 cenários |
+|---|---|
+| Colunas da tabela | Empresa, Cadastro Spedy, Ambiente, Ação |
+| Selos | Cadastrada, Erro, Pendente |
+| Abrir pelo teclado (foco + Enter) | OK |
+| Abas por setas | Geral → Modelos fiscais → Certificado digital → Integração Spedy |
+| Alternar NF-e | `false → true`, modal aberto, aba mantida, mensagem "Habilitação fiscal atualizada."; depois revertido |
+| Senha errada ao aprovar produção | "Senha incorreta." exibido, confirmação aberta; Cancelar volta ao modal |
+| Consultar sem cadastro | Botão desabilitado |
+| Erro da integração | Exibido na aba Spedy |
+| Esc | Fecha e devolve o foco a "Configurações de …" |
+| Estado vazio da busca | OK |
+| Rolagem horizontal | Nenhuma |
+| Erros JS, respostas 5xx, chamadas à Spedy | 0 |
+
+## 6. Testes
+
+- **Testes fiscais** (`FiscalCentralAdministration`, `SpedyIssuerActivation`, `CompanyFiscalIdentity`): 34 aprovados.
+- **Suíte completa (`--parallel`):** 758 aprovados.
+- **Frontend:** `tsc --noEmit`, `eslint` e `prettier --check` limpos; `vite build` OK.
+
+## 7. Arquivos alterados
+
+- `resources/js/pages/admin/fiscal/companies.tsx`: único arquivo de produto.
+- `executed.md`: este relatório.
+
+## 8. Pendências
+
+- Os testes de backend não cobrem a interface. A validação do comportamento do modal foi a navegação acima, sem teste automatizado de frontend versionado.
+- As ações reais de Cadastrar/Sincronizar/Consultar na Spedy não foram acionadas, como pede o correio. O comportamento delas não mudou no backend.
+
+---
+
+# VETOR-SAAS-EFI-04 — Vencimentos, avisos, bloqueios e direcionamento ao pagamento. Resultado: **IMPLEMENTADO E HOMOLOGADO LOCALMENTE; SEM COMMIT, SEM PUSH, SEM DEPLOY, SEM MIGRATION**
+
+Data: 2026-10-16. Executor: estação de desenvolvimento local (WSL). As alterações das frentes CONTRATO-02, EFI-02 e EFI-03 continuam na mesma árvore de trabalho e foram preservadas.
+
+## 1. Fluxos auditados
+
+- **Middleware:** `CheckSubscriptionStatus`.
+- **Controllers:** `SubscriptionController` e `SaasCheckoutController`.
+- **Serviços:** `SaasPaymentService`, `SaasContractService` e `PlanRenewalService`.
+- **Inertia:** `HandleInertiaRequests` (`plans`, `custom_contract`).
+- **Telas:** `Subscription/Blocked.tsx`, `SubscriptionBanner`, `SubscriptionModal`, `EfiCheckout` e `SubscriptionPaymentSuccess`, mais o menu (`navLinks.ts`).
+- **E-mails de vencimento:** `Tenant::buildSubscriptionNotice`, além dos textos de cobrança do contrato e da Efí.
+
+## 2. Rotas (todas fora do middleware de assinatura, sob `auth`)
+
+| Rota | Nome | Uso |
+|---|---|---|
+| `GET /subscription` | `subscription.show` | **Nova.** "Minha assinatura": situação e pagamento em qualquer estado |
+| `GET /subscription/blocked` | `subscription.blocked` | Destino do middleware. Fora do bloqueio, redireciona para `/subscription` |
+| `GET /api/subscription/check` | `subscription.check_status` | Situação calculada no servidor (`access` vem da cobertura) |
+| `POST /subscription/efi/{pix,billet,card}` | `subscription.efi.*` | Checkout Efí |
+| `POST /subscription/efi/recurring/cancel` | `subscription.efi.recurring.cancel` | Cancelar autorização recorrente |
+| `GET /subscription/efi/payments/{payment}` | `subscription.efi.status` | Acompanhamento da transação, isolado por tenant |
+| `POST /subscription/efi/payments/{payment}/refresh` | `subscription.efi.refresh` | **Nova.** "Consultar pagamento": o servidor consulta a Efí e concilia |
+
+Rotas antigas `subscription.pay` e `subscription.generate_pix` não existem mais (há teste para isso).
+
+## 3. Problemas identificados e correções
+
+1. **Não havia tela de assinatura fora do bloqueio.**
+   - Os avisos só tinham um modal de PIX antigo.
+   - **Correção:** criei `/subscription` com a mesma tela da de bloqueio. Ela mostra situação, motivo, vencimento, carência, contratação, valor, cobrança, meios de pagamento e transação em andamento.
+   - O menu Configurações ganhou o item **Assinatura**.
+2. **O aviso só aparecia na carência.**
+   - **Correção:** `App\Support\SubscriptionAlert` agora calcula no servidor os estados `due_soon` (até 3 dias antes), `due_today` e `grace_period`.
+   - O banner é discreto perto do vencimento e destacado no dia e na carência. O botão é "Ver assinatura" ou "Pagar agora" e leva a `/subscription`.
+   - **A carência de 3 dias foi preservada** (`Tenant::subscriptionBucket`).
+3. **Contrato personalizado.**
+   - O cliente vê só a cobrança do contrato (número, periodicidade, competência, vencimento e valor), sem catálogo de planos.
+   - O valor vem do servidor. Há teste confirmando que parâmetros enviados pelo cliente são ignorados.
+4. **Sem forma de reconsultar o pagamento.**
+   - **Correção:** botão "Consultar pagamento" ligado à rota `refresh`. A consulta à Efí é autenticada no servidor; se a Efí falhar, nada muda.
+   - A transação pendente reaparece depois de recarregar a página.
+5. **Liberação antecipada.**
+   - `check_status` devolve `paid_pending_obligations` quando o pagamento foi confirmado mas outra competência continua vencida. Nesse caso o acesso não é liberado.
+6. **Cache da tela de bloqueio.**
+   - A tela é enviada com `Cache-Control: no-store, private`.
+   - Ao continuar depois do pagamento, a navegação usa `location.replace`: a página relê a assinatura e a tela de bloqueio sai do histórico.
+7. **E-mails de vencimento e textos de cobrança apontavam para `/subscription/blocked`.**
+   - Fora do bloqueio isso gerava um salto a mais.
+   - **Correção:** agora apontam para `/subscription` (`Tenant.php`, `SaasPaymentService.php`, `SaasContractService.php`).
+8. **Modal da carência sem acessibilidade** (uma `div` sem foco preso e sem Esc).
+   - **Correção:** passou a usar o `Dialog` do projeto, com Esc e foco preso; o link é do Inertia.
+   - O `localStorage` está protegido com try/catch, e o modal mostra uma mensagem própria para o último dia de carência.
+9. **Efí indisponível ou não homologada:** a tela mostra uma mensagem amigável, sem redirecionamento e sem outro gateway.
+10. **Lint:** o `any` em `EfiCheckout.tsx` (`firstError`) foi tipado.
+11. **Segurança (item 9):** `ABRASIL_MAIL_PASSWORD` já está vazia no `.env.example`. `SecretGuardTest`: 8/8 aprovados.
+
+## 4. Testes automatizados
+
+- **`tests/Feature/App/SubscriptionFlowTest.php`:** 16 testes, 260 asserções.
+  - Estados: ativo, vencimento próximo, vencimento no dia, carência, bloqueio com rotas de pagamento acessíveis.
+  - Plano tradicional versus contrato; rotas antigas removidas.
+  - Pagamentos: Pix confirmado com reativação, boleto aguardando compensação com reconsulta, cartão recusado com nova tentativa, cobrança expirada.
+  - Casos especiais: pagamento atrasado sem liberação antecipada, Efí indisponível, isolamento multitenant, usuário sem empresa.
+- **Já cobertos em `EfiSaasPaymentsTest`:**
+  - Webhook duplicado: `test_pix_webhook_confirms_by_api_and_repeated_events_are_ignored`.
+  - Recorrência confirmada: `test_recurring_card_requires_authorization_and_reconciles_each_competence`.
+  - Falha e cancelamento da recorrência.
+- **Suíte completa (`--parallel`):** 758 aprovados em 5 de 7 rodadas.
+  - Nas outras 2, falhou só `SpedyIssuerActivationTest > registration links issuer…`, que é intermitente e passa isolado (11/11).
+  - Esse teste é da frente fiscal e não foi tocado aqui (ver pendências).
+- **Frontend:** `tsc --noEmit` sem erros, `eslint` e `prettier` limpos nos arquivos da frente, `vite build` OK.
+
+## 5. Evidências de navegação (Playwright/Chromium headless, `php artisan serve` local)
+
+- **Massa de teste:** 6 empresas descartáveis "HOMOLOG EFI04 *" e o plano descartável "HOMOLOG EFI04 Mensal" (R$ 89,90).
+  - Foram criadas com e-mail em `array` e fila `sync`, sem envio real.
+  - **Foram removidas ao final** (conferido: 0 restantes). Planos existentes não foram tocados.
+- **Viewports:** desktop 1366×800 e celular 390×844. Resultado: **0 erros de JS, 0 respostas 5xx, 0 ciclos de redirecionamento, sem rolagem horizontal.**
+
+| Estado | Após login | Aviso | Botão do aviso → destino | `/subscription/blocked` | Sair |
+|---|---|---|---|---|---|
+| Ativa | `/app` | — | — | → `/subscription` | `/login` |
+| Vence em 2 dias | `/app` | "vence em 2 dias (18/10/2026)" | Ver assinatura → `/subscription` | → `/subscription` | `/login` |
+| Vence hoje | `/app` | "vence hoje (16/10/2026)" | Pagar agora → `/subscription` | → `/subscription` | `/login` |
+| Carência | `/app` | "venceu em 15/10/2026… mais 2 dias"; modal abre e fecha com Esc | Pagar agora → `/subscription` | → `/subscription` | `/login` |
+| Bloqueada (plano) | `/subscription/blocked` | tela "Acesso suspenso" | — | permanece | `/login` |
+| Bloqueada (contrato) | `/subscription/blocked` | só a cobrança VOS-00014, R$ 1.200,00 | — | permanece | `/login` |
+
+Na base local a Efí não está homologada, então todas as telas mostraram a mensagem de pagamento indisponível. O fluxo de checkout real (QR Code, boleto e cartão) está coberto pelo simulador nos testes, não pelo navegador.
+
+## 6. Arquivos desta frente
+
+- **Novos:** `app/Support/SubscriptionAlert.php` e `tests/Feature/App/SubscriptionFlowTest.php`.
+- **Alterados (backend):** `app/Http/Middleware/CheckSubscriptionStatus.php`, `app/Http/Controllers/App/SubscriptionController.php`, `app/Http/Controllers/App/SaasCheckoutController.php` (`refresh`) e `routes/web.php`.
+- **Alterados (textos de cobrança):** `app/Models/Tenant.php`, `app/Services/Payments/SaasPaymentService.php` e `app/Services/Commercial/SaasContractService.php`.
+- **Alterados (frontend):** `resources/js/pages/Subscription/Blocked.tsx`, `resources/js/components/Payment/{SubscriptionBanner,SubscriptionModal,EfiCheckout}.tsx` e `resources/js/Utils/navLinks.ts`.
+
+## 7. Pendências reais
+
+- **Planos locais sem preço:** todos os planos da base local valem R$ 0,00. Uma empresa de plano nessa situação vê "Fale com o atendimento", porque não há renovação a cobrar. **Confirmar que os planos de produção têm valor** antes da implantação. Produção não foi inspecionada.
+- **Checkout Efí real no navegador** (Pix, boleto e cartão) depende de credenciais e homologação da Efí. Até lá, só foi validado contra o simulador.
+- **`SpedyIssuerActivationTest`** falha de forma intermitente na execução paralela (2 de 7 rodadas). Investigar na frente fiscal.
+- **E-mails de vencimento:** `buildSubscriptionNotice` retorna `null` sem `plan_id`. Contratos personalizados recebem a fatura do contrato, não esses lembretes. Isso não foi alterado.
+
+---
+
+# VETOR-SAAS-EFI-03 — Exclusividade Efí Bank e remoção do Mercado Pago. Resultado: **IMPLEMENTADO E VALIDADO LOCALMENTE; SEM COMMIT, SEM PUSH, SEM DEPLOY, SEM ALTERAÇÃO NAS CONTAS EFÍ/MERCADO PAGO**
+
+Data: 2026-10-16. Executor: estação de desenvolvimento local (WSL).
+
+## Comparação do correio
+
+`correio.md` estava diferente da versão executada antes (VETOR-SAAS-EFI-02, logo abaixo). A instrução atual é a VETOR-SAAS-EFI-03. As alterações não commitadas da CONTRATO-02 e da EFI-02 foram preservadas e continuam na mesma árvore de trabalho.
+
+## ⚠ Alerta de segurança (outra frente, não alterado)
+
+Durante esta execução, às 11:18, o `.env.example` (versionado) recebeu de outra frente a troca de `MAIL_*` por `ABRASIL_MAIL_*`, com **`ABRASIL_MAIL_PASSWORD` preenchida com o mesmo valor do `.env` local**, ou seja, uma credencial real. O valor não foi exibido em nenhum momento.
+- Não alterei essa linha, porque o correio pede para preservar as alterações das outras frentes.
+- **Esvazie o valor antes de qualquer commit.** O hook de pre-commit e o `SecretGuardTest` já barram esse arquivo.
+- Se esse arquivo já tiver saído desta máquina, trate a senha como exposta e troque-a.
+
+É a única falha da suíte completa (ver item 6).
+
+## 1. Inventário antes da remoção (somente leitura)
+
+- **Banco local `vetoros`** (dados de desenvolvimento, não de produção): 3 pagamentos do Mercado Pago, todos `approved` (R$ 421,16); nenhum pendente, estornado ou contestado; nenhuma NFS-e do SaaS ligada a eles; 2 tenants com `last_payment_id`.
+- O VetorOS nunca teve assinatura recorrente no Mercado Pago, só PIX avulso. Não há recorrência a encerrar.
+- **Produção não foi inspecionada.** O inventário real sai na implantação com `php artisan vetoros:legacy-payments-report` (item 7).
+
+## 2. Arquivos removidos
+
+- `app/Services/MercadoPagoService.php`: cliente do SDK
+- `app/Http/Controllers/App/WebhookController.php`: webhook do Mercado Pago
+- `app/Http/Controllers/App/PaymentController.php`: geração do PIX antigo
+- `tests/Feature/App/PaymentControllerTest.php` e `tests/Feature/App/WebhookControllerTest.php`: testes exclusivos do Mercado Pago
+- Dependência `mercadopago/dx-php` (`composer remove`; o lockfile só perdeu esse pacote)
+- Rotas `subscription.pay`, `subscription.generate_pix` e `api/webhooks/mercadopago/{token}`; exceção de CSRF do webhook antigo
+- `config/services.php` (bloco `mercadopago`) e `.env.example` (`MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY`, `MP_WEBHOOK_TOKEN`)
+- Seletor de provedor no RootAdmin, com rota e ação; coluna `saas_payment_settings.active_provider`
+- Fallback automático para o Mercado Pago sem homologação, e reaproveitamento do PIX do Mercado Pago (`reusablePixFor`)
+- `docker-compose.yml` da infra: `MP_*` removidas **só do serviço `vetoros`**; o `vetorpet` não foi tocado
+
+## 3. Arquivos alterados
+
+**Gateway único:**
+- `app/Models/Admin/SaasPaymentSetting.php`: sem provedor. `usesEfi()` depende só da homologação; `blockedReason()` dá a mensagem administrativa.
+- `app/Services/Payments/SaasPaymentService.php`:
+  - Bloqueio com mensagem quando a Efí não está configurada ou homologada, sem nunca usar outro gateway. O agendador audita `saas_payment.collection_blocked`.
+  - Trava de transição: com pagamento anterior pendente e válido, nada novo é criado para a empresa.
+- `app/Http/Controllers/App/SaasCheckoutController.php`: só Efí; sem meio disponível, a tela recebe `unavailable_message`.
+- `app/Http/Controllers/Admin/Finance/EfiSettingsController.php`, `routes/admin-finance.php`, `resources/js/pages/admin/finance/efi.tsx`:
+  - O seletor de provedor virou **Homologar / Suspender**. Suspender bloqueia novas cobranças e mantém a conciliação do que já existe.
+  - Mostra o motivo do bloqueio e o resumo do histórico anterior, somente leitura.
+
+**Telas do tenant:**
+- `resources/js/pages/Subscription/Blocked.tsx`, `resources/js/components/Payment/SubscriptionModal.tsx`, `resources/js/components/Payment/EfiCheckout.tsx`: sem fluxo Mercado Pago; só o checkout Efí ou o aviso.
+- `app/Http/Middleware/CheckSubscriptionStatus.php`: libera as rotas `subscription.efi.*` para a empresa bloqueada.
+
+**Histórico preservado e legível:**
+- `app/Models/App/Payment.php`: `isSettled()`, escopo `settled()`, `billedPlanId()` e `settledAt()` leem tanto a Efí quanto o histórico.
+- **Lacuna corrigida da EFI-02:** a NFS-e de plano pago pela Efí não saía, porque o código só reconhecia `approved` e o plano no `raw_response`.
+  - Agora funciona em `app/Services/Fiscal/SaasInvoiceService.php` e `Admin/Fiscal/SaasInvoiceController.php`.
+  - Pagamento que quita uma competência de contrato é recusado ali, porque tem nota própria pela cobrança. Isso evita nota em dobro.
+- `app/Http/Controllers/Admin/TenantController.php` (prévia da fatura paga) e `resources/views/emails/subscription-invoice-paid.blade.php` (status `paid`).
+- `app/Services/Commercial/SaasContractService.php` e `PlanRenewalService.php`: textos e comentários.
+
+**Novos:**
+- `app/Services/Payments/LegacyPaymentsReport.php` e o comando `vetoros:legacy-payments-report`: inventário somente leitura. O comando falha enquanto houver pendente válido.
+- Migration `database/migrations/2026_10_16_140000_remove_provider_switch_from_saas_payment_settings.php`.
+- `tests/Concerns/FakesEfi.php`: o simulador da Efí extraído para reuso.
+
+**Testes, dados de exemplo e documentação:**
+- Testes: `EfiSaasPaymentsTest`, `SaasCommercialContractTest`, `SaasContractPlanLockTest` e `FiscalCentralAdministrationTest`, todos só com Efí.
+- `database/factories/App/PaymentFactory.php` e `database/seeders/DatabaseSeeder.php`: dados de exemplo no formato Efí.
+- `docs/production-checklist.md` e `docs/deploy-hostgator-turbo.md`: operação só com Efí.
+- `VETOROS_AVALIACAO_TECNICA.md`: nota de atualização no topo.
+
+## 4. Migration
+
+`2026_10_16_140000_remove_provider_switch_from_saas_payment_settings`:
+- Remove `saas_payment_settings.active_provider` (configuração, não histórico).
+- Muda **só o default** de `payments.gateway` para `efi`.
+
+**Nenhuma linha é alterada e nenhuma tabela ou coluna de histórico sai.** O `down()` restaura as duas mudanças. A migration da EFI-02 (já aplicada no banco local, lote 35) não foi reescrita; só o comentário dela foi atualizado.
+
+## 5. Referências restantes ao Mercado Pago (justificadas)
+
+| Onde | Motivo |
+|---|---|
+| `scripts/security/SecretGuard.php`, `.gitleaks.toml`, `tests/Unit/Security/SecretGuardTest.php` | Detecção de credenciais expostas, preservada a pedido do correio |
+| Registros em `payments` com `gateway = mercadopago` | Histórico financeiro: ids externos, valores, datas e resposta original intactos |
+| `2026_01_23_165507_create_payments_table.php` (`default('mercadopago')`) | Migration histórica já aplicada; o default foi corrigido pela migration nova |
+| `2026_10_16_130000_create_efi_saas_payments.php` (definição de `active_provider`) | Migration já aplicada; a coluna é removida pela `140000` |
+| Testes com `gateway = 'mercadopago'` e o 404 em `/api/webhooks/mercadopago/...` | Provam que o histórico é legível e que a rota antiga não existe |
+| `VETOROS_AVALIACAO_TECNICA.md` | Diagnóstico de 2 de setembro, mantido como registro, com nota |
+| `executed.md`, `correio.md` | Registros históricos das execuções |
+| `docker-compose.yml` da infra, serviço `vetorpet` | Outra aplicação; fora do escopo |
+
+A busca final não encontrou nada em `app/`, `routes/`, `config/`, `resources/`, `bootstrap/`, `composer.json`, `.env.example`, no bundle do frontend (`public/build`) nem na tabela de rotas.
+
+## 6. Testes executados
+
+- Suíte completa (SQLite): **742 testes, 741 passaram**. A única falha é o `SecretGuardTest` do `.env.example`, causada pela credencial da outra frente (alerta acima).
+- **No MariaDB:** como da outra vez, por orientação do responsável, as migrations rodaram no banco descartável `vetoros_migration_test` do MariaDB 11.8.6 local, e não em MySQL 8.4.
+  - `migrate:fresh` limpo, e a migration nova desfaz e reaplica sem erro.
+  - Com um pagamento antigo do Mercado Pago gravado antes, a migration mantém a linha idêntica.
+  - Suítes Efí, contrato, trava de planos e fiscal: **79 testes passaram**.
+- Cobertura específica desta entrega:
+  - Pix, boleto, cartão, recorrência e estornos, só pela Efí (22).
+  - Sem homologação: cobrança bloqueada com mensagem, nenhuma chamada externa e rota antiga 404.
+  - Trava de transição com pagamento anterior pendente, e o relatório falhando enquanto ele vale.
+  - Homologar e suspender, inclusive a recusa de qualquer "outro provedor".
+  - Contratos e planos pagos pela Efí: idempotência, estorno, reversão para plano, conversão com Pix antigo virando divergência e isolamento entre tenants.
+  - NFS-e de plano pago pela Efí, e recusa para pagamento de competência de contrato.
+- Pint: ok. Prettier nos arquivos alterados: ok. `tsc --noEmit`: ok. `npm run build`: ok. Guarda de segredos nos 63 arquivos desta entrega: ok.
+
+## 7. Procedimento para as cobranças legadas (antes da implantação)
+
+1. Em produção, antes do deploy: `php artisan vetoros:legacy-payments-report` (somente leitura).
+2. Se houver **pendente ainda válido**, o comando falha e lista cada um. Para cada um:
+   - Consultar no painel do Mercado Pago.
+   - Se foi pago, registrar a quitação manual no RootAdmin: cobrança do contrato com "Registrar pagamento", ou ajuste do vencimento no plano.
+   - Se não foi pago, aguardar a expiração. Nada é recriado na Efí automaticamente.
+3. Fazer o deploy só com o comando terminando sem pendente válido. Depois dele, a rota antiga deixa de existir; o Mercado Pago desiste das notificações.
+4. Mesmo assim, no código: enquanto existir pendente antigo válido, a empresa não recebe cobrança nova (sem pagamento em dobro).
+5. Nada foi alterado nas contas do Mercado Pago ou da Efí. Desativar o webhook e as credenciais no painel do Mercado Pago é decisão do responsável, depois do passo 3, e sem afetar o VetorPet.
+
+## 8. Pendências
+
+- **Esvaziar `ABRASIL_MAIL_PASSWORD` no `.env.example`** (alerta acima).
+- Repetir as migrations em MySQL 8.4 na homologação.
+- As pendências de credenciais e homologação da Efí da EFI-02 continuam valendo.
+- Os incidentes de credenciais antigas no histórico Git seguem sem reescrita, como pede o correio.
+- O banco descartável `vetoros_migration_test` continua no MariaDB local: `DROP DATABASE vetoros_migration_test;`.
+
+---
+
+# VETOR-SAAS-EFI-02 — Implementação completa Efí Bank. Resultado: **IMPLEMENTADO E VALIDADO LOCALMENTE CONTRA SIMULADOR; SEM CREDENCIAIS EFÍ, SEM COBRANÇA REAL, SEM COMMIT, SEM PUSH, SEM DEPLOY**
+
+Data: 2026-10-16. Executor: estação de desenvolvimento local (WSL). Nenhum push, deploy, migration de produção ou chamada real à Efí.
+
+## Comparação do correio
+
+`correio.md` estava diferente da versão executada antes (VETOR-SAAS-CONTRATO-02, registrada logo abaixo). A instrução atual é a VETOR-SAAS-EFI-02. Não havia código Efí no repositório nem registro de uma EFI-01. As alterações não commitadas da CONTRATO-02 foram preservadas e continuam na mesma árvore de trabalho.
+
+## 1. Arquitetura (sem novo motor de assinatura)
+
+- A competência continua sendo a `TenantSubscriptionCharge` do contrato (`SaasContractService`) ou a renovação do plano tradicional. A renovação do plano foi extraída do webhook do Mercado Pago para `PlanRenewalService`, e o **mesmo** serviço atende o Mercado Pago e a Efí.
+- `SaasPaymentService` cria e concilia a transação externa e aplica o resultado pelo motor existente (`registerPayment`, `refund`, `syncCoverage`). Carência, bloqueio e reativação seguem a regra atual de `tenants.expires_at` / `subscriptionBucket`; não há política nova.
+- As transações da Efí reutilizam a tabela `payments` (a mesma do Mercado Pago), agora ligadas à cobrança local (`tenant_subscription_charge_id`) ou ao plano (`plan_id`), com identificação única local (`reference`) e o id do provedor (`payment_id` = txid do Pix ou `charge_id` da API Cobranças).
+- Clientes HTTP próprios (`EfiPixClient`, `EfiChargesClient`) sobre o cliente HTTP do Laravel, em vez do SDK PHP: cada chamada fica explícita, testável e sem dependência nova no backend. No frontend entrou só a biblioteca oficial de tokenização `payment-token-efi@3.4.1` (no `package-lock.json`, que é o lockfile usado pelo `npm ci` do Dockerfile).
+
+## 2. Funcionalidades concluídas
+
+**Pix (API Pix):**
+- Cobrança imediata (`PUT /v2/cob/{txid}`) com txid único de 32 caracteres (`VOS` + 29 alfanuméricos) e expiração de 24 h.
+- QR Code e copia e cola (`GET /v2/loc/{id}/qrcode`).
+- Reutilização da cobrança pendente válida do mesmo alvo e valor.
+- Confirmação só por consulta (`GET /v2/cob/{txid}`).
+- Remoção da cob irmã depois que outro meio quita (`PATCH`, `REMOVIDA_PELO_USUARIO_RECEBEDOR`).
+- Devolução (`PUT /v2/pix/{e2eId}/devolucao/{id}`) e cadastro do webhook (`PUT /v2/webhook/{chave}`).
+
+**Boleto/Bolix (API Cobranças):**
+- `POST /v1/charge/one-step` com `banking_billet` no vencimento contratado. Competência já vencida ganha vencimento curto (+2 dias).
+- Exibe linha digitável, PDF, link e QR Code Pix do Bolix quando a API os devolve.
+- O link e a linha vão na fatura por e-mail (SMTP institucional existente).
+- Situação lida por `GET /v1/charge/{id}`: vencimento → `expired`, cancelamento → `cancelled`, confirmação → quitação.
+- **Sem duplicidade com o Bolix:** se o cliente pedir Pix com um Bolix pendente, recebe o Pix do próprio Bolix, e nenhuma cob nova é criada.
+
+**Cartão (API Cobranças):**
+- Tokenização no navegador (`EfiPay.CreditCard...getPaymentToken`). O servidor recebe só `payment_token` e a máscara; número, CVV e validade nunca chegam ao VetorOS nem são gravados.
+- Cobrança avulsa (`one-step` com `credit_card`). Recusa (`unpaid`) mantém a cobrança aberta e fica auditada.
+- **Recorrência:** assinatura nativa (`POST /v1/plan`, um plano por intervalo, criado uma vez; `POST /v1/plan/{id}/subscription/one-step`), só com o aceite explícito "Autorizo…" (IP, usuário e horário gravados).
+- Cancelamento pelo titular (`PUT /v1/subscription/{id}/cancel`). Falha de renovação fica registrada na autorização e a competência continua aberta, sujeita à carência.
+
+**Reconciliação da recorrência:**
+- Cada cobrança da assinatura quita a competência mais antiga em aberto do contrato. Se ela ainda não foi gerada, é gerada e quitada; no plano tradicional, renova o plano.
+- Com recorrência ativa, **o agendador não cria cobrança externa** para a competência, e a fatura informa "Cobrança automática no cartão".
+
+**Webhooks e conciliação:**
+- Rotas separadas:
+  - Pix: `POST /api/webhooks/efi/{segredo}` e `/{segredo}/pix`, já que a Efí acrescenta `/pix` à URL cadastrada.
+  - Cobranças: `POST /api/webhooks/efi-charges/{segredo}`, com o campo `notification`.
+- Segredo próprio de 48 caracteres na URL, comparado com `hash_equals`.
+- Cada evento é deduplicado em `saas_payment_events`: Pix pelo e2eId e devoluções, Cobranças pelo token. Evento concluído não reprocessa; o que falhou é reprocessado no reenvio.
+- Processamento em fila: `ProcessEfiPayment` e `ProcessEfiChargesNotification`, com 5 tentativas e espera de 30 s a 30 min. Só falha temporária (HTTP 429/5xx ou conexão) volta para a fila.
+- **O conteúdo da notificação nunca é confiado:** toda confirmação consulta a API.
+- txid ou cobrança que esta aplicação não gerou é ignorado (protege contra outra aplicação ou conta).
+- Conciliação periódica `vetoros:reconcile-saas-payments` a cada 30 min: pagamento atrasado, webhook perdido, expiração.
+
+**Divergências:**
+- Pagamento que chega para uma competência já quitada ou cancelada não quita de novo. Vira `saas_payment.divergence` auditado, e o RootAdmin pode devolver o Pix pela tela.
+- Estorno ou contestação informados pela API estornam a competência (o acesso volta ao vencimento).
+
+**Navegador nunca libera:** `GET /api/subscription/check?payment=` só responde `active` quando a transação foi confirmada no provedor.
+
+**RootAdmin → Financeiro · Efí Bank** (`/admin/finance/efi`, só `root.admin`):
+- Ambiente homologação ou produção.
+- Credenciais da API Cobranças e da API Pix (somente escrita, criptografadas com o cast `encrypted`, nunca enviadas ao navegador, exigem a senha do RootAdmin).
+- Certificado da API Pix: o `.p12` é convertido em PEM e guardado criptografado; o certificado só vai para um arquivo temporário 0600 durante a chamada.
+- Chave Pix, identificador de conta (tokenização), referência da conta recebedora e meios habilitados.
+- Teste de conexão (token das duas APIs, sem criar cobrança) e cadastro do webhook Pix.
+- Situação das notificações (última Pix e última Cobranças), últimos erros sem dados sensíveis e últimas transações, com ações "Conciliar" e "Devolver Pix".
+- **Trava de homologação:** novas cobranças só vão para a Efí depois do teste de conexão ok e do webhook Pix cadastrado (se o Pix estiver habilitado), mais confirmação com senha. Trocar ambiente, credencial, chave ou certificado desfaz a homologação e volta as novas cobranças ao Mercado Pago.
+
+**Transição do Mercado Pago:**
+- O Mercado Pago continua o provedor padrão até a homologação, e nada dele foi removido.
+- Um PIX do Mercado Pago ainda válido para a mesma competência é reutilizado mesmo com a Efí ativa, para nunca cobrar a mesma competência pelos dois.
+- O webhook do Mercado Pago continua concluindo as cobranças antigas.
+- Auditoria na tela: PIX pendentes no Mercado Pago, histórico aprovado, competências abertas e recorrências ativas. O VetorOS não tinha assinatura recorrente no Mercado Pago, só PIX avulso.
+- A rota antiga `subscription.pay`/`generate_pix` passa a gerar o Pix pela Efí quando ela está ativa, sem mudar a tela antiga.
+
+**Fiscal:** sem mudança. A NFS-e segue pela Spedy com o emitente ABrasil e conforme a opção individual; pagamento e emissão continuam independentes.
+
+## 3. APIs efetivamente integradas
+
+Os endpoints abaixo foram implementados conforme a documentação pública da Efí e **validados contra um simulador controlado** (`Http::fake` com estado). **Nenhum foi chamado de verdade**, porque não há credenciais de homologação.
+- **API Pix** (`pix-h.api.efipay.com.br` / `pix.api.efipay.com.br`, OAuth2 client_credentials com mTLS): `POST /oauth/token`, `PUT|GET|PATCH /v2/cob/{txid}`, `GET /v2/loc/{id}/qrcode`, `PUT /v2/pix/{e2eId}/devolucao/{id}`, `PUT|GET /v2/webhook/{chave}`.
+- **API Cobranças** (`cobrancas-h.api.efipay.com.br` / `cobrancas.api.efipay.com.br`): `POST /v1/authorize`, `POST /v1/charge/one-step` (boleto e cartão), `GET /v1/charge/{id}`, `PUT /v1/charge/{id}/cancel`, `GET /v1/notification/{token}`, `POST /v1/plan`, `POST /v1/plan/{id}/subscription/one-step`, `GET /v1/subscription/{id}`, `PUT /v1/subscription/{id}/cancel`.
+
+## 4. Arquivos
+
+**Novos:**
+- Serviços: `app/Services/Payments/SaasPaymentService.php`, `SaasPaymentTarget.php`, `Efi/EfiPixClient.php`, `Efi/EfiChargesClient.php`, `Efi/EfiException.php`; `app/Services/Commercial/PlanRenewalService.php`
+- Models: `app/Models/Admin/SaasPaymentSetting.php`, `SaasPaymentEvent.php`, `SaasRecurringAuthorization.php`
+- Controllers: `app/Http/Controllers/EfiWebhookController.php`, `App/SaasCheckoutController.php`, `Admin/Finance/EfiSettingsController.php`
+- Jobs e comando: `app/Jobs/ProcessEfiPayment.php`, `ProcessEfiChargesNotification.php`; `app/Console/Commands/ReconcileSaasPayments.php`
+- Rotas e migration: `routes/admin-finance.php`; `database/migrations/2026_10_16_130000_create_efi_saas_payments.php`
+- Frontend: `resources/js/components/Payment/EfiCheckout.tsx`, `resources/js/pages/admin/finance/efi.tsx`
+- Testes: `tests/Feature/Admin/EfiSaasPaymentsTest.php`
+
+**Alterados:**
+- `app/Models/App/Payment.php`: campos, casts e vínculos
+- `app/Http/Controllers/App/WebhookController.php`: usa o `PlanRenewalService`, com as mesmas respostas
+- `app/Http/Controllers/App/PaymentController.php`: delega à Efí quando ativa
+- `app/Http/Controllers/App/SubscriptionController.php`: props do checkout e status amarrado à transação
+- `app/Services/Commercial/SaasContractService.php`: boleto automático da competência e instruções da Efí na fatura
+- `resources/views/emails/saas-charge-invoice.blade.php`: instruções em várias linhas, escapadas
+- `resources/js/pages/Subscription/Blocked.tsx`: checkout Efí; fluxo do Mercado Pago intacto
+- `resources/js/Utils/navLinks.ts`
+- `bootstrap/app.php`, `routes/api.php`, `routes/web.php`, `routes/console.php`
+- `package.json`, `package-lock.json`
+
+## 5. Migration
+
+`2026_10_16_130000_create_efi_saas_payments` é aditiva:
+- `saas_payment_settings`: linha única, segredos criptografados.
+- Colunas novas em `payments`: vínculos, `method`, `reference` único, `provider_subscription_id`, `due_date`, `paid_at`, `paid_amount`, `refunded_amount`, `details`, `last_checked_at`, `error` e índice `(gateway, status)`.
+- `saas_payment_events`: único por provedor, canal e chave.
+- `saas_recurring_authorizations`.
+
+O `down()` desfaz tudo.
+
+## 6. Testes executados
+
+- `EfiSaasPaymentsTest`: **22 testes**, cobrindo:
+  - Pix: txid único e reutilização; webhook confirmado por API e eventos repetidos; payload não confiado e segredo errado ou txid alheio; falha da API com erro seguro; falha temporária reprocessada.
+  - Boleto: vencimento contratado e Pix do Bolix reaproveitado; boleto automático do agendador e fatura com os dados; notificação de boleto pago cancelando o Pix irmão; pagamento atrasado reativando tenant bloqueado.
+  - Cartão: cartão confirmado por API sem guardar dados sensíveis; cartão recusado.
+  - Recorrência: exige autorização e concilia cada competência sem cobrança externa duplicada; falha de renovação e cancelamento.
+  - Estorno pela API; divergência com devolução do Pix.
+  - Plano tradicional pelo mesmo processamento; PIX do Mercado Pago reaproveitado na transição; Efí bloqueada antes da homologação; isolamento entre tenants.
+  - RootAdmin: acesso só do root e segredos fora do navegador e do banco em claro; teste de conexão, webhook e trava de homologação; conversão de `.p12` para PEM criptografado.
+- Suíte completa no SQLite: **748 testes passaram (4908 asserções)**.
+- **Banco real:** por orientação do responsável, as migrations rodaram no **MariaDB 11.8.6 local**, num banco descartável `vetoros_migration_test` (não no `vetoros`). Todas as migrations rodaram do zero, e as duas novas desfizeram e reaplicaram limpas. As suítes de contrato e Efí (**64 testes**) também passaram contra esse MariaDB. **Não testado em MySQL 8.4:** a tentativa com o binário oficial 8.4.9 no scratchpad foi interrompida a pedido; o servidor temporário foi encerrado. Recomendo repetir as migrations em MySQL 8.4 na homologação.
+- Pint: ok. Prettier: ok nos arquivos alterados (os 69 avisos do projeto já existiam). `tsc --noEmit`: ok. `npm run build`: ok.
+- Guarda de segredos (`scripts/security/secret-guard.php`): ok nos 48 arquivos alterados. O teste usa certificado gerado em tempo de execução; não há material de chave versionado.
+
+## 7. Pontos que exigem credenciais da Efí
+
+1. Aplicação **exclusiva do VetorOS** na conta Efí existente, com os escopos de Cobranças e de Pix (cob, webhook, devolução). Não reutilizar as aplicações das outras operações.
+2. Client ID e Client Secret de homologação das duas APIs, o certificado `.p12` de homologação e a chave Pix de homologação.
+3. Identificador de conta (*payee code*) para a tokenização do cartão.
+4. Confirmar na conta: se o Bolix está habilitado (o Pix vem dentro do boleto); se a recorrência no cartão está liberada; o comportamento de boleto vencido (multa, juros, pagamento após o vencimento); e se a Efí exige mTLS no webhook Pix ou aceita `x-skip-mtls-checking` (o código usa o segredo na URL mais a confirmação por API).
+5. Nomes de campos dependentes da conta, a validar no primeiro teste real: `paid_value` (o código cai para `total`), `pix.qrcode_image` do Bolix e eventos de assinatura do tipo `subscription_charge`.
+
+## 8. Pendências de homologação
+
+- Rodar em homologação: teste de conexão, cadastro do webhook Pix, um Pix, um boleto (pago pela linha e pelo Pix do Bolix), um cartão avulso aprovado e um recusado (cartões de teste da Efí), uma recorrência com renovação e cancelamento, uma devolução Pix e um estorno de cartão.
+- Conferir o certificado `.p12` real: com OpenSSL 3, `.p12` legado pode falhar; a tela orienta converter com `-legacy`.
+- Worker de fila ativo em produção. Sem ele, a conciliação periódica ainda confirma, mas com até 30 min de atraso.
+- **Segurança (item 9), só verificação:**
+  - O dump do P0-1 já não aparece em nenhuma referência.
+  - Os commits com `APP_KEY`, `DB_PASSWORD` e `MAIL_PASSWORD` no `.env.example` (ex.: `22a5a86a`) **ainda existem no histórico**: reescrita e rotação seguem pendentes, como no VETOR-SEC-03.
+  - A `APP_KEY` **não foi alterada**. Como as credenciais da Efí são cifradas com ela, a troca exige o procedimento de recifragem (`APP_PREVIOUS_KEYS`) já descrito.
+- O banco descartável `vetoros_migration_test` continua no MariaDB local para remoção: `DROP DATABASE vetoros_migration_test;`. O binário do MySQL 8.4.9 está no scratchpad desta sessão.
+
+## 9. Implantação (quando liberada)
+
+1. Commit e push revisados; deploy com `composer install`, `npm ci && npm run build`.
+2. `php artisan migrate --force` (aditiva; o Mercado Pago continua ativo).
+3. Garantir o worker de fila e o scheduler (`vetoros:reconcile-saas-payments` a cada 30 min e `vetoros:process-saas-contracts` às 07:00).
+4. RootAdmin → Financeiro · Efí Bank:
+   1. Ambiente **homologação**: credenciais, certificado, chave Pix e identificador de conta.
+   2. Testar conexão e cadastrar o webhook Pix.
+   3. Habilitar os meios e usar a Efí. Homologar com os casos do item 8.
+5. Produção: trocar o ambiente e as credenciais (a homologação é desfeita automaticamente), testar, cadastrar o webhook e usar a Efí.
+
+## 10. Rollback
+
+- **Imediato, sem deploy:** RootAdmin → "Voltar ao Mercado Pago". As novas cobranças voltam ao Mercado Pago na hora. Transações Efí já criadas continuam sendo conciliadas e quitadas pelos webhooks e pela conciliação, então nada pago se perde. Recorrências no cartão ativas devem ser canceladas na tela ou na Efí, se o objetivo for parar a cobrança.
+- **Código:** reverter o commit. A migration tem `down()` completo, mas **não** rodar o rollback em produção se já houver transações Efí, porque as colunas novas de `payments` guardam o vínculo com a competência. Prefira manter o schema e só desligar o provedor.
+
+---
+
+# VETOR-SAAS-CONTRATO-02 — Contrato personalizado com trava de planos e cobrança recorrente. Resultado: **IMPLEMENTADO E VALIDADO LOCALMENTE, SEM COMMIT, SEM PUSH, SEM DEPLOY**
+
+Data: 2026-10-16. Executor: estação de desenvolvimento local (WSL). Nenhum push, deploy ou migration de produção.
+
+## Comparação do correio
+
+`correio.md` estava diferente da versão em `HEAD` (`ff5061c0`): a instrução anterior era VETOR-SAAS-CONTRATO-01, cujo código já está no commit `ff5061c0` ("Push"), mas que não tinha registro neste arquivo. A atual é VETOR-SAAS-CONTRATO-02, que complementa a 01.
+
+## 1. Auditoria: o que já existia (CONTRATO-01, reaproveitado)
+
+- `SaasContractService` (`app/Services/Commercial`): contrato por tenant (`tenant_commercial_contracts`), uma cobrança por ciclo (`tenant_subscription_charges`, índice único contrato + início do ciclo), pagamento manual ou PIX, estorno, ajuste auditado, cobertura de acesso por `tenants.expires_at` (vencimento → 3 dias de carência → bloqueio, regra já existente de `Tenant::subscriptionBucket`).
+- Mercado Pago: `PaymentController::generatePix` já cobrava a cobrança em aberto (nunca o preço do plano) para tenant com contrato. `WebhookController` valida o token por `hash_equals`, confirma o pagamento consultando a API (`getPayment`), é idempotente e ignora PIX de plano aprovado depois da conversão.
+- Fiscal e e-mail: NFS-e pela Spedy com o emitente da ABrasil (`SaasInvoiceService`), programada pela competência e independente da quitação. Fatura e aviso fiscal saem pelo SMTP institucional (`AppliesSystemMailConfig`). PDF e XML vão por links assinados e temporários (`/nfse-saas/...`). Reenvio sem reemissão.
+- Agendador: `vetoros:process-saas-contracts`, diariamente às 07:00.
+- UI: RootAdmin → Empresas → Editar → "Condições comerciais e faturamento", com os campos do contrato visíveis só com a opção ligada e a opção individual "Emitir NFS-e para este cliente SaaS".
+
+## 2. Lacunas encontradas e corrigidas
+
+| # | Lacuna | Correção |
+|---|---|---|
+| 1 | O RootAdmin ainda podia trocar o plano de um tenant com contrato pelo formulário geral da empresa | `TenantController::update` recusa a troca de `plan_id` (erro de validação) e preserva o `period_id`. Na tela, o seletor fica desabilitado e explica o motivo |
+| 2 | Na área do tenant, o modal de assinatura listava os planos e seus preços | `HandleInertiaRequests` envia `plans = []` e `custom_contract = true`. O modal mostra "Ver cobrança e gerar PIX" (página da cobrança do contrato) |
+| 3 | A rota de PIX aceitava `plan_id` em silêncio | Com contrato, `plan_id` na requisição retorna **403** |
+| 4 | A volta ao plano não tinha data efetiva | Agora exige **data efetiva** (não anterior a hoje) e confirmação que cita a data. Hoje: aplica na hora. Data futura: fica agendada (`revert_*`). Até lá o contrato vale e não gera cobrança com vencimento a partir dessa data. O agendador aplica no dia. Também é possível desagendar (`DELETE /admin/tenants/{id}/commercial/revert`). Tudo é auditado |
+| 5 | Vencimentos em dias 29/30/31 escorregavam (31/01 → 28/02 → 28/03) | `anchor_day` (dia contratual) e `TenantCommercialContract::nextDueAfter`: 31/01 → 28/02 → 31/03; 29/02 anual → 28/02 → … → 29/02 no bissexto. O ciclo termina na véspera do próximo vencimento |
+| 6 | Cada clique gerava um PIX novo para a mesma cobrança, com risco de pagamento em dobro | `SaasContractService::reusablePixFor` devolve o PIX pendente ainda válido (com folga de 5 min) da mesma cobrança e do mesmo valor |
+| 7 | Um segundo PIX aprovado para cobrança já quitada só gerava log | Também fica em `fiscal_admin_audits` (`commercial.payment_not_applied`) para o RootAdmin devolver. A cobrança não é quitada de novo |
+
+Requisitos já atendidos pela 01 e mantidos: o valor do ciclo é cobrado integralmente (nunca o mensal multiplicado); mudança de valor ou periodicidade vale do próximo ciclo (as cobranças geradas não são recalculadas; o ajuste de cobrança em aberto é explícito e auditado); na conversão, o vencimento não pode cair em período já pago ou cobrado; não há duas assinaturas faturáveis (PIX de plano é recusado com contrato e ignorado no webhook); permissões continuam vindo do plano, que fica intacto; histórico preservado (sem exclusão de empresa com contrato); a inadimplência, a carência, a suspensão e a reativação seguem as regras atuais.
+
+## 3. Arquivos alterados
+
+- `database/migrations/2026_10_16_120000_add_anchor_and_scheduled_revert_to_saas_contracts.php` (**nova, aditiva**)
+- `app/Models/Admin/TenantCommercialContract.php`: `anchor_day`, `nextDueAfter`, `cycleFor` ancorado, relações `revertPlan` e `revertPeriod`
+- `app/Services/Commercial/SaasContractService.php`: `anchor_day` ao salvar; `revertToPlan` com data efetiva; `cancelScheduledRevert`; `applyScheduledReverts`; trava de geração após a data efetiva; `reusablePixFor`; snapshot de auditoria ampliado
+- `app/Console/Commands/ProcessSaasContracts.php`: aplica as voltas agendadas antes de gerar cobranças
+- `app/Http/Controllers/Admin/TenantCommercialController.php`: `effective_date`, `cancelRevert`, props `scheduled_revert` e `suggested_revert_date`
+- `app/Http/Controllers/Admin/TenantController.php`: trava de plano no backend
+- `app/Http/Controllers/App/PaymentController.php`: 403 para `plan_id` com contrato; reaproveitamento do PIX
+- `app/Http/Controllers/App/WebhookController.php`: auditoria de pagamento não aplicado
+- `app/Http/Middleware/HandleInertiaRequests.php`: `plans` vazio e `custom_contract`
+- `routes/admin.php`: rota de desagendamento
+- `resources/js/components/admin/tenant-commercial-section.tsx`: "Data inicial (data efetiva)", "Primeiro vencimento", data efetiva no diálogo de volta, aviso de agendamento com "Desagendar"
+- `resources/js/pages/admin/tenants/edit-tenant.tsx`: seletor de plano bloqueado
+- `resources/js/components/Payment/SubscriptionModal.tsx`: modo contrato sem lista de planos
+- Testes: `tests/Feature/Admin/SaasContractPlanLockTest.php` (novo) e `SaasCommercialContractTest.php` (ajustado à trava e à data efetiva)
+
+## 4. Migration
+
+Aditiva. Em `tenant_commercial_contracts`: `anchor_day` (tinyint, nulo), `revert_scheduled_for` (date, nulo), `revert_plan_id` e `revert_period_id` (FK, nullOnDelete) e `revert_requested_by` (FK users). O backfill de `anchor_day` usa o dia do `next_due_date` atual. Testada só no SQLite dos testes; **não executada em produção**.
+
+## 5. Resultados
+
+- Testes de contrato: **42 passaram** (26 da 01, ajustados, e 16 novos: âncora de dia para mensal 31/30/29, semestral 31 e anual 29/02; geração atrasada mantendo o dia 31; troca de periodicidade no ciclo seguinte; trava no admin; trava na área do tenant com 403; tenant de plano ainda vê planos; reaproveitamento do PIX; segundo PIX não aplicado e auditado; validação da data efetiva; volta agendada sem sobreposição; desagendar só pelo RootAdmin; volta com efeito imediato).
+- Suíte completa: **726 testes passaram (4689 asserções)**.
+- Pint: ok. Prettier: ok. `tsc --noEmit`: sem erros. `npm run build`: ok (só o aviso de tamanho de chunk que já existia).
+
+## 6. Pendências e riscos
+
+- **Mercado Pago:** continua só o PIX. Boleto, cartão e assinatura recorrente do MP não foram ampliados, como pede o correio; fica para depois de auditar os recursos da conta (credenciais e produtos habilitados). A assinatura `x-signature` do webhook não é validada (a autenticação é o token na URL mais a confirmação pela API); recomendo adicioná-la quando o segredo do MP estiver configurado.
+- Segundo PIX pago para a mesma cobrança: fica auditado, mas a devolução é manual no painel do Mercado Pago.
+- Volta agendada: na data efetiva, as cobranças em aberto sem NFS-e são canceladas (mesma regra da volta imediata da 01). Se houver cobrança em aberto com NFS-e ativa, a aplicação é recusada, auditada (`commercial.scheduled_revert_blocked`) e tentada de novo no dia seguinte.
+- Contratos criados antes desta migration que já tinham escorregado (por exemplo, 31 → 28) ficam ancorados no dia atual; corrija o "Próximo vencimento" no RootAdmin se necessário.
+- Nada commitado; nenhum push, deploy ou migration de produção, conforme o correio.
+
+## 7. Homologação sugerida (ambiente de teste)
+
+1. `php artisan migrate` no ambiente de teste.
+2. RootAdmin → Empresa → ativar o contrato com primeiro vencimento no dia 31. Conferir que o seletor de plano fica bloqueado e que a troca pelo formulário é recusada.
+3. Entrar como tenant: o modal não lista planos; gerar o PIX duas vezes deve devolver o mesmo QR Code.
+4. Pagar no sandbox do MP: a cobrança fica paga e o webhook repetido não muda nada.
+5. Agendar a volta ao plano para uma data futura, rodar `php artisan vetoros:process-saas-contracts` antes e na data: nenhuma cobrança do contrato sai a partir da data efetiva, e na data a empresa volta ao plano escolhido.
+6. Com "Emitir NFS-e" ligado, conferir a emissão na competência (sandbox Spedy) e os links de PDF e XML no e-mail.
+
+---
+
 # VETOR-FISCAL-02 — Publicação, implantação e homologação real da integração Spedy. Resultado: **BLOQUEADO NA PUBLICAÇÃO (push sem credencial); NADA IMPLANTADO**
 
 Data: 2026-10-15. Executor: estação de desenvolvimento local (WSL), **não a VPS**. Aqui não existem `/opt/infra-abrasil` nem Docker, e não há credencial de push para o GitHub. Nenhum push, deploy, backup, migration, alteração de container ou chamada real à Spedy foi feito.

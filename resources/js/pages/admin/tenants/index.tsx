@@ -1,212 +1,301 @@
-import ActionDelete from '@/components/action-delete';
+import type { PaginationData } from '@/components/app-pagination';
 import AppPagination from '@/components/app-pagination';
 import { Icon } from '@/components/icon';
 import InputSearch from '@/components/inputSearch';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
-import { statusSaasByValue } from '@/Utils/functions';
-import { maskCnpj, maskPhone, normalizeWhatsappPhone } from '@/Utils/mask';
-import { Head, Link } from '@inertiajs/react';
-import { Building, Edit, Eye, Plus } from 'lucide-react';
+import { maskCnpj, normalizeWhatsappPhone } from '@/Utils/mask';
+import { Head, Link, router } from '@inertiajs/react';
+import { Building, Eye, Loader2, MessageCircle, MoreHorizontal, Plus, Settings2, Trash2 } from 'lucide-react';
 import moment from 'moment';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: route('admin.dashboard'),
-    },
-    {
-        title: 'Empresas',
-        href: '#',
-    },
+    { title: 'Dashboard', href: route('admin.dashboard') },
+    { title: 'Empresas', href: '#' },
 ];
 
-export default function TenantsIndex({ tenants, filters }: any) {
-    const getRowClassName = (subscriptionStatus: string) => {
-        if (subscriptionStatus === 'blocked') {
-            return 'bg-rose-50/60 hover:bg-rose-50';
-        }
+type Paginated<T> = PaginationData & { data: T[]; total?: number };
 
-        if (subscriptionStatus === 'grace') {
-            return 'bg-amber-50/60 hover:bg-amber-50';
-        }
+type TenantRow = {
+    id: number;
+    name: string;
+    company: string | null;
+    cnpj: string | null;
+    email: string | null;
+    whatsapp: string | null;
+    billing_mode: 'plan' | 'custom' | null;
+    plan?: { name: string } | null;
+    expires_at: string | null;
+    status_label: string;
+    computed_subscription_bucket: string;
+    computed_subscription_label: string;
+};
 
-        return '';
+const filterLinks = [
+    { label: 'Todas', value: '' },
+    { label: 'Ativas', value: 'active' },
+    { label: 'Carência', value: 'grace' },
+    { label: 'Bloqueadas', value: 'blocked' },
+    { label: 'Vence hoje', value: 'expires_today' },
+    { label: '7 dias', value: 'expires_next_7_days' },
+    { label: 'Sem plano', value: 'without_plan' },
+    { label: 'Sem vencimento', value: 'without_expiration' },
+];
+
+function situationTone(bucket: string) {
+    if (bucket === 'active')
+        return 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200';
+    if (bucket === 'blocked') return 'border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200';
+    return 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200';
+}
+
+function Modality({ tenant }: { tenant: TenantRow }) {
+    return tenant.billing_mode === 'custom' ? (
+        <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-200">
+            Contrato personalizado
+        </Badge>
+    ) : (
+        <Badge variant="outline">{tenant.plan?.name ? `Plano ${tenant.plan.name}` : 'Sem plano'}</Badge>
+    );
+}
+
+function Situation({ tenant }: { tenant: TenantRow }) {
+    return (
+        <div className="space-y-0.5">
+            <Badge variant="outline" className={situationTone(tenant.computed_subscription_bucket)}>
+                {tenant.computed_subscription_label}
+            </Badge>
+            <p className="text-muted-foreground text-xs">
+                {tenant.expires_at ? `Vence ${moment(tenant.expires_at).format('DD/MM/YYYY')} · ${tenant.status_label}` : tenant.status_label}
+            </p>
+        </div>
+    );
+}
+
+/** Ações de cada empresa: Gerenciar em destaque; o restante no menu "…". */
+function Actions({ tenant, onDelete }: { tenant: TenantRow; onDelete: (tenant: TenantRow) => void }) {
+    const name = tenant.company || tenant.name;
+
+    return (
+        <div className="flex items-center justify-end gap-1">
+            <Button asChild size="sm" variant="outline">
+                <Link href={route('admin.tenants.edit', tenant.id)} aria-label={`Gerenciar ${name}`}>
+                    <Settings2 className="size-4" />
+                    Gerenciar
+                </Link>
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="ghost" aria-label={`Mais ações de ${name}`}>
+                        <MoreHorizontal className="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild disabled={!tenant.whatsapp}>
+                        <a
+                            target="_blank"
+                            rel="noreferrer"
+                            href={`https://wa.me/${normalizeWhatsappPhone(tenant.whatsapp ?? '')}?text=Olá, ${tenant.name}`}
+                        >
+                            <MessageCircle className="size-4" />
+                            Enviar WhatsApp
+                        </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <a href={route('admin.tenants.subscription-invoice-email-preview', tenant.id)} target="_blank" rel="noopener noreferrer">
+                            <Eye className="size-4" />
+                            Prévia do e-mail da fatura
+                        </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => onDelete(tenant)}>
+                        <Trash2 className="size-4" />
+                        Excluir empresa
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+}
+
+/** RootAdmin → Empresas (VETOR-UX-ADMIN-03): listagem enxuta; os detalhes ficam na edição. */
+export default function TenantsIndex({
+    tenants,
+    filters,
+}: {
+    tenants: Paginated<TenantRow>;
+    filters: { search?: string; subscription_filter?: string; result_count?: number };
+}) {
+    const [deleting, setDeleting] = useState<TenantRow | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const rows: TenantRow[] = tenants?.data ?? [];
+
+    const destroy = () => {
+        if (!deleting) return;
+        router.delete(route('admin.tenants.destroy', deleting.id), {
+            preserveScroll: true,
+            onStart: () => setProcessing(true),
+            onFinish: () => {
+                setProcessing(false);
+                setDeleting(null);
+            },
+        });
     };
-
-    const getSubscriptionBadgeClassName = (subscriptionStatus: string) => {
-        if (subscriptionStatus === 'active') {
-            return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-        }
-
-        if (subscriptionStatus === 'blocked') {
-            return 'border-rose-200 bg-rose-50 text-rose-700';
-        }
-
-        return 'border-amber-200 bg-amber-50 text-amber-700';
-    };
-
-    const filterLinks = [
-        { label: 'Todas', value: '' },
-        { label: 'Ativas', value: 'active' },
-        { label: 'Carência', value: 'grace' },
-        { label: 'Bloqueadas', value: 'blocked' },
-        { label: 'Vence Hoje', value: 'expires_today' },
-        { label: '7 Dias', value: 'expires_next_7_days' },
-        { label: 'Sem Plano', value: 'without_plan' },
-        { label: 'Sem Vencimento', value: 'without_expiration' },
-    ];
 
     return (
         <AdminLayout breadcrumbs={breadcrumbs}>
             <Head title="Empresas" />
-            <div className="flex min-h-16 flex-col justify-center gap-1 px-4 py-3">
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
-                    <Icon iconNode={Building} className="h-8 w-8" />
+                    <Icon iconNode={Building} className="h-7 w-7" />
                     <h2 className="text-xl font-semibold tracking-tight">Empresas</h2>
                 </div>
+                <Button asChild className="w-full sm:w-auto">
+                    <Link href={route('admin.tenants.create')}>
+                        <Plus className="h-4 w-4" />
+                        Nova empresa
+                    </Link>
+                </Button>
             </div>
-            <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="w-full min-w-0 space-y-3 lg:max-w-[520px] lg:flex-1">
-                    <InputSearch placeholder="Buscar empresa" url="admin.tenants.index" />
-                    <div className="text-muted-foreground text-sm">{filters?.result_count ?? tenants?.total ?? 0} empresa(s) encontrada(s)</div>
-                    <div className="flex flex-wrap gap-2">
-                        {filterLinks.map((filter) => {
-                            const isActive = (filters?.subscription_filter ?? '') === filter.value;
 
-                            return (
-                                <Link
-                                    key={filter.label}
-                                    href={route('admin.tenants.index', {
-                                        ...(filters?.search ? { search: filters.search } : {}),
-                                        ...(filter.value ? { subscription_filter: filter.value } : {}),
-                                    })}
+            <div className="space-y-3 px-4">
+                <div className="max-w-xl">
+                    <InputSearch placeholder="Buscar por empresa, contato, e-mail ou CNPJ" url="admin.tenants.index" />
+                </div>
+                <nav aria-label="Filtrar por situação" className="flex flex-wrap items-center gap-2">
+                    {filterLinks.map((filter) => {
+                        const isActive = (filters?.subscription_filter ?? '') === filter.value;
+                        return (
+                            <Link
+                                key={filter.label}
+                                aria-current={isActive ? 'page' : undefined}
+                                href={route('admin.tenants.index', {
+                                    ...(filters?.search ? { search: filters.search } : {}),
+                                    ...(filter.value ? { subscription_filter: filter.value } : {}),
+                                })}
+                            >
+                                <Badge
+                                    variant="outline"
+                                    className={
+                                        isActive ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground'
+                                    }
                                 >
-                                    <Badge
-                                        variant="outline"
-                                        className={
-                                            isActive
-                                                ? 'border-primary bg-primary/10 text-primary'
-                                                : 'border-border bg-background text-muted-foreground'
-                                        }
-                                    >
-                                        {filter.label}
-                                    </Badge>
-                                </Link>
-                            );
-                        })}
-                    </div>
-                </div>
-                <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
-                    <Button variant="default" asChild className="w-full whitespace-nowrap sm:w-auto">
-                        <Link href={route('admin.tenants.create')}>
-                            <Plus className="h-4 w-4" />
-                            Empresa
-                        </Link>
-                    </Button>
-                </div>
+                                    {filter.label}
+                                </Badge>
+                            </Link>
+                        );
+                    })}
+                    <span className="text-muted-foreground ml-auto text-sm">{filters?.result_count ?? tenants?.total ?? 0} empresa(s)</span>
+                </nav>
             </div>
 
             <div className="p-4">
-                <div className="rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>#</TableHead>
-                                <TableHead>Contato</TableHead>
-                                <TableHead>Razão Social</TableHead>
-                                <TableHead>CNPJ</TableHead>
-                                <TableHead>E-mail</TableHead>
-                                <TableHead>Telefone</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Assinatura</TableHead>
-                                <TableHead>Criação</TableHead>
-                                <TableHead>Plano</TableHead>
-                                <TableHead>Período</TableHead>
-                                <TableHead>Vencimento</TableHead>
-                                <TableHead>Restante</TableHead>
-                                <TableHead></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {tenants?.data.length > 0 ? (
-                                tenants?.data?.map((tenant: any) => (
-                                    <TableRow key={tenant.id} className={getRowClassName(tenant.computed_subscription_bucket)}>
-                                        <TableCell>{tenant.id}</TableCell>
-                                        <TableCell>{tenant.name}</TableCell>
-                                        <TableCell>{tenant.company}</TableCell>
-                                        <TableCell>{maskCnpj(tenant.cnpj) || '-'}</TableCell>
-                                        <TableCell>{tenant.email}</TableCell>
-                                        <TableCell>{maskPhone(tenant.phone)}</TableCell>
-                                        <TableCell>{statusSaasByValue(tenant.status)}</TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={getSubscriptionBadgeClassName(tenant.computed_subscription_bucket)}>
-                                                {tenant.computed_subscription_label}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>{moment(tenant.created_at).format('DD/MM/YYYY')}</TableCell>
-                                        <TableCell>{tenant.plan?.name ?? '-'}</TableCell>
-                                        <TableCell>{tenant.current_plan_period_label ?? tenant.period?.name ?? '-'}</TableCell>
-                                        <TableCell>{tenant.expires_at ? moment(tenant.expires_at).format('DD/MM/YYYY') : '-'}</TableCell>
-                                        <TableCell>{tenant.status_label}</TableCell>
-                                        <TableCell className="flex justify-end gap-2">
-                                            <Button asChild size="icon" className="bg-green-500 text-white hover:bg-green-500" title="Enviar WhatsApp">
-                                                <a target="_blank" href={`https://wa.me/${normalizeWhatsappPhone(tenant.whatsapp)}?text=Olá, ${tenant.name}`}>
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        width="16"
-                                                        height="16"
-                                                        fill="currentColor"
-                                                        className="bi bi-whatsapp"
-                                                        viewBox="0 0 16 16"
-                                                    >
-                                                        <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232" />
-                                                    </svg>
-                                                </a>
-                                            </Button>
-
-                                            <Button asChild size="icon" className="bg-orange-500 text-white hover:bg-orange-600" title="Editar empresa">
-                                                <Link href={route('admin.tenants.edit', tenant.id)}>
-                                                    <Edit />
-                                                </Link>
-                                            </Button>
-
-                                            <Button asChild size="icon" variant="outline" title="Visualizar e-mail da fatura">
-                                                <a
-                                                    href={route('admin.tenants.subscription-invoice-email-preview', tenant.id)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    aria-label="Visualizar e-mail da fatura"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </a>
-                                            </Button>
-
-                                            <ActionDelete title={'esta empresa'} url={'admin.tenants.destroy'} param={tenant.id} />
-                                        </TableCell>
+                {rows.length === 0 ? (
+                    <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+                        {filters?.search || filters?.subscription_filter
+                            ? 'Nenhuma empresa encontrada com esses filtros.'
+                            : 'Nenhuma empresa cadastrada.'}
+                    </p>
+                ) : (
+                    <>
+                        {/* Desktop e tablet */}
+                        <div className="hidden rounded-lg border md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Empresa</TableHead>
+                                        <TableHead>CNPJ</TableHead>
+                                        <TableHead>Modalidade</TableHead>
+                                        <TableHead>Situação</TableHead>
+                                        <TableHead className="text-right">Ação</TableHead>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={14} className="flex h-16 w-full items-center justify-center">
-                                        <span>Não há dados a serem mostrados no momento.</span>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell colSpan={14}>
-                                    <AppPagination data={tenants} />
-                                </TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {rows.map((tenant) => (
+                                        <TableRow key={tenant.id}>
+                                            <TableCell className="max-w-72">
+                                                <div className="truncate font-medium">{tenant.company || tenant.name}</div>
+                                                <div className="text-muted-foreground truncate text-xs">{tenant.name}</div>
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">{maskCnpj(tenant.cnpj ?? '') || '-'}</TableCell>
+                                            <TableCell>
+                                                <Modality tenant={tenant} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Situation tenant={tenant} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Actions tenant={tenant} onDelete={setDeleting} />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Celular */}
+                        <ul className="space-y-3 md:hidden">
+                            {rows.map((tenant) => (
+                                <li key={tenant.id} className="bg-card space-y-3 rounded-lg border p-3">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium">{tenant.company || tenant.name}</p>
+                                        <p className="text-muted-foreground text-xs">{maskCnpj(tenant.cnpj ?? '') || 'sem CNPJ'}</p>
+                                    </div>
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                        <Situation tenant={tenant} />
+                                        <Modality tenant={tenant} />
+                                    </div>
+                                    <Actions tenant={tenant} onDelete={setDeleting} />
+                                </li>
+                            ))}
+                        </ul>
+                    </>
+                )}
+                <div className="mt-4">
+                    <AppPagination data={tenants} />
                 </div>
             </div>
+
+            <AlertDialog open={deleting !== null} onOpenChange={(value) => !value && !processing && setDeleting(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir {deleting?.company || deleting?.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Empresas com contrato comercial e cobranças não são excluídas: nesse caso, desative a
+                            empresa.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={processing}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={processing}
+                            className="bg-red-600 text-white hover:bg-red-700"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                destroy();
+                            }}
+                        >
+                            {processing && <Loader2 className="size-4 animate-spin" />}
+                            Excluir
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AdminLayout>
     );
 }

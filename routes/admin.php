@@ -24,9 +24,10 @@ Route::get('/tenants/{tenant}/subscription-invoice-email-preview', [TenantContro
     ->name('tenants.subscription-invoice-email-preview');
 Route::post('/tenants/{tenant}/subscription-email-send/{scenario}', [TenantController::class, 'sendSubscriptionEmail'])
     ->name('tenants.subscription-email-send');
-// Condições comerciais e faturamento do SaaS (VETOR-SAAS-CONTRATO-01).
+// Condições comerciais e faturamento do SaaS (VETOR-SAAS-CONTRATO-01/02).
 Route::put('/tenants/{tenant}/commercial', [TenantCommercialController::class, 'update'])->name('tenants.commercial.update');
 Route::post('/tenants/{tenant}/commercial/revert', [TenantCommercialController::class, 'revert'])->name('tenants.commercial.revert');
+Route::delete('/tenants/{tenant}/commercial/revert', [TenantCommercialController::class, 'cancelRevert'])->name('tenants.commercial.revert.cancel');
 Route::post('/tenants/{tenant}/charges/{charge}/pay', [TenantCommercialController::class, 'pay'])->name('tenants.charges.pay');
 Route::post('/tenants/{tenant}/charges/{charge}/refund', [TenantCommercialController::class, 'refund'])->name('tenants.charges.refund');
 Route::post('/tenants/{tenant}/charges/{charge}/adjust', [TenantCommercialController::class, 'adjust'])->name('tenants.charges.adjust');

@@ -15,11 +15,12 @@ class PaymentFactory extends Factory
 
     public function definition(): array
     {
-        $status = $this->faker->randomElement(['pending', 'approved', 'cancelled']);
+        $status = $this->faker->randomElement(['pending', 'paid', 'cancelled']);
         $createdAt = $this->faker->dateTimeBetween('-60 days', 'now');
 
         return [
-            'gateway' => 'mercadopago',
+            'gateway' => 'efi',
+            'method' => 'pix',
             'payment_id' => 'pay_'.Str::upper(Str::random(18)),
             'amount' => $this->faker->randomFloat(2, 99, 1999),
             'status' => $status,
@@ -27,7 +28,7 @@ class PaymentFactory extends Factory
             'expires_at' => $status === 'pending' ? $this->faker->dateTimeBetween($createdAt, 'now') : null,
             'raw_response' => [
                 'status' => $status,
-                'provider' => 'mercadopago',
+                'provider' => 'efi',
             ],
             'created_at' => $createdAt,
             'updated_at' => $this->faker->dateTimeBetween($createdAt, 'now'),

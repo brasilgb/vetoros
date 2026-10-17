@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\App\PaymentController;
+use App\Http\Controllers\App\SaasCheckoutController;
 use App\Http\Controllers\App\SubscriptionController;
 use App\Http\Controllers\OsController;
 use App\Http\Controllers\SharedFiscalDocumentController;
@@ -63,6 +63,10 @@ Route::get('/termos', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
+    // Minha assinatura (VETOR-SAAS-EFI-04): consulta e pagamento em qualquer estado da assinatura.
+    Route::get('/subscription', [SubscriptionController::class, 'show'])
+        ->name('subscription.show');
+
     // Tela de bloqueio
     Route::get('/subscription/blocked', [SubscriptionController::class, 'blocked'])
         ->name('subscription.blocked');
@@ -71,12 +75,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/subscription/check', [SubscriptionController::class, 'checkStatus'])
         ->name('subscription.check_status');
 
-    // Rota que gera o PIX (já criada anteriormente, mas reforçando)
-    Route::post('/subscription/pay', [PaymentController::class, 'generatePix'])
-        ->name('subscription.pay');
-
-    Route::post('/subscription/generate-pix', [PaymentController::class, 'generatePix'])
-        ->name('subscription.generate_pix');
+    // Checkout Efí (VETOR-SAAS-EFI-02): Pix, boleto/Bolix, cartão e recorrência. Liberação só pela confirmação na API.
+    Route::post('/subscription/efi/pix', [SaasCheckoutController::class, 'pix'])->middleware('throttle:20,1')->name('subscription.efi.pix');
+    Route::post('/subscription/efi/billet', [SaasCheckoutController::class, 'billet'])->middleware('throttle:20,1')->name('subscription.efi.billet');
+    Route::post('/subscription/efi/card', [SaasCheckoutController::class, 'card'])->middleware('throttle:10,1')->name('subscription.efi.card');
+    Route::post('/subscription/efi/recurring/cancel', [SaasCheckoutController::class, 'cancelRecurring'])->middleware('throttle:5,1')->name('subscription.efi.recurring.cancel');
+    Route::get('/subscription/efi/payments/{payment}', [SaasCheckoutController::class, 'status'])->name('subscription.efi.status');
+    // Consultar de novo: o servidor pergunta à Efí (nunca o navegador decide a quitação).
+    Route::post('/subscription/efi/payments/{payment}/refresh', [SaasCheckoutController::class, 'refresh'])->middleware('throttle:6,1')->name('subscription.efi.refresh');
 });
 
 require __DIR__.'/auth.php';

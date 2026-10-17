@@ -1,5 +1,7 @@
 # Avaliação técnica do VetorOS para reescrita em Node.js + Next.js
 
+> **Atualização (2026-10-16, VETOR-SAAS-EFI-03):** a integração Mercado Pago descrita nesta análise foi removida. O recebimento das assinaturas SaaS é feito só pela Efí Bank (Pix, boleto/Bolix, cartão e recorrência), configurada em RootAdmin → Financeiro · Efí Bank. As menções ao Mercado Pago abaixo são o retrato de 2 de setembro de 2026 e foram mantidas como registro histórico.
+
 **Data da análise:** 2 de setembro de 2026  
 **Escopo:** inspeção estática do repositório no commit `2648e8ec` (`Push`, 2026-08-28), rotas, código PHP/TypeScript, migrations, configurações, documentação e testes.  
 **Limites:** nenhum código, banco, migration ou comportamento foi alterado. O banco de produção, infraestrutura implantada, métricas de uso, cobertura de testes e comportamento visual em navegador não foram inspecionados; quando dependem dessas fontes, estão marcados como **não confirmado**.

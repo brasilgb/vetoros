@@ -3,11 +3,16 @@
 namespace App\Http\Middleware;
 
 use App\Models\Tenant;
-use Carbon\Carbon;
+use App\Support\SubscriptionAlert;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+/**
+ * Acesso do tenant pela assinatura (vencimento → 3 dias de carência → bloqueio). Perto do vencimento,
+ * no dia e na carência o acesso continua e o aviso vai para a tela (VETOR-SAAS-EFI-04). Bloqueado, só
+ * passam as rotas de assinatura e pagamento, que ficam fora deste grupo; por isso não há ciclo.
+ */
 class CheckSubscriptionStatus
 {
     public function handle(Request $request, Closure $next)
@@ -26,31 +31,14 @@ class CheckSubscriptionStatus
             ]);
         }
 
-        $bucket = $tenant->subscriptionBucket();
-        if ($bucket === Tenant::SUBSCRIPTION_ACTIVE) {
-            return $next($request);
-        }
-
-        $now = now();
-        if ($bucket === Tenant::SUBSCRIPTION_GRACE) {
-            $expiresAt = Carbon::parse($tenant->expires_at);
-            $daysOverdue = $expiresAt->diffInDays($now);
-
-            Inertia::share('subscription_alert', [
-                'status' => 'grace_period',
-                'days_overdue' => $daysOverdue,
-                'message' => 'Sua assinatura venceu. Regularize para evitar bloqueio.',
-            ]);
+        if ($tenant->subscriptionBucket() !== Tenant::SUBSCRIPTION_BLOCKED) {
+            // Sempre definido (inclusive null): um aviso anterior nunca sobra em processo longo.
+            Inertia::share('subscription_alert', SubscriptionAlert::for($tenant));
 
             return $next($request);
         }
 
-        if (
-            $request->routeIs('subscription.blocked') ||
-            $request->routeIs('subscription.pay') ||
-            $request->routeIs('subscription.generate_pix') ||
-            $request->routeIs('logout')
-        ) {
+        if ($request->routeIs('subscription.*') || $request->routeIs('logout')) {
             return $next($request);
         }
 

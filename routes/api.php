@@ -11,7 +11,7 @@ use App\Http\Controllers\App\ServiceController;
 use App\Http\Controllers\App\TechnicianPushTokenController;
 use App\Http\Controllers\App\TechnicianScheduleController;
 use App\Http\Controllers\App\UserController;
-use App\Http\Controllers\App\WebhookController;
+use App\Http\Controllers\EfiWebhookController;
 use App\Http\Controllers\Integration\RegistrationCheckController;
 use App\Http\Controllers\Integration\SpedyWebhookController;
 use App\Http\Controllers\Integration\WahaWebhookController;
@@ -29,11 +29,13 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-// routes/api.php (Lembre-se de excluir essa rota da verificação CSRF no VerifyCsrfToken.php)
-Route::post('/webhooks/mercadopago/{token}', [WebhookController::class, 'handle'])->name('webhook.mercadopago');
 Route::post('/integrations/registration-check', RegistrationCheckController::class)
     ->middleware(['throttle:60,1', VerifyCrmIntegrationToken::class])
     ->name('api.integrations.registration-check');
+// Efí Bank (VETOR-SAAS-EFI-02): API Pix (a Efí acrescenta /pix à URL cadastrada) e API Cobranças.
+Route::post('/webhooks/efi/{token}', [EfiWebhookController::class, 'pix'])->middleware('throttle:600,1')->name('webhook.efi.pix.base');
+Route::post('/webhooks/efi/{token}/pix', [EfiWebhookController::class, 'pix'])->middleware('throttle:600,1')->name('webhook.efi.pix');
+Route::post('/webhooks/efi-charges/{token}', [EfiWebhookController::class, 'charges'])->middleware('throttle:600,1')->name('webhook.efi.charges');
 Route::post('/webhooks/spedy', SpedyWebhookController::class)
     ->middleware('throttle:600,1')
     ->name('webhook.spedy');

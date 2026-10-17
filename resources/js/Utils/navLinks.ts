@@ -1,5 +1,6 @@
 import { type NavGroup, type NavItem } from '@/types';
 import {
+    BadgePercent,
     BanknoteArrowDownIcon,
     Barcode,
     BookOpenText,
@@ -11,7 +12,6 @@ import {
     Cog,
     CogIcon,
     Copyright,
-    BadgePercent,
     FileChartColumn,
     FileTextIcon,
     HandCoins,
@@ -277,6 +277,14 @@ const mainConfItems = [
                 permission: 'company',
             },
             {
+                // Minha assinatura (VETOR-SAAS-EFI-04): situação, vencimento e pagamento pela Efí.
+                title: 'Assinatura',
+                url: route('subscription.show'),
+                icon: WalletCards,
+                active: 'subscription.*',
+                permission: 'company',
+            },
+            {
                 title: 'Sistema e módulos',
                 url: route('app.other-settings.index'),
                 icon: CogIcon,
@@ -346,6 +354,12 @@ const mainAdminItems = [
         href: route('admin.fiscal.integration'),
         icon: ReceiptText,
         active: 'admin.fiscal.*',
+    },
+    {
+        title: 'Financeiro · Efí Bank',
+        href: route('admin.finance.efi'),
+        icon: WalletCards,
+        active: 'admin.finance.*',
     },
     {
         title: 'Usuários',

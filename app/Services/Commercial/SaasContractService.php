@@ -18,6 +18,7 @@ use App\Models\App\FiscalDocument;
 use App\Models\App\Payment;
 use App\Models\Tenant;
 use App\Services\Fiscal\SaasInvoiceService;
+use App\Services\Payments\SaasPaymentService;
 use App\Support\Fiscal\FiscalDocumentLinks;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -74,11 +75,14 @@ class SaasContractService
             }
 
             $before = $contract ? $this->snapshot($contract, $tenant) : null;
+            // O dia contratual acompanha o vencimento informado; sem mudança de vencimento ele se mantém.
+            $dueChanged = $activating || ! $contract || ! $contract->next_due_date->equalTo($nextDue);
             $attributes = [
                 'amount' => $this->money($data['amount']),
                 'billing_months' => (int) $data['billing_months'],
                 'start_date' => Carbon::parse($data['start_date'])->toDateString(),
                 'next_due_date' => $nextDue->toDateString(),
+                'anchor_day' => $dueChanged ? $nextDue->day : ($contract->anchor_day ?: $nextDue->day),
                 'sales_rep' => filled($data['sales_rep'] ?? null) ? trim($data['sales_rep']) : null,
                 'notes' => filled($data['notes'] ?? null) ? trim($data['notes']) : null,
                 'active' => true,
@@ -108,25 +112,103 @@ class SaasContractService
     }
 
     /**
-     * Volta ao plano tradicional com plano válido e confirmação. Cobranças pagas e notas ficam;
-     * cobranças em aberto sem nota ativa são canceladas. O período já pago continua valendo e a
-     * próxima renovação pelo plano parte dele (WebhookController soma a partir de expires_at).
+     * Volta ao plano tradicional com plano válido, confirmação e data efetiva. Hoje: aplica na hora.
+     * Data futura: agenda (o contrato segue valendo até lá e não gera cobrança com vencimento a partir
+     * dessa data); o agendador aplica no dia (applyScheduledReverts).
      */
-    public function revertToPlan(Tenant $tenant, int $planId, ?int $periodId): Tenant
+    public function revertToPlan(Tenant $tenant, int $planId, ?int $periodId, ?Carbon $effectiveOn = null, ?int $userId = null): Tenant
     {
-        $plan = Plan::query()->with('periods')->find($planId);
+        $plan = $this->revertiblePlan($planId);
+        $effectiveOn = ($effectiveOn ?? now())->copy()->startOfDay();
 
-        if (! $plan || $plan->isTrial() || $plan->billingMonths() <= 0) {
-            throw ValidationException::withMessages(['plan_id' => 'Selecione um plano pago com periodicidade definida.']);
+        if ($effectiveOn->lte(now()->startOfDay())) {
+            return $this->applyRevert($tenant, $plan, $periodId);
         }
 
+        return DB::transaction(function () use ($tenant, $plan, $periodId, $effectiveOn, $userId) {
+            $tenant = Tenant::query()->lockForUpdate()->findOrFail($tenant->id);
+            $contract = $this->activeContractOrFail($tenant);
+            $before = $this->snapshot($contract, $tenant);
+            $period = $periodId ? Period::query()->where('plan_id', $plan->id)->find($periodId) : null;
+
+            $contract->forceFill([
+                'revert_scheduled_for' => $effectiveOn->toDateString(),
+                'revert_plan_id' => $plan->id,
+                'revert_period_id' => $period?->id,
+                'revert_requested_by' => $userId,
+            ])->save();
+
+            FiscalAdminAudit::record('commercial.revert_scheduled', $tenant->id, $contract, [
+                'before' => $before,
+                'after' => $this->snapshot($contract, $tenant),
+            ]);
+
+            return $tenant;
+        });
+    }
+
+    /** Desfaz a volta ao plano agendada; o contrato segue como estava. */
+    public function cancelScheduledRevert(Tenant $tenant): TenantCommercialContract
+    {
+        return DB::transaction(function () use ($tenant) {
+            $contract = $this->activeContractOrFail(Tenant::query()->lockForUpdate()->findOrFail($tenant->id));
+
+            if (! $contract->revert_scheduled_for) {
+                throw ValidationException::withMessages(['plan_id' => 'Não há volta ao plano agendada.']);
+            }
+
+            $before = $this->snapshot($contract, $contract->tenant);
+            $contract->forceFill(['revert_scheduled_for' => null, 'revert_plan_id' => null, 'revert_period_id' => null, 'revert_requested_by' => null])->save();
+
+            FiscalAdminAudit::record('commercial.revert_cancelled', $contract->tenant_id, $contract, [
+                'before' => $before,
+                'after' => $this->snapshot($contract, $contract->tenant),
+            ]);
+
+            return $contract;
+        });
+    }
+
+    /**
+     * Aplica as voltas ao plano cuja data efetiva chegou. Um bloqueio (cobrança em aberto com NFS-e
+     * ativa) fica auditado e o agendamento permanece para a próxima execução.
+     */
+    public function applyScheduledReverts(?Carbon $today = null): int
+    {
+        $today = ($today ?? now())->copy()->startOfDay();
+        $applied = 0;
+
+        TenantCommercialContract::query()
+            ->where('active', true)
+            ->whereNotNull('revert_scheduled_for')
+            ->whereDate('revert_scheduled_for', '<=', $today->toDateString())
+            ->with('tenant')
+            ->orderBy('id')
+            ->get()
+            ->each(function (TenantCommercialContract $contract) use (&$applied) {
+                try {
+                    $this->applyRevert($contract->tenant, $this->revertiblePlan((int) $contract->revert_plan_id), $contract->revert_period_id);
+                    $applied++;
+                } catch (ValidationException $exception) {
+                    FiscalAdminAudit::record('commercial.scheduled_revert_blocked', $contract->tenant_id, $contract, ['errors' => $exception->errors()]);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            });
+
+        return $applied;
+    }
+
+    /**
+     * Volta efetiva ao plano. Cobranças pagas e notas ficam; cobranças em aberto sem nota ativa são
+     * canceladas. O período já pago continua valendo e a próxima renovação pelo plano parte dele
+     * (WebhookController soma a partir de expires_at).
+     */
+    private function applyRevert(Tenant $tenant, Plan $plan, ?int $periodId): Tenant
+    {
         return DB::transaction(function () use ($tenant, $plan, $periodId) {
             $tenant = Tenant::query()->lockForUpdate()->findOrFail($tenant->id);
-            $contract = TenantCommercialContract::query()->lockForUpdate()->firstWhere('tenant_id', $tenant->id);
-
-            if (! $tenant->hasCustomContract() || ! $contract) {
-                throw ValidationException::withMessages(['plan_id' => 'A empresa já está no plano tradicional.']);
-            }
+            $contract = $this->activeContractOrFail($tenant);
 
             $open = $contract->charges()->where('status', TenantSubscriptionCharge::STATUS_PENDING)->get();
             $withInvoice = $open->first(fn (TenantSubscriptionCharge $charge) => $this->hasActiveDocument($charge));
@@ -141,7 +223,14 @@ class SaasContractService
                 $charge->forceFill(['status' => TenantSubscriptionCharge::STATUS_CANCELLED, 'cancelled_at' => now()])->save();
             }
 
-            $contract->forceFill(['active' => false, 'deactivated_at' => now()])->save();
+            $contract->forceFill([
+                'active' => false,
+                'deactivated_at' => now(),
+                'revert_scheduled_for' => null,
+                'revert_plan_id' => null,
+                'revert_period_id' => null,
+                'revert_requested_by' => null,
+            ])->save();
             $period = $periodId ? Period::query()->where('plan_id', $plan->id)->find($periodId) : $plan->preferredPeriod();
             $tenant->forceFill(['billing_mode' => Tenant::BILLING_PLAN, 'plan_id' => $plan->id, 'period_id' => $period?->id])->save();
 
@@ -205,6 +294,8 @@ class SaasContractService
                                 break;
                             }
                             $generated++;
+                            // Efí ativa: boleto/Bolix da competência antes da fatura (nunca com recorrência no cartão ativa).
+                            app(SaasPaymentService::class)->prepareCollection($charge);
                             $this->sendInvoice($charge);
                         }
                     } catch (\Throwable $exception) {
@@ -228,6 +319,11 @@ class SaasContractService
             $contract = TenantCommercialContract::query()->lockForUpdate()->find($contract->id);
 
             if (! $contract?->active || $contract->next_due_date->gt($limit)) {
+                return null;
+            }
+
+            // Volta ao plano agendada: nenhum ciclo do contrato começa na data efetiva ou depois dela.
+            if ($contract->revert_scheduled_for && $contract->next_due_date->gte($contract->revert_scheduled_for)) {
                 return null;
             }
 
@@ -263,7 +359,7 @@ class SaasContractService
     }
 
     /**
-     * Quita a cobrança (PIX integrado ou registro manual do RootAdmin). Idempotente: o mesmo
+     * Quita a cobrança (pagamento confirmado na Efí ou registro manual do RootAdmin). Idempotente: o mesmo
      * pagamento repetido (webhook reenviado) não altera nada; um segundo pagamento é recusado.
      */
     public function registerPayment(TenantSubscriptionCharge $charge, string $amount, string $method, ?Payment $payment = null, ?string $note = null): TenantSubscriptionCharge
@@ -475,7 +571,7 @@ class SaasContractService
                 $charge,
                 AdminFiscalSetting::current(),
                 $document ? FiscalDocumentLinks::forSaas($document) : null,
-                $this->paymentInstructions(),
+                $this->paymentInstructions($charge),
             ));
         });
 
@@ -564,13 +660,18 @@ class SaasContractService
         return $delivery;
     }
 
-    public function paymentInstructions(): string
+    public function paymentInstructions(?TenantSubscriptionCharge $charge = null): string
     {
+        // Efí: recorrência no cartão, ou boleto/Bolix e Pix já gerados para a competência.
+        if ($charge && ($efi = app(SaasPaymentService::class)->instructionsFor($charge))) {
+            return $efi;
+        }
+
         $configured = trim((string) config('services.saas_billing.payment_instructions'));
 
         return $configured !== ''
             ? $configured
-            : 'Pague por PIX acessando o VetorOS em '.rtrim((string) config('app.url'), '/').'/subscription/blocked ou fale com o atendimento da ABrasil Sistemas.';
+            : 'Pague por Pix, boleto ou cartão acessando o VetorOS em '.rtrim((string) config('app.url'), '/').'/subscription ou fale com o atendimento da ABrasil Sistemas.';
     }
 
     // ---- Apoio ---------------------------------------------------------
@@ -630,6 +731,28 @@ class SaasContractService
         return $candidates === [] ? null : collect($candidates)->max();
     }
 
+    private function revertiblePlan(int $planId): Plan
+    {
+        $plan = Plan::query()->with('periods')->find($planId);
+
+        if (! $plan || $plan->isTrial() || $plan->billingMonths() <= 0) {
+            throw ValidationException::withMessages(['plan_id' => 'Selecione um plano pago com periodicidade definida.']);
+        }
+
+        return $plan;
+    }
+
+    private function activeContractOrFail(Tenant $tenant): TenantCommercialContract
+    {
+        $contract = TenantCommercialContract::query()->lockForUpdate()->firstWhere('tenant_id', $tenant->id);
+
+        if (! $tenant->hasCustomContract() || ! $contract?->active) {
+            throw ValidationException::withMessages(['plan_id' => 'A empresa já está no plano tradicional.']);
+        }
+
+        return $contract;
+    }
+
     private function snapshot(TenantCommercialContract $contract, Tenant $tenant): array
     {
         return [
@@ -639,6 +762,9 @@ class SaasContractService
             'billing_months' => $contract->billing_months,
             'start_date' => $contract->start_date?->toDateString(),
             'next_due_date' => $contract->next_due_date?->toDateString(),
+            'anchor_day' => $contract->anchor_day,
+            'revert_scheduled_for' => $contract->revert_scheduled_for?->toDateString(),
+            'revert_plan_id' => $contract->revert_plan_id,
             'sales_rep' => $contract->sales_rep,
             'notes' => $contract->notes,
             'active' => $contract->active,

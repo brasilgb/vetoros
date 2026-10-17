@@ -16,6 +16,7 @@ use App\Services\Fiscal\SaasInvoiceService;
 use App\Services\Fiscal\Spedy\SpedyException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 /**
@@ -56,7 +57,13 @@ class TenantCommercialController extends Controller
                 'sales_rep' => $contract->sales_rep,
                 'notes' => $contract->notes,
                 'active' => $contract->active,
+                'scheduled_revert' => $contract->active && $contract->revert_scheduled_for ? [
+                    'effective_date' => $contract->revert_scheduled_for->toDateString(),
+                    'plan_name' => $contract->revertPlan?->name,
+                ] : null,
             ] : null,
+            // Sugestão para a data efetiva da volta ao plano: fim do período já coberto, nunca antes de hoje.
+            'suggested_revert_date' => collect([now()->startOfDay(), $tenant->expires_at?->copy()->startOfDay()])->filter()->max()->toDateString(),
             'saas_invoice_enabled' => (bool) $tenant->saas_invoice_enabled,
             'saas_invoice_blockers' => array_values(array_filter([
                 $saas->blocker(AdminFiscalSetting::current()),
@@ -136,16 +143,28 @@ class TenantCommercialController extends Controller
         $data = $request->validate([
             'plan_id' => 'required|integer|exists:plans,id',
             'period_id' => 'nullable|integer|exists:periods,id',
+            'effective_date' => 'required|date|after_or_equal:today',
             'confirm' => 'accepted',
             'password' => 'required|current_password',
         ], [
-            'confirm.accepted' => 'Confirme a volta ao plano tradicional.',
+            'confirm.accepted' => 'Confirme a volta ao plano tradicional e a data em que ela passa a valer.',
+            'effective_date.after_or_equal' => 'A data efetiva não pode ser anterior a hoje.',
             'password.current_password' => 'Senha incorreta.',
-        ]);
+        ], ['effective_date' => 'data efetiva']);
 
-        $this->contracts->revertToPlan($tenant, (int) $data['plan_id'], $data['period_id'] ?? null);
+        $effective = Carbon::parse($data['effective_date'])->startOfDay();
+        $this->contracts->revertToPlan($tenant, (int) $data['plan_id'], $data['period_id'] ?? null, $effective, (int) auth()->id());
 
-        return back()->with('success', 'Empresa de volta ao plano tradicional. Histórico de cobranças preservado.');
+        return back()->with('success', $effective->isFuture()
+            ? 'Volta ao plano tradicional agendada para '.$effective->format('d/m/Y').'. Até lá o contrato segue valendo.'
+            : 'Empresa de volta ao plano tradicional. Histórico de cobranças preservado.');
+    }
+
+    public function cancelRevert(Tenant $tenant): RedirectResponse
+    {
+        $this->contracts->cancelScheduledRevert($tenant);
+
+        return back()->with('success', 'Volta ao plano tradicional desagendada. O contrato segue como estava.');
     }
 
     public function pay(Request $request, Tenant $tenant, TenantSubscriptionCharge $charge): RedirectResponse

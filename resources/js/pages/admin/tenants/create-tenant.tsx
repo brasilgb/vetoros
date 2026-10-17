@@ -1,41 +1,53 @@
-import { statusSaas } from '@/Utils/dataSelect';
-import { maskCep, maskCpfCnpj, maskPhone, unMask } from '@/Utils/mask';
+import {
+    TenantAddressFields,
+    TenantGeneralFields,
+    TenantPlanField,
+    TenantStatusField,
+    type TenantFormData,
+} from '@/components/admin/tenant-form-fields';
+import { TabBadge, tabTriggerClass, useTenantTabs, type TenantTab } from '@/components/admin/tenant-tabs';
 import { toastSuccess } from '@/components/app-toast-messages';
 import { Icon } from '@/components/icon';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
-import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Building, Save } from 'lucide-react';
-import Select from 'react-select';
+import { ArrowLeft, Building, Loader2, Save } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: route('admin.dashboard'),
-    },
-    {
-        title: 'Empresas',
-        href: route('admin.tenants.index'),
-    },
-    {
-        title: 'Adicionar',
-        href: '#',
-    },
+    { title: 'Dashboard', href: route('admin.dashboard') },
+    { title: 'Empresas', href: route('admin.tenants.index') },
+    { title: 'Adicionar', href: '#' },
 ];
 
-export default function CreateTenant({ plans }: any) {
-    const allPlans = plans.map((plan: any) => ({
-        value: plan.id,
-        label: plan.name,
-    }));
+const fieldTabs: Record<string, TenantTab> = {
+    company: 'general',
+    name: 'general',
+    cnpj: 'general',
+    email: 'general',
+    phone: 'general',
+    whatsapp: 'general',
+    zip_code: 'general',
+    state: 'general',
+    city: 'general',
+    district: 'general',
+    street: 'general',
+    complement: 'general',
+    number: 'general',
+    observations: 'general',
+    plan_id: 'subscription',
+    period_id: 'subscription',
+    status: 'modules',
+};
 
-    const { data, setData, post, progress, processing, reset, errors } = useForm({
+/**
+ * Cadastro da empresa no RootAdmin (VETOR-UX-ADMIN-03), na mesma estrutura de abas da edição. Financeiro e
+ * Fiscal dependem da empresa já criada: ficam indicados e liberados na edição.
+ */
+export default function CreateTenant({ plans }: { plans: { id: number; name: string }[] }) {
+    const { tab, setTab, errorTabs, goToErrors } = useTenantTabs('general');
+    const { data, setData, post, processing, reset, errors } = useForm<TenantFormData>({
         cnpj: '',
         name: '',
         company: '',
@@ -54,208 +66,98 @@ export default function CreateTenant({ plans }: any) {
         observations: '',
     });
 
-    const handleSubmit = async (e: any) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('admin.tenants.store'), {
             onSuccess: () => {
                 toastSuccess('Sucesso', 'Cadastro realizado com sucesso');
                 reset();
             },
+            onError: (fieldErrors) => goToErrors(fieldErrors, fieldTabs),
         });
     };
 
-    const getCep = (zip_code: string) => {
-        const cleanCep = unMask(zip_code);
-        fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
-            .then((response) => response.json())
-            .then((result) => {
-                setData((data) => ({ ...data, state: result.uf }));
-                setData((data) => ({ ...data, city: result.localidade }));
-                setData((data) => ({ ...data, district: result.bairro }));
-                setData((data) => ({ ...data, street: result.logradouro }));
-                setData((data) => ({ ...data, complement: result.complemento }));
-            })
-            .catch((error) => console.error(error));
-    };
-
-    const changePlan = (selected: any) => {
-        setData('plan_id', selected?.value ?? '');
-    };
-
-    const changeStatus = (selected: any) => {
-        setData('status', selected?.value);
-    };
-
-    const selectedPlan = allPlans.find((option: any) => String(option.value) === String(data.plan_id)) ?? null;
+    const counts = errorTabs(errors, fieldTabs);
 
     return (
         <AdminLayout breadcrumbs={breadcrumbs}>
-            <Head title="Empresas" />
-            <div className="flex min-h-16 flex-col justify-center gap-1 px-4 py-3">
+            <Head title="Nova empresa" />
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
-                    <Icon iconNode={Building} className="h-8 w-8" />
-                    <h2 className="text-xl font-semibold tracking-tight">Empresas</h2>
+                    <Icon iconNode={Building} className="h-7 w-7" />
+                    <h2 className="text-xl font-semibold tracking-tight">Nova empresa</h2>
                 </div>
+                <Button variant="outline" asChild>
+                    <Link href={route('admin.tenants.index')}>
+                        <ArrowLeft className="h-4 w-4" />
+                        Voltar
+                    </Link>
+                </Button>
             </div>
 
-            <div className="flex items-center justify-between p-4">
-                <div>
-                    <Button variant={'default'} asChild>
-                        <Link href={route('admin.tenants.index')}>
-                            <ArrowLeft className="h-4 w-4" />
-                            <span>Voltar</span>
-                        </Link>
+            <form onSubmit={handleSubmit} autoComplete="off">
+                <div className="px-4 pb-24">
+                    <Tabs value={tab} onValueChange={(value) => setTab(value as TenantTab)}>
+                        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
+                            <TabsTrigger className={tabTriggerClass} value="general">
+                                Dados gerais <TabBadge count={counts.general} />
+                            </TabsTrigger>
+                            <TabsTrigger className={tabTriggerClass} value="subscription">
+                                Assinatura e planos <TabBadge count={counts.subscription} />
+                            </TabsTrigger>
+                            <TabsTrigger className={tabTriggerClass} value="finance" disabled title="Disponível depois do cadastro">
+                                Financeiro e cobranças
+                            </TabsTrigger>
+                            <TabsTrigger className={tabTriggerClass} value="modules">
+                                Módulos e funcionalidades <TabBadge count={counts.modules} />
+                            </TabsTrigger>
+                            <TabsTrigger className={tabTriggerClass} value="fiscal" disabled title="Disponível depois do cadastro">
+                                Fiscal
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="general" forceMount className="mt-4 space-y-4 data-[state=inactive]:hidden">
+                            <section className="bg-card space-y-4 rounded-lg border p-4">
+                                <h3 className="font-semibold">Identificação e contato</h3>
+                                <TenantGeneralFields data={data} setData={setData} errors={errors} />
+                            </section>
+                            <section className="bg-card space-y-4 rounded-lg border p-4">
+                                <h3 className="font-semibold">Endereço</h3>
+                                <TenantAddressFields data={data} setData={setData} errors={errors} />
+                            </section>
+                        </TabsContent>
+
+                        <TabsContent value="subscription" forceMount className="mt-4 space-y-4 data-[state=inactive]:hidden">
+                            <section className="bg-card space-y-4 rounded-lg border p-4">
+                                <h3 className="font-semibold">Plano tradicional</h3>
+                                <TenantPlanField
+                                    plans={plans}
+                                    value={data.plan_id}
+                                    onChange={(value) => setData('plan_id', value)}
+                                    error={errors.plan_id}
+                                />
+                                <p className="text-muted-foreground text-xs">
+                                    Contrato personalizado, cobranças e NFS-e do SaaS são configurados na edição, depois do cadastro.
+                                </p>
+                            </section>
+                        </TabsContent>
+
+                        <TabsContent value="modules" forceMount className="mt-4 space-y-4 data-[state=inactive]:hidden">
+                            <section className="bg-card space-y-4 rounded-lg border p-4">
+                                <h3 className="font-semibold">Situação da conta</h3>
+                                <TenantStatusField value={data.status} onChange={(value) => setData('status', value)} error={errors.status} />
+                            </section>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+
+                <div className="bg-background/95 sticky bottom-0 z-10 flex justify-end border-t px-4 py-3 backdrop-blur">
+                    <Button type="submit" disabled={processing}>
+                        {processing ? <Loader2 className="size-4 animate-spin" /> : <Save />}
+                        Cadastrar empresa
                     </Button>
                 </div>
-                <div></div>
-            </div>
-
-            <div className="p-4">
-                <div className="rounded-lg border p-2">
-                    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
-                        <div className="mt-4 grid gap-4 md:grid-cols-9">
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="company">Razão social</Label>
-                                <Input type="text" id="company" value={data.company} onChange={(e) => setData('company', e.target.value)} />
-                                {errors.company && <div className="text-sm text-red-500">{errors.company}</div>}
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="cnpj">CPF/CNPJ</Label>
-                                <Input
-                                    type="text"
-                                    id="cnpj"
-                                    value={maskCpfCnpj(data.cnpj)}
-                                    onChange={(e) => setData('cnpj', e.target.value)}
-                                    maxLength={18}
-                                />
-                                {errors.cnpj && <div className="text-sm text-red-500">{errors.cnpj}</div>}
-                            </div>
-
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="email">E-mail</Label>
-                                <Input type="text" id="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
-                                {errors.email && <div className="text-sm text-red-500">{errors.email}</div>}
-                            </div>
-
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="name">Contato</Label>
-                                <Input type="text" id="name" value={data.name} onChange={(e) => setData('name', e.target.value)} />
-                                {errors.name && <div className="text-sm text-red-500">{errors.name}</div>}
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="phone">Telefone</Label>
-                                <Input
-                                    type="text"
-                                    id="phone"
-                                    value={maskPhone(data.phone)}
-                                    onChange={(e) => setData('phone', e.target.value)}
-                                    maxLength={15}
-                                />
-                                {errors.phone && <div className="text-sm text-red-500">{errors.phone}</div>}
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="whatsapp">Whatsapp</Label>
-                                <Input
-                                    type="text"
-                                    id="whatsapp"
-                                    value={maskPhone(data.whatsapp)}
-                                    onChange={(e) => setData('whatsapp', e.target.value)}
-                                    maxLength={15}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="zip_code">CEP</Label>
-                                <Input
-                                    type="text"
-                                    id="zip_code"
-                                    value={maskCep(data.zip_code)}
-                                    onChange={(e) => setData('zip_code', e.target.value)}
-                                    onBlur={(e) => getCep(e.target.value)}
-                                    maxLength={9}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="state">UF</Label>
-                                <Input type="text" id="state" value={data.state} onChange={(e) => setData('state', e.target.value)} />
-                                {errors.state && <div>{errors.state}</div>}
-                            </div>
-
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="city">Cidade</Label>
-                                <Input type="text" id="city" value={data.city} onChange={(e) => setData('city', e.target.value)} />
-                            </div>
-
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="district">Bairro</Label>
-                                <Input type="text" id="district" value={data.district} onChange={(e) => setData('district', e.target.value)} />
-                            </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-4">
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="street">Endereço</Label>
-                                <Input type="text" id="street" value={data.street} onChange={(e) => setData('street', e.target.value)} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="complement">Complemento</Label>
-                                <Input type="text" id="complement" value={data.complement} onChange={(e) => setData('complement', e.target.value)} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="number">Número</Label>
-                                <Input type="text" id="number" value={data.number} onChange={(e) => setData('number', e.target.value)} />
-                            </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-4 md:grid-cols-4">
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="plan">Plano</Label>
-                                <Select
-                                    value={selectedPlan}
-                                    options={allPlans}
-                                    onChange={changePlan}
-                                    placeholder="Selecione o plano"
-                                    className="h-9 rounded-md border border-gray-300 p-0 text-gray-700 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    styles={selectStyles}
-                                />
-                                <InputError className="mt-2" message={errors.plan_id} />
-                            </div>
-
-                            <div className="grid gap-2 md:col-span-2">
-                                <Label htmlFor="status">Status</Label>
-                                <Select
-                                    options={statusSaas}
-                                    onChange={changeStatus}
-                                    placeholder="Selecione o status"
-                                    className="h-9 rounded-md border border-gray-300 p-0 text-gray-700 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    styles={selectStyles}
-                                />
-                                <InputError className="mt-2" message={errors.status} />
-                            </div>
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="observations">Observações</Label>
-                            <Textarea id="observations" value={data.observations} onChange={(e) => setData('observations', e.target.value)} />
-                        </div>
-
-                        <div className="flex justify-end">
-                            <Button type="submit" disabled={processing}>
-                                <Save />
-                                Salvar
-                            </Button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+            </form>
         </AdminLayout>
     );
 }

@@ -16,7 +16,6 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Commercial\SaasContractService;
 use App\Services\Fiscal\SaasInvoiceService;
-use App\Services\MercadoPagoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Carbon;
@@ -25,14 +24,14 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
-use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\FakesEfi;
 use Tests\TestCase;
 
 /** VETOR-SAAS-CONTRATO-01: contrato comercial personalizado por tenant. */
 class SaasCommercialContractTest extends TestCase
 {
-    use RefreshDatabase;
+    use FakesEfi, RefreshDatabase;
 
     private const SANDBOX = 'https://sandbox-api.spedy.com.br/v1';
 
@@ -57,8 +56,6 @@ class SaasCommercialContractTest extends TestCase
             'services.spedy.owner_api_key' => 'env-owner-key',
             'services.spedy.webhook_secret' => null,
             'services.spedy.technical_responsible' => [],
-            'services.mercadopago.token' => 'mp-test-token',
-            'services.mercadopago.webhook_token' => 'expected-token',
         ]);
 
         $this->root = User::factory()->create(['tenant_id' => null, 'user_number' => null, 'roles' => User::ROLE_ROOT_APP]);
@@ -69,6 +66,9 @@ class SaasCommercialContractTest extends TestCase
             'email' => 'cliente@example.test', 'street' => 'Rua A', 'number' => '1', 'district' => 'Centro', 'zip_code' => '90000000',
             'city' => 'Porto Alegre', 'state' => 'RS', 'expires_at' => null, 'subscription_status' => 'active',
         ]);
+
+        // Efí (único gateway) homologada só com Pix, no simulador controlado (VETOR-SAAS-EFI-03).
+        $this->configureEfi(['pix']);
     }
 
     protected function tearDown(): void
@@ -143,22 +143,17 @@ class SaasCommercialContractTest extends TestCase
         ])->assertSessionHasNoErrors();
     }
 
-    private array $gatewayPayment = [];
-
-    private bool $gatewayMocked = false;
-
-    private function webhook(array $payment)
+    /** Paga pela Efí (simulador): gera o Pix como o tenant, quita a cob e envia o webhook (confirmado por consulta). */
+    private function payByEfiPix(?int $planId = null, string $value = '1200.00', string $e2e = 'E2EPAGAMENTO0001'): Payment
     {
-        // A instância do controller fica guardada na rota: um único mock que devolve o pagamento atual.
-        $this->gatewayPayment = $payment;
-        if (! $this->gatewayMocked) {
-            $service = Mockery::mock(MercadoPagoService::class);
-            $service->shouldReceive('getPayment')->andReturnUsing(fn () => (object) $this->gatewayPayment);
-            $this->app->instance(MercadoPagoService::class, $service);
-            $this->gatewayMocked = true;
-        }
+        $user = User::query()->where('tenant_id', $this->tenant->id)->first() ?? User::factory()->forTenant($this->tenant->id)->create();
+        $payment = Payment::query()->findOrFail(
+            $this->actingAs($user)->postJson(route('subscription.efi.pix'), $planId ? ['plan_id' => $planId] : [])->assertOk()->json('id')
+        );
+        $this->payCob($payment->payment_id, $value, $e2e);
+        $this->pixWebhook($payment->payment_id, $e2e)->assertOk();
 
-        return $this->postJson(route('webhook.mercadopago', ['token' => 'expected-token']), ['type' => 'payment', 'data' => ['id' => $payment['id']]]);
+        return $payment->refresh();
     }
 
     // ---- 1. Contrato tradicional ------------------------------------------
@@ -303,28 +298,18 @@ class SaasCommercialContractTest extends TestCase
         $charge = $this->charges()->sole();
         $user = User::factory()->forTenant($this->tenant->id)->create();
 
-        $service = Mockery::mock(MercadoPagoService::class);
-        $service->shouldReceive('createPixPayment')->once()->withArgs(function (array $request) use ($charge) {
-            $this->assertSame(1200.0, $request['transaction_amount']);
-            $this->assertSame(['tenant_id' => $this->tenant->id, 'charge_id' => $charge->id], json_decode($request['external_reference'], true));
+        // Trava de planos: o tenant não escolhe plano; o valor é o da cobrança, nunca o preço do plano.
+        $this->actingAs($user)->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertUnprocessable()->assertJsonValidationErrors('plan_id');
+        $payment = $this->payByEfiPix();
+        Http::assertSent(fn (HttpRequest $request) => str_contains($request->url(), '/v2/cob/') && $request->method() === 'PUT' && $request['valor']['original'] === '1200.00');
 
-            return true;
-        })->andReturn((object) ['id' => 'mp-c1', 'transaction_amount' => 1200, 'status' => 'pending', 'date_of_expiration' => null,
-            'point_of_interaction' => (object) ['transaction_data' => (object) ['qr_code_base64' => 'qr', 'qr_code' => 'copy']]]);
-        $this->app->instance(MercadoPagoService::class, $service);
-
-        // O tenant não escolhe plano: o valor é o da cobrança.
-        $this->actingAs($user)->postJson(route('subscription.pay'), ['plan_id' => $this->plan->id])->assertOk();
-
-        $approved = ['id' => 'mp-c1', 'status' => 'approved', 'transaction_amount' => 1200, 'date_of_expiration' => null,
-            'external_reference' => json_encode(['tenant_id' => $this->tenant->id, 'charge_id' => $charge->id])];
-        $this->webhook($approved)->assertOk()->assertJson(['status' => 'success']);
-        $this->webhook($approved)->assertOk()->assertJson(['status' => 'success']);
+        // Webhook repetido com o mesmo evento não reprocessa.
+        $this->pixWebhook($payment->payment_id, 'E2EPAGAMENTO0001')->assertOk()->assertJson(['queued' => 0]);
 
         $charge->refresh();
         $this->assertSame('paid', $charge->status);
-        $this->assertSame('pix', $charge->payment_method);
-        $this->assertSame(Payment::query()->where('payment_id', 'mp-c1')->value('id'), $charge->payment_id);
+        $this->assertSame('efi_pix', $charge->payment_method);
+        $this->assertSame($payment->id, (int) $charge->payment_id);
         $this->assertSame(1, FiscalAdminAudit::query()->where('action', 'commercial.charge_paid')->count());
         // Plano não foi aplicado nem o vencimento somado por plano.
         $this->assertSame('2026-11-20', $this->tenant->refresh()->expires_at->toDateString());
@@ -353,18 +338,22 @@ class SaasCommercialContractTest extends TestCase
         $this->assertDatabaseHas('fiscal_admin_audits', ['action' => 'commercial.charge_refunded', 'subject_id' => $charge->id, 'user_id' => $this->root->id]);
     }
 
-    public function test_mercado_pago_refund_webhook_refunds_charge(): void
+    public function test_provider_refund_refunds_charge(): void
     {
         $this->activate();
         $this->process();
         $charge = $this->charges()->sole();
-        $reference = json_encode(['tenant_id' => $this->tenant->id, 'charge_id' => $charge->id]);
+        $payment = $this->payByEfiPix();
+        $this->assertSame('paid', $charge->refresh()->status);
 
-        $this->webhook(['id' => 'mp-r1', 'status' => 'approved', 'transaction_amount' => 1200, 'date_of_expiration' => null, 'external_reference' => $reference])->assertOk();
-        $this->webhook(['id' => 'mp-r1', 'status' => 'refunded', 'transaction_amount' => 1200, 'date_of_expiration' => null, 'external_reference' => $reference])
-            ->assertJson(['status' => 'refunded']);
+        // Devolução registrada na Efí chega por novo evento e é confirmada por consulta.
+        $this->cobs[$payment->payment_id]['pix'][0]['devolucoes'] = [['id' => 'D1', 'valor' => '1200.00', 'status' => 'DEVOLVIDO']];
+        $this->postJson('/api/webhooks/efi/webhook-secret-123/pix', ['pix' => [[
+            'endToEndId' => 'E2EPAGAMENTO0001', 'txid' => $payment->payment_id, 'valor' => '1200.00', 'devolucoes' => [['id' => 'D1', 'status' => 'DEVOLVIDO']],
+        ]]])->assertOk();
 
         $this->assertSame('refunded', $charge->refresh()->status);
+        $this->assertSame('2026-10-20', $this->tenant->refresh()->expires_at->toDateString());
     }
 
     // ---- 11-13. Emissão fiscal ----------------------------------------------
@@ -437,11 +426,11 @@ class SaasCommercialContractTest extends TestCase
         $this->enableFiscal();
         $this->spedyCreates();
 
-        $this->webhook(['id' => 'mp-plan-1', 'status' => 'approved', 'transaction_amount' => 89.90, 'date_of_expiration' => null, 'date_approved' => '2026-10-15T10:00:00',
-            'external_reference' => json_encode(['tenant_id' => $this->tenant->id, 'plan_id' => $this->plan->id])])->assertOk();
+        // Plano pago pela Efí (status `paid`, plano em coluna própria): a NFS-e automática sai pelo pagamento.
+        $payment = $this->payByEfiPix($this->plan->id, '89.90');
 
         $document = AdminFiscalDocument::query()->sole();
-        $this->assertSame(Payment::query()->where('payment_id', 'mp-plan-1')->value('id'), $document->payment_id);
+        $this->assertSame($payment->id, $document->payment_id);
         $this->assertTrue($document->automatic);
         Mail::assertSent(SaasFiscalNoticeMail::class, 1);
     }
@@ -567,7 +556,7 @@ class SaasCommercialContractTest extends TestCase
         $this->actingAs($admin)->put(route('admin.tenants.commercial.update', $this->tenant), ['custom_contract' => true, 'saas_invoice_enabled' => true, 'amount' => '1', 'billing_months' => 1, 'start_date' => '2026-10-01', 'next_due_date' => '2027-01-01'])
             ->assertRedirect();
         $this->actingAs($admin)->post(route('admin.tenants.charges.pay', [$this->tenant, $charge]), ['amount' => '1200'])->assertRedirect();
-        $this->actingAs($admin)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $this->plan->id, 'confirm' => true, 'password' => 'password'])->assertRedirect();
+        $this->actingAs($admin)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $this->plan->id, 'effective_date' => now()->toDateString(), 'confirm' => true, 'password' => 'password'])->assertRedirect();
 
         $this->assertSame('1200.00', (string) $this->tenant->refresh()->commercialContract->amount);
         $this->assertSame('pending', $charge->refresh()->status);
@@ -600,10 +589,10 @@ class SaasCommercialContractTest extends TestCase
         $this->actingAs($this->root)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $this->plan->id, 'password' => 'password'])
             ->assertSessionHasErrors('confirm');
         $trial = Plan::factory()->create(['name' => 'Trial', 'slug' => 'trial', 'value' => 0, 'billing_months' => 14]);
-        $this->actingAs($this->root)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $trial->id, 'confirm' => true, 'password' => 'password'])
+        $this->actingAs($this->root)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $trial->id, 'effective_date' => now()->toDateString(), 'confirm' => true, 'password' => 'password'])
             ->assertSessionHasErrors('plan_id');
 
-        $this->actingAs($this->root)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $this->plan->id, 'confirm' => true, 'password' => 'password'])
+        $this->actingAs($this->root)->post(route('admin.tenants.commercial.revert', $this->tenant), ['plan_id' => $this->plan->id, 'effective_date' => now()->toDateString(), 'confirm' => true, 'password' => 'password'])
             ->assertSessionHasNoErrors();
 
         $this->tenant->refresh();
@@ -619,14 +608,16 @@ class SaasCommercialContractTest extends TestCase
         $this->assertCount(2, $this->charges());
 
         Carbon::setTestNow('2026-11-18 10:00:00');
-        $this->webhook(['id' => 'mp-plan-2', 'status' => 'approved', 'transaction_amount' => 89.90, 'date_of_expiration' => null,
-            'external_reference' => json_encode(['tenant_id' => $this->tenant->id, 'plan_id' => $this->plan->id])])->assertOk();
+        $this->payByEfiPix($this->plan->id, '89.90');
         $this->assertSame('2026-12-20', $this->tenant->refresh()->expires_at->toDateString());
     }
 
     public function test_converting_paid_plan_does_not_charge_already_paid_period(): void
     {
         $this->tenant->update(['expires_at' => '2026-11-10']);
+        // Pix de plano gerado antes da conversão para contrato.
+        $user = User::factory()->forTenant($this->tenant->id)->create();
+        $old = Payment::query()->findOrFail($this->actingAs($user)->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertOk()->json('id'));
 
         $this->activate(['next_due_date' => '2026-10-20'])->assertSessionHasErrors('next_due_date');
         $this->activate(['next_due_date' => '2026-11-10'])->assertSessionHasNoErrors();
@@ -635,11 +626,11 @@ class SaasCommercialContractTest extends TestCase
         $this->process();
         $this->assertCount(0, $this->charges());
 
-        // PIX de plano antigo aprovado depois da conversão não renova por plano.
-        $this->webhook(['id' => 'mp-old', 'status' => 'approved', 'transaction_amount' => 89.90, 'date_of_expiration' => null,
-            'external_reference' => json_encode(['tenant_id' => $this->tenant->id, 'plan_id' => $this->plan->id])])
-            ->assertJson(['status' => 'ignored_custom_contract']);
+        // Pago depois da conversão: não renova por plano; vira divergência auditada para devolução.
+        $this->payCob($old->payment_id, '89.90', 'E2EPLANOANTIGO');
+        $this->pixWebhook($old->payment_id, 'E2EPLANOANTIGO')->assertOk();
         $this->assertSame('2026-11-10', $this->tenant->refresh()->expires_at->toDateString());
+        $this->assertDatabaseHas('fiscal_admin_audits', ['action' => 'saas_payment.divergence', 'subject_id' => $old->id]);
     }
 
     // ---- 21. Isolamento entre tenants --------------------------------------
@@ -660,10 +651,10 @@ class SaasCommercialContractTest extends TestCase
         $this->actingAs($this->root)->post(route('admin.tenants.charges.refund', [$this->tenant, $theirs]), ['reason' => 'xxxxx', 'password' => 'password'])->assertSessionHas('error', $notFound);
         $this->assertSame('pending', $theirs->refresh()->status);
 
-        // Webhook com tenant e cobrança trocados é recusado.
-        $this->webhook(['id' => 'mp-x', 'status' => 'approved', 'transaction_amount' => 1200, 'date_of_expiration' => null,
-            'external_reference' => json_encode(['tenant_id' => $this->tenant->id, 'charge_id' => $theirs->id])])->assertStatus(422);
+        // Notificação de txid que esta empresa não gerou é ignorada: nada é quitado.
+        $this->pixWebhook('TXIDDEOUTRAEMPRESA000000000001', 'E2EOUTRA')->assertOk()->assertJson(['queued' => 0]);
         $this->assertSame('pending', $theirs->refresh()->status);
+        $this->assertSame('pending', $mine->refresh()->status);
 
         $this->assertSame($mine->id, app(SaasContractService::class)->openChargeFor($this->tenant->refresh())->id);
         $this->actingAs($this->root)->get(route('admin.tenants.show', $this->tenant))

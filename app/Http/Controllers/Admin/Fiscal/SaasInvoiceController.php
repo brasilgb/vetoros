@@ -37,7 +37,7 @@ class SaasInvoiceController extends Controller
         $tenant = $tenantId ? Tenant::query()->with('plan:id,name', 'period:id,name')->find($tenantId) : null;
 
         $payments = $tenant
-            ? Payment::query()->where('tenant_id', $tenant->id)->where('status', 'approved')->latest('id')->limit(24)->get()
+            ? Payment::query()->where('tenant_id', $tenant->id)->settled()->whereNull('tenant_subscription_charge_id')->latest('id')->limit(24)->get()
                 ->map(function (Payment $payment) {
                     $context = $this->service->paymentContext($payment);
                     $documents = AdminFiscalDocument::query()->where('payment_id', $payment->id)->where('provider', 'spedy')->latest('id')->get(['id', 'status', 'number']);

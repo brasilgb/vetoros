@@ -11,8 +11,9 @@
     @php
         $logoPath = public_path('images/vetor.png');
         $logoUrl = file_exists($logoPath) ? asset('images/vetor.png') : null;
-        $paidAt = $payment->updated_at ?? now();
+        $paidAt = $payment->paid_at ?? $payment->updated_at ?? now();
         $paymentStatusLabel = [
+            'paid' => 'Pago',
             'approved' => 'Aprovado',
             'pending' => 'Pendente',
             'in_process' => 'Em processamento',

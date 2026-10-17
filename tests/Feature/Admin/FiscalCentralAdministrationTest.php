@@ -14,6 +14,7 @@ use App\Models\App\Payment;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Fiscal\NativeFiscalService;
+use App\Services\Fiscal\SaasInvoiceService;
 use App\Services\Fiscal\Spedy\SpedyClient;
 use App\Services\Fiscal\Spedy\SpedyPlatformConfig;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -283,7 +284,7 @@ class FiscalCentralAdministrationTest extends TestCase
         $payment->update(['status' => 'pending']);
 
         $this->actingAs($this->root)->post(route('admin.fiscal.saas.emit', $payment), ['reference_start' => '2026-10-01', 'reference_end' => '2026-10-31'])
-            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'aprovados'));
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'quitados'));
 
         $client = User::factory()->forTenant($tenant->id)->create(['roles' => User::ROLE_ADMIN]);
         $payment->update(['status' => 'approved']);
@@ -360,6 +361,46 @@ class FiscalCentralAdministrationTest extends TestCase
 
         $send('evt-b', '22333444000155')->assertJson(['processed' => true]);
         $this->assertSame('authorized', $document->refresh()->status);
+    }
+
+    /** VETOR-SAAS-EFI-03: plano pago pela Efí (status `paid`, plano em coluna) gera NFS-e; competência de contrato não. */
+    public function test_efi_plan_payment_feeds_saas_invoice_context_and_contract_payment_is_refused(): void
+    {
+        [$tenant, $legacy] = $this->saasScenario();
+        $plan = Plan::query()->findOrFail($legacy->billedPlanId());
+
+        $efi = Payment::query()->create([
+            'tenant_id' => $tenant->id, 'plan_id' => $plan->id, 'gateway' => 'efi', 'method' => 'pix', 'payment_id' => 'VOSTXIDPLANO000000000000000001',
+            'reference' => 'VOSTXIDPLANO000000000000000001', 'idempotency_key' => 'efi-plano', 'amount' => 89.9, 'status' => 'paid', 'paid_at' => '2026-10-05 09:00:00',
+        ]);
+        $context = app(SaasInvoiceService::class)->paymentContext($efi);
+        $this->assertSame(['Mensal', '2026-10-05', '2026-11-04'], [$context['plan_name'], $context['suggested_start']->toDateString(), $context['suggested_end']->toDateString()]);
+
+        // O histórico do provedor anterior continua legível (plano na referência externa, data de aprovação).
+        $this->assertSame('2026-10-01', app(SaasInvoiceService::class)->paymentContext($legacy)['suggested_start']->toDateString());
+
+        $this->actingAs($this->root)->get(route('admin.fiscal.saas.index', ['tenant_id' => $tenant->id]))
+            ->assertInertia(fn ($page) => $page->has('payments', 2));
+
+        $contract = Payment::query()->create([
+            'tenant_id' => $tenant->id, 'tenant_subscription_charge_id' => $this->contractChargeFor($tenant), 'gateway' => 'efi', 'method' => 'billet',
+            'payment_id' => '9001', 'reference' => 'VOSBCONTRATO', 'idempotency_key' => 'efi-contrato', 'amount' => 1200, 'status' => 'paid', 'paid_at' => now(),
+        ]);
+        $this->actingAs($this->root)->post(route('admin.fiscal.saas.emit', $contract), ['reference_start' => '2026-10-01', 'reference_end' => '2026-10-31'])
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'competência de contrato'));
+    }
+
+    private function contractChargeFor(Tenant $tenant): int
+    {
+        $contractId = DB::table('tenant_commercial_contracts')->insertGetId([
+            'tenant_id' => $tenant->id, 'contract_number' => 'VOS-T'.$tenant->id, 'amount' => 1200, 'billing_months' => 1,
+            'start_date' => '2026-10-01', 'next_due_date' => '2026-11-01', 'active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return DB::table('tenant_subscription_charges')->insertGetId([
+            'tenant_id' => $tenant->id, 'tenant_commercial_contract_id' => $contractId, 'cycle_start' => '2026-10-01', 'cycle_end' => '2026-10-31',
+            'due_date' => '2026-10-01', 'amount' => 1200, 'status' => 'paid', 'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     /** @return array{0: Tenant, 1: Payment} */

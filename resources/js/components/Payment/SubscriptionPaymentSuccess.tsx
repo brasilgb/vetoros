@@ -22,7 +22,7 @@ export default function SubscriptionPaymentSuccess({ open, onContinue }: Subscri
                 </DialogHeader>
 
                 <DialogFooter className="sm:justify-center">
-                    <Button type="button" onClick={onContinue} className="w-full sm:w-auto">
+                    <Button type="button" onClick={onContinue} className="w-full sm:w-auto" autoFocus>
                         Continuar
                     </Button>
                 </DialogFooter>

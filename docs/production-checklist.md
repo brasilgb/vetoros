@@ -18,7 +18,7 @@ Este checklist foi pensado para o momento de publicar o VetorOS com segurança e
   - `APP_DEBUG=false`
   - `APP_URL=https://seu-dominio`
   - `APP_KEY` exclusiva do ambiente
-  - credenciais reais de banco, e-mail e Mercado Pago
+  - credenciais reais de banco e e-mail (as credenciais da Efí Bank ficam no RootAdmin, criptografadas no banco)
 - Garantir permissões de escrita em:
   - `storage/`
   - `bootstrap/cache/`
@@ -59,17 +59,18 @@ Este checklist foi pensado para o momento de publicar o VetorOS com segurança e
 
 ## 6. Billing e assinatura
 
-- Configurar:
-  - `MP_ACCESS_TOKEN`
-  - `MP_WEBHOOK_TOKEN`
+- Gateway único: **Efí Bank** (Pix, boleto/Bolix, cartão e recorrência no cartão). Não há variável de ambiente de gateway.
+- Em RootAdmin → Financeiro · Efí Bank:
+  - ambiente, credenciais das APIs Cobranças e Pix, certificado da API Pix, chave Pix e identificador de conta
+  - testar a conexão e cadastrar o webhook Pix
+  - homologar (sem homologação, novas cobranças externas ficam bloqueadas)
+- Garantir o worker de fila e o scheduler (`vetoros:reconcile-saas-payments` a cada 30 min e `vetoros:process-saas-contracts`).
 - Validar ponta a ponta:
-  - geração de PIX
-  - recebimento do webhook
-  - gravação do pagamento
-  - renovação do tenant
-  - bloqueio por expiração
-  - reativação após pagamento
-- Confirmar que o webhook responde em HTTPS e com token correto.
+  - Pix, boleto e cartão
+  - recebimento dos webhooks Pix e Cobranças (`/api/webhooks/efi/...` e `/api/webhooks/efi-charges/...`)
+  - gravação do pagamento e renovação do tenant
+  - bloqueio por expiração e reativação após pagamento
+- Antes da primeira implantação sem o gateway anterior: `php artisan vetoros:legacy-payments-report` deve terminar sem pendente válido.
 
 ## 7. E-mail
 

@@ -56,8 +56,7 @@ QUEUE_CONNECTION=database
 CACHE_STORE=file
 SESSION_DRIVER=file
 
-MP_ACCESS_TOKEN=...
-MP_WEBHOOK_TOKEN=...
+# Gateway de pagamento (Efí Bank): configurado no RootAdmin, sem variável de ambiente.
 ```
 
 Observações:
@@ -165,27 +164,22 @@ Se optar por consumir fila via cron, use algo como:
 
 Só use isso se você realmente souber que os jobs foram desenhados para esse comportamento.
 
-## 7. Webhook Mercado Pago
+## 7. Webhooks Efí Bank
 
-Valide sempre após o deploy:
+Valide sempre após o deploy, em RootAdmin → Financeiro · Efí Bank:
 
 - a URL pública continua em HTTPS
-- o token continua correto
-- o endpoint responde sem erro
-
-Formato esperado:
-
-```text
-https://seudominio.com/api/webhooks/mercadopago/SEU_TOKEN
-```
+- o teste de conexão passa nas APIs Cobranças e Pix
+- o webhook Pix está cadastrado (botão "Cadastrar webhook Pix")
+- as notificações chegam (última notificação Pix e Cobranças)
 
 Teste ponta a ponta:
 
-- gerar PIX
+- gerar Pix, boleto e cartão
 - pagar
-- receber webhook
-- atualizar tenant
-- gravar pagamento
+- receber o webhook e a confirmação por consulta à API
+- atualizar o tenant
+- gravar o pagamento
 
 ## 8. Verificação rápida pós-deploy
 

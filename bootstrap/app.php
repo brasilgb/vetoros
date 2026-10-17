@@ -54,6 +54,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->name('admin.fiscal.')
                 ->group(base_path('routes/admin-fiscal.php'));
 
+            // Administração financeira central (Efí Bank das assinaturas SaaS), só RootAdmin.
+            Route::middleware(['web', 'auth', 'root.admin'])
+                ->prefix('admin/finance')
+                ->name('admin.finance.')
+                ->group(base_path('routes/admin-finance.php'));
+
             Route::middleware(['web', 'auth', 'admin'])
                 ->prefix('admin')
                 ->name('admin.')
@@ -75,10 +81,6 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             Cors::class,
-        ]);
-        // Adicionando exceção de CSRF para o Webhook do Mercado Pago
-        $middleware->validateCsrfTokens(except: [
-            'api/webhooks/mercadopago/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

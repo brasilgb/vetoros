@@ -57,7 +57,7 @@
                                 <table width="100%" cellpadding="0" cellspacing="0"
                                     style="background:#fff7ed;border-radius:8px;padding:18px;margin:24px 0;font-size:14px;">
                                     <tr><td style="padding:4px 0;"><strong>Como pagar</strong></td></tr>
-                                    <tr><td style="padding:4px 0;line-height:1.6;">{{ $paymentInstructions }}</td></tr>
+                                    <tr><td style="padding:4px 0;line-height:1.6;word-break:break-all;">{!! nl2br(e($paymentInstructions)) !!}</td></tr>
                                 </table>
                             @endif
 

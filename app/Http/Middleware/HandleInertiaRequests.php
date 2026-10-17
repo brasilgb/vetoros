@@ -447,7 +447,9 @@ class HandleInertiaRequests extends Middleware
                 ? User::whereIn('roles', [1, 3])->where('status', 1)->get()
                 : [],
 
-            'plans' => fn () => $user?->tenant ? Plan::all() : [],
+            // Trava de planos: com contrato personalizado o tenant não vê nem escolhe planos (paga a cobrança do contrato).
+            'plans' => fn () => $user?->tenant && ! $user->tenant->hasCustomContract() ? Plan::all() : [],
+            'custom_contract' => fn () => (bool) $user?->tenant?->hasCustomContract(),
 
             'name' => config('app.name'),
 

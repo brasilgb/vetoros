@@ -826,10 +826,12 @@ class DatabaseSeeder extends Seeder
         for ($i = 1; $i <= 6; $i++) {
             DB::table('payments')->insert([
                 'tenant_id' => $tenantId,
-                'gateway' => 'mercadopago',
+                'gateway' => 'efi',
+                'method' => 'pix',
                 'payment_id' => 'functional-test-'.$tenantId.'-'.$i,
                 'amount' => $planId ? (DB::table('plans')->where('id', $planId)->value('value') ?? 99.90) : 99.90,
-                'status' => 'approved',
+                'status' => 'paid',
+                'paid_at' => $now->copy()->subDays($i * 10),
                 'idempotency_key' => 'functional-test-key-'.$tenantId.'-'.$i,
                 'expires_at' => $now->copy()->addMonth(),
                 'raw_response' => json_encode(['seed' => 'functional_test']),

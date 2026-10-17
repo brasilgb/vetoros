@@ -177,12 +177,12 @@ class SaasInvoiceService
 
     // ---- Vínculo financeiro --------------------------------------------
 
-    /** Plano e período de referência sugeridos a partir do pagamento aprovado. */
+    /** Plano e período de referência sugeridos a partir do pagamento quitado (Efí ou histórico). */
     public function paymentContext(Payment $payment): array
     {
-        $reference = json_decode((string) data_get($payment->raw_response, 'external_reference'), true);
-        $plan = is_array($reference) && isset($reference['plan_id']) ? Plan::query()->find($reference['plan_id']) : null;
-        $paidAt = Carbon::parse(data_get($payment->raw_response, 'date_approved') ?? $payment->updated_at ?? $payment->created_at);
+        $planId = $payment->billedPlanId();
+        $plan = $planId ? Plan::query()->find($planId) : null;
+        $paidAt = $payment->settledAt();
         $months = $plan?->billingMonths() ?: 0;
 
         return [
@@ -204,8 +204,12 @@ class SaasInvoiceService
         if ($blocker = $this->blocker($issuer)) {
             throw new FiscalEmissionException($blocker);
         }
-        if ($payment->status !== 'approved' || (float) $payment->amount <= 0) {
-            throw new FiscalEmissionException('Só pagamentos aprovados e com valor podem gerar nota.');
+        if (! $payment->isSettled() || (float) $payment->amount <= 0) {
+            throw new FiscalEmissionException('Só pagamentos quitados e com valor podem gerar nota.');
+        }
+        // A competência do contrato tem nota própria (emitForCharge): nunca uma segunda pelo pagamento.
+        if ($payment->tenant_subscription_charge_id) {
+            throw new FiscalEmissionException('Este pagamento quita uma competência de contrato; a NFS-e é emitida pela cobrança.');
         }
         if ($end->lt($start)) {
             throw new FiscalEmissionException('O fim do período de referência deve ser posterior ao início.');
