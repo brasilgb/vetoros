@@ -68,11 +68,11 @@ Novo componente `resources/js/components/license-section.tsx`.
 ## 6. `git status`, commit e push
 
 - **Revisão antes do commit:**
-  - 69 arquivos alterados e 5 novos, todos da MONEY-01/02, mais `correio.md` e `executed.md`.
+  - 67 arquivos alterados e 5 novos, todos da MONEY-01/02, além de `correio.md` e `executed.md`.
   - Nenhuma alteração de outras frentes e nenhum arquivo ignorado fora do padrão (`.env`, `.env.testing` e dumps fora do git).
   - Branch atual: `main`, sincronizada com `origin/main`.
 - **Verificação de segredos** nos arquivos em stage: `secret-guard` e `gitleaks` 8.30.1 (a mesma versão do CI), **nada encontrado**.
-- **Commit do código:** `559d01110ed36eecd1845e935181203514011993`, "Padroniza os campos monetários em BRL e leva o pagamento da assinatura para a licença (VETOR-UX-MONEY-01/02)", com 74 arquivos.
+- **Commit do código:** `559d01110ed36eecd1845e935181203514011993`, "Padroniza os campos monetários em BRL e leva o pagamento da assinatura para a licença (VETOR-UX-MONEY-01/02)", com 72 arquivos.
 - **Push:** `origin/main` `2e518224..559d0111`.
 - **CI do GitHub** (`https://github.com/brasilgb/vetoros/actions/runs/39065116334`): **`test` success** (inclui `npm run test:js` no Node 24 e o build) e **`secrets` success**.
 - **Commit deste relatório:** contém só `correio.md` e `executed.md`.
