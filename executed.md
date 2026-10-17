@@ -33,7 +33,7 @@ O `correio.md` atual difere da versão anterior, `VETOR-STABILIZE-03`. A nova or
 
 - **VetorOS — `main`:** suporte/SMTP/dashboards `1bd11b0c`; WhatsApp e landing VetorOS `03591fb8`. Ambos já estão incluídos no histórico publicado da branch.
 - **VetorLeads — `main`:** configuração WAHA por tenant `8190eb2`; contato comercial `d7c3892`; ajustes desta execução e hero WebP `da7cd21` — push confirmado.
-- O relatório e o procedimento de publicação do VetorOS serão registrados na branch `main` depois da revisão final desta rodada.
+- **VetorOS — documentação e relatório:** commit `3fc9bab6` na branch `main`; push confirmado.
 - Nenhum deploy, acesso à VPS, migration em produção, reinício de container ou alteração de infraestrutura foi realizado.
 
 ## Preservação de alterações preexistentes
