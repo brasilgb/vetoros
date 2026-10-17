@@ -18,7 +18,10 @@ Este checklist foi pensado para o momento de publicar o VetorOS com segurança e
   - `APP_DEBUG=false`
   - `APP_URL=https://seu-dominio`
   - `APP_KEY` exclusiva do ambiente
-  - credenciais reais de banco e e-mail (as credenciais da Efí Bank ficam no RootAdmin, criptografadas no banco)
+  - credenciais reais de banco
+  - `ABRASIL_MAIL_HOST`, `ABRASIL_MAIL_PORT`, `ABRASIL_MAIL_ENCRYPTION`, `ABRASIL_MAIL_USERNAME`, `ABRASIL_MAIL_PASSWORD` e `ABRASIL_MAIL_FROM_ADDRESS` para o SMTP institucional
+  - credenciais da Efí Bank ficam no RootAdmin, criptografadas no banco
+- Fornecer credenciais SMTP pelo ambiente protegido da VPS/Docker Compose. `.env.example` documenta os nomes e valores não secretos; a senha permanece apenas no ambiente e nunca no repositório.
 - Garantir permissões de escrita em:
   - `storage/`
   - `bootstrap/cache/`
@@ -27,6 +30,10 @@ Este checklist foi pensado para o momento de publicar o VetorOS com segurança e
 ## 3. Banco de dados
 
 - Executar backup antes de qualquer deploy.
+- Confirmar a inclusão e o estado das migrations novas antes da janela de publicação:
+  - `2026_10_17_200000_create_support_sessions_table` (Modo Suporte e trilha de auditoria)
+  - `2026_10_17_210000_add_commercial_whatsapp_settings` (canal comercial do VetorOS)
+- Essas migrations ainda não foram executadas em produção nesta entrega. Aplicá-las somente durante uma publicação autorizada e após confirmar o backup.
 - Rodar `php artisan migrate --force`.
 - Validar restore em ambiente separado pelo menos uma vez antes do go-live comercial.
 

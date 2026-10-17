@@ -194,6 +194,8 @@ Migrations recentes relacionadas a novas features:
 - `2026_04_17_133257_drop_customers_tenant_id_cpfcnpj_unique`
 - `2026_04_17_154103_add_menu_visibility_flags_to_others_table`
 - `2026_04_17_160523_add_automatic_follow_ups_enabled_to_others_table`
+- `2026_10_17_200000_create_support_sessions_table` (Modo Suporte do RootAdmin)
+- `2026_10_17_210000_add_commercial_whatsapp_settings` (contato comercial configurável)
 
 ## Estratégia de baseline das migrations
 
