@@ -103,13 +103,28 @@ class SubscriptionFlowTest extends TestCase
     {
         $this->assertNull($this->alert());
 
-        $this->actingAs($this->user)->get(route('subscription.show'))->assertOk()
-            ->assertHeader('Cache-Control', 'no-store, private')
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Subscription/Blocked')
-                ->where('status.state', 'active')->where('status.expires_at', '2026-11-30')->where('status.billing_mode', 'plan'));
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('app/others/index')
+                ->where('subscription.status.state', 'active')->where('subscription.status.expires_at', '2026-11-30')->where('subscription.status.billing_mode', 'plan'));
 
-        // Fora do bloqueio, o endereço de bloqueio leva à consulta (sem ciclo).
-        $this->actingAs($this->user)->get(route('subscription.blocked'))->assertRedirect(route('subscription.show'));
+        // Fora do bloqueio, o endereço de bloqueio e o antigo "Minha assinatura" levam ao bloco da licença.
+        $license = route('app.other-settings.index').'#licenca';
+        $this->actingAs($this->user)->get(route('subscription.blocked'))->assertRedirect($license);
+        $this->actingAs($this->user)->get(route('subscription.show'))->assertRedirect($license);
+    }
+
+    public function test_license_section_shows_only_filled_holder_data_and_signed_days(): void
+    {
+        $this->expiresIn(-2);
+        $this->tenant->update(['company' => 'Assistência Licenciada', 'street' => null, 'number' => null, 'district' => null, 'city' => 'Porto Alegre', 'state' => 'RS']);
+
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('app/others/index')
+                ->where('license.days_remaining', -2)
+                ->where('license.address', 'Porto Alegre - RS')
+                ->where('license.holder', fn ($holder) => $holder !== '' && ! str_contains((string) $holder, 'null'))
+                ->where('subscription.status.state', 'grace')
+                ->has('subscription.checkout'));
     }
 
     public function test_near_due_shows_discreet_notice_with_due_date(): void
@@ -117,7 +132,7 @@ class SubscriptionFlowTest extends TestCase
         $this->expiresIn(2);
 
         $this->assertSame(['due_soon', '2026-10-17', 2], array_values(array_intersect_key($this->alert(), array_flip(['status', 'expires_at', 'days_until_due']))));
-        $this->actingAs($this->user)->get(route('subscription.show'))->assertInertia(fn (AssertableInertia $page) => $page->where('status.state', 'due_soon'));
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.status.state', 'due_soon'));
 
         // Antes da janela de aviso, nada aparece.
         $this->expiresIn(4);
@@ -129,7 +144,7 @@ class SubscriptionFlowTest extends TestCase
         $this->expiresIn(0);
 
         $this->assertSame('due_today', $this->alert()['status']);
-        $this->actingAs($this->user)->get(route('subscription.show'))->assertInertia(fn (AssertableInertia $page) => $page->where('status.state', 'due_today'));
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.status.state', 'due_today'));
     }
 
     public function test_grace_period_keeps_operational_access_with_overdue_notice(): void
@@ -138,8 +153,8 @@ class SubscriptionFlowTest extends TestCase
 
         $alert = $this->alert();
         $this->assertSame(['grace_period', 2, 1], [$alert['status'], $alert['days_overdue'], $alert['grace_days_left']]);
-        $this->actingAs($this->user)->get(route('subscription.show'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('status.state', 'grace')->where('status.grace_until', '2026-10-15'));
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.status.state', 'grace')->where('subscription.status.grace_until', '2026-10-15'));
     }
 
     public function test_after_grace_access_is_blocked_but_payment_routes_stay_reachable(): void
@@ -150,7 +165,8 @@ class SubscriptionFlowTest extends TestCase
         $this->actingAs($this->user)->get(route('subscription.blocked'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('status.state', 'blocked')
                 ->where('status.reason', fn ($reason) => str_contains($reason, 'carência de 3 dias terminou')));
-        $this->actingAs($this->user)->get(route('subscription.show'))->assertOk();
+        // Sistema e módulos fica atrás do bloqueio: o pagamento segue pela tela de bloqueio.
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))->assertRedirect(route('subscription.blocked'));
         $this->actingAs($this->user)->getJson(route('subscription.check_status'))->assertOk()->assertJson(['access' => 'blocked']);
         $this->actingAs($this->user)->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertOk();
         $this->actingAs($this->user)->post(route('logout'))->assertRedirect();
@@ -172,9 +188,9 @@ class SubscriptionFlowTest extends TestCase
     {
         $charge = $this->contract();
 
-        $this->actingAs($this->user)->get(route('subscription.show'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('plans', [])->where('status.billing_mode', 'custom')
-                ->where('charge.amount', '1200.00')->where('charge.due_date', '2026-10-20')->where('charge.periodicity', 'Mensal'));
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.plans', [])->where('subscription.status.billing_mode', 'custom')
+                ->where('subscription.charge.amount', '1200.00')->where('subscription.charge.due_date', '2026-10-20')->where('subscription.charge.periodicity', 'Mensal'));
 
         // Nem plano nem valor vindos do navegador mudam a cobrança.
         $this->actingAs($this->user)->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertUnprocessable();
@@ -217,8 +233,8 @@ class SubscriptionFlowTest extends TestCase
         $charge = $this->contract();
         $billet = Payment::query()->where('tenant_subscription_charge_id', $charge->id)->sole();
 
-        $this->actingAs($this->user)->get(route('subscription.show'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('pending_payment.method', 'billet')->where('pending_payment.barcode', '34191.79001 01043.510047'));
+        $this->actingAs($this->user)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.pending_payment.method', 'billet')->where('subscription.pending_payment.barcode', '34191.79001 01043.510047'));
         $this->actingAs($this->user)->postJson(route('subscription.efi.refresh', $billet))->assertOk()->assertJson(['status' => 'pending']);
 
         // Compensado: a consulta sob demanda aplica no servidor.

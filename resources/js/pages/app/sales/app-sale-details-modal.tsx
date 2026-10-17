@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
 import moment from 'moment';
 
 interface SaleDetailsModalProps {
@@ -71,14 +71,13 @@ export default function SaleDetailsModal({ isOpen, onClose, sale }: SaleDetailsM
                             <strong>Pagamento:</strong> {sale.payment_method || 'Não informado'}
                         </p>
                         <p>
-                            <strong>Status financeiro:</strong>{' '}
-                            {financialStatusLabel[financialStatusKey] || sale.financial_status || 'Não informado'}
+                            <strong>Status financeiro:</strong> {financialStatusLabel[financialStatusKey] || sale.financial_status || 'Não informado'}
                         </p>
                         <p>
-                            <strong>Valor pago:</strong> {maskMoney(String(sale.paid_amount || 0))}
+                            <strong>Valor pago:</strong> {formatBRL(sale.paid_amount || 0)}
                         </p>
                         <p>
-                            <strong>Saldo:</strong> {maskMoney(String(Number(sale.total_amount || 0) - Number(sale.paid_amount || 0)))}
+                            <strong>Saldo:</strong> {formatBRL(Number(sale.total_amount || 0) - Number(sale.paid_amount || 0))}
                         </p>
                         {sale.status === 'cancelled' && (
                             <>
@@ -130,9 +129,9 @@ export default function SaleDetailsModal({ isOpen, onClose, sale }: SaleDetailsM
                                         <TableRow key={item.id}>
                                             <TableCell>{item.part?.name}</TableCell>
                                             <TableCell className="text-center">{item.quantity}</TableCell>
-                                            <TableCell className="text-right">{maskMoney(String(item.unit_price ?? 0))}</TableCell>
+                                            <TableCell className="text-right">{formatBRL(item.unit_price ?? 0)}</TableCell>
                                             <TableCell className="text-right">
-                                                {maskMoney(String(Number(item.quantity ?? 0) * Number(item.unit_price ?? 0)))}
+                                                {formatBRL(Number(item.quantity ?? 0) * Number(item.unit_price ?? 0))}
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -140,7 +139,7 @@ export default function SaleDetailsModal({ isOpen, onClose, sale }: SaleDetailsM
                                         <TableCell colSpan={3} className="text-right">
                                             Total
                                         </TableCell>
-                                        <TableCell className="text-right">{maskMoney(sale.total_amount)}</TableCell>
+                                        <TableCell className="text-right">{formatBRL(sale.total_amount)}</TableCell>
                                     </TableRow>
                                 </TableBody>
                             </Table>

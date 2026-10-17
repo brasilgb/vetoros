@@ -190,8 +190,8 @@ class SaasContractPlanLockTest extends TestCase
         $this->process();
         $user = User::factory()->forTenant($this->tenant->id)->create();
 
-        $this->actingAs($user)->get(route('subscription.show'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('custom_contract', true)->where('plans', [])->has('charge'));
+        $this->actingAs($user)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('custom_contract', true)->where('subscription.plans', [])->has('subscription.charge'));
 
         $this->actingAs($user)->postJson(route('subscription.efi.pix'), ['plan_id' => $this->otherPlan->id])
             ->assertUnprocessable()->assertJsonValidationErrors('plan_id');

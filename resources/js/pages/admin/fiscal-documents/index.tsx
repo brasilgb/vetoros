@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AdminLayout from '@/layouts/admin/admin-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { ExternalLink, FileText, ReceiptText } from 'lucide-react';
@@ -43,10 +44,6 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '#',
     },
 ];
-
-function money(value: string | number) {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
-}
 
 export default function AdminFiscalDocumentsIndex({ documents }: { documents: any }) {
     return (
@@ -90,7 +87,7 @@ export default function AdminFiscalDocumentsIndex({ documents }: { documents: an
                                                 <div className="text-muted-foreground text-xs">{document.tenant?.cnpj || '-'}</div>
                                             </TableCell>
                                             <TableCell className="max-w-[320px] truncate">{document.description || '-'}</TableCell>
-                                            <TableCell>{money(document.amount)}</TableCell>
+                                            <TableCell>{formatBRL(document.amount)}</TableCell>
                                             <TableCell>{document.number || '-'}</TableCell>
                                             <TableCell>
                                                 <Badge variant="secondary">{document.status}</Badge>

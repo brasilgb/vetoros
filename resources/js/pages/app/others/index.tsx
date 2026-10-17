@@ -1,6 +1,8 @@
 import AppearanceTabs from '@/components/appearance-tabs';
 import HeadingSmall from '@/components/heading-small';
 import { Icon } from '@/components/icon';
+import LicenseSection from '@/components/license-section';
+import { type SubscriptionData } from '@/components/Payment/SubscriptionPanel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +11,6 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
-import { maskCpfCnpj } from '@/Utils/mask';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CogIcon, Save } from 'lucide-react';
 import PaymentFeeSettings from './payment-fee-settings';
@@ -25,16 +26,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Others({
-    othersettings,
-    company,
-    time_remaining,
-    mailSettings,
-    businessMetrics,
-    fiscalSetting,
-    licensePlanName,
-    paymentFees,
-}: any) {
+export default function Others({ othersettings, company, license, subscription, mailSettings, businessMetrics, fiscalSetting, paymentFees }: any) {
     const { auth } = usePage().props as any;
     const canManageOtherSettings = auth?.permissions?.includes('other_settings');
     const initialTab =
@@ -98,14 +90,7 @@ export default function Others({
 
             <div className="w-full p-4">
                 <div className="bg-card w-full rounded-2xl border p-5 shadow-sm sm:p-6">
-                    <div className="mb-8 space-y-6">
-                        <HeadingSmall
-                            title="Licença de uso do sistema"
-                            description={`Este software é licenciado para a empresa ${company?.companyname}, CNPJ: ${maskCpfCnpj(company?.cnpj)}. Localizada na ${company?.street}, ${company?.number}, ${company?.district}, ${company?.city} - ${company?.state}.`}
-                            license={licensePlanName ?? auth?.user?.tenant?.plan?.name ?? 'Sem plano'}
-                            time_remaining={time_remaining}
-                        />
-                    </div>
+                    <LicenseSection license={license} subscription={subscription as SubscriptionData | null} />
 
                     <div className="mb-8 space-y-6">
                         <HeadingSmall title="Aparência do sistema" description="Escolha o tema claro, escuro ou o padrão do dispositivo." />

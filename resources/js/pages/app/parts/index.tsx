@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
-import { maskMoney } from '@/Utils/mask';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Barcode, Camera, Edit, PackageCheck, Plus, Printer, ShoppingCart, Upload } from 'lucide-react';
 import moment from 'moment';
@@ -310,7 +310,7 @@ export default function Parts({ parts, search, filter }: any) {
                                         </TableCell>
                                         <TableCell>
                                             <div className="space-y-1 text-sm">
-                                                <div>Venda: {maskMoney(part.sale_price)}</div>
+                                                <div>Venda: {formatBRL(part.sale_price)}</div>
                                                 <div className="text-muted-foreground text-xs">Mínimo: {part.minimum_stock_level}</div>
                                             </div>
                                         </TableCell>

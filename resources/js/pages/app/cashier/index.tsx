@@ -5,13 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
-import { maskMoney, maskMoneyDot } from '@/Utils/mask';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { BanknoteArrowDown, FileText, Loader2, WalletCards } from 'lucide-react';
 import moment from 'moment';
@@ -27,9 +27,6 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '#',
     },
 ];
-
-const money = (value: number | string | null | undefined) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 
 const activeWithdrawalsTotal = (withdrawals: any[] = []) =>
     withdrawals.reduce((sum: number, withdrawal: any) => (withdrawal.cancelled_at ? sum : sum + Number(withdrawal.amount || 0)), 0);
@@ -169,35 +166,35 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Saldo inicial</div>
-                                    <div>{money(openingBalance)}</div>
+                                    <div>{formatBRL(openingBalance)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Vendas concluídas</div>
-                                    <div>{money(completedSales)}</div>
+                                    <div>{formatBRL(completedSales)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Pagamentos de OS</div>
-                                    <div>{money(orderPayments)}</div>
+                                    <div>{formatBRL(orderPayments)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Atendimentos</div>
-                                    <div>{money(cashEntries)}</div>
+                                    <div>{formatBRL(cashEntries)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Vendas canceladas</div>
-                                    <div>{money(cancelledSales)}</div>
+                                    <div>{formatBRL(cancelledSales)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Saldo esperado atual</div>
-                                    <div className="font-medium">{money(currentExpectedBalance)}</div>
+                                    <div className="font-medium">{formatBRL(currentExpectedBalance)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Sangrias registradas</div>
-                                    <div>{money(withdrawalsTotal)}</div>
+                                    <div>{formatBRL(withdrawalsTotal)}</div>
                                 </div>
                                 <div>
                                     <div className="text-muted-foreground">Total recebido</div>
-                                    <div className="font-medium">{money(totalReceived)}</div>
+                                    <div className="font-medium">{formatBRL(totalReceived)}</div>
                                 </div>
                             </div>
                         ) : (
@@ -215,13 +212,11 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                             <form onSubmit={handleOpen} className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="opening_balance">Saldo inicial</Label>
-                                    <Input
+                                    <MoneyInput
                                         id="opening_balance"
-                                        type="text"
-                                        inputMode="numeric"
                                         placeholder="0,00"
-                                        value={maskMoney(openForm.data.opening_balance)}
-                                        onChange={(e) => openForm.setData('opening_balance', maskMoneyDot(e.target.value))}
+                                        value={openForm.data.opening_balance}
+                                        onValueChange={(value) => openForm.setData('opening_balance', value)}
                                     />
                                     <InputError message={openForm.errors.opening_balance} />
                                 </div>
@@ -242,19 +237,19 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                     <div className="grid gap-3 md:grid-cols-4">
                                         <div>
                                             <div className="text-muted-foreground">Saldo inicial</div>
-                                            <div className="font-medium">{money(openingBalance)}</div>
+                                            <div className="font-medium">{formatBRL(openingBalance)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Total recebido</div>
-                                            <div className="font-medium">{money(totalReceived)}</div>
+                                            <div className="font-medium">{formatBRL(totalReceived)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Sangrias registradas</div>
-                                            <div className="font-medium">{money(withdrawalsTotal)}</div>
+                                            <div className="font-medium">{formatBRL(withdrawalsTotal)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Saldo esperado</div>
-                                            <div className="font-medium">{money(expectedClosingBalance)}</div>
+                                            <div className="font-medium">{formatBRL(expectedClosingBalance)}</div>
                                         </div>
                                     </div>
                                     <p className="text-muted-foreground mt-3 text-xs">
@@ -264,40 +259,35 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="closing_balance">Saldo contado no fechamento</Label>
-                                    <Input
+                                    <MoneyInput
                                         id="closing_balance"
-                                        type="text"
-                                        inputMode="numeric"
                                         placeholder="0,00"
-                                        value={maskMoney(closeForm.data.closing_balance)}
-                                        onChange={(e) => {
+                                        value={closeForm.data.closing_balance}
+                                        error={closeForm.errors.closing_balance}
+                                        onValueChange={(value) => {
                                             closeForm.clearErrors('closing_balance');
-                                            closeForm.setData('closing_balance', maskMoneyDot(e.target.value));
+                                            closeForm.setData('closing_balance', value);
                                         }}
                                     />
                                     <InputError message={closeForm.errors.closing_balance} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="manual_entries">Entradas manuais</Label>
-                                    <Input
+                                    <MoneyInput
                                         id="manual_entries"
-                                        type="text"
-                                        inputMode="numeric"
                                         placeholder="0,00"
-                                        value={maskMoney(closeForm.data.manual_entries)}
-                                        onChange={(e) => closeForm.setData('manual_entries', maskMoneyDot(e.target.value))}
+                                        value={closeForm.data.manual_entries}
+                                        onValueChange={(value) => closeForm.setData('manual_entries', value)}
                                     />
                                     <InputError message={closeForm.errors.manual_entries} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="manual_exits">Saídas manuais</Label>
-                                    <Input
+                                    <MoneyInput
                                         id="manual_exits"
-                                        type="text"
-                                        inputMode="numeric"
                                         placeholder="0,00"
-                                        value={maskMoney(closeForm.data.manual_exits)}
-                                        onChange={(e) => closeForm.setData('manual_exits', maskMoneyDot(e.target.value))}
+                                        value={closeForm.data.manual_exits}
+                                        onValueChange={(value) => closeForm.setData('manual_exits', value)}
                                     />
                                     <InputError message={closeForm.errors.manual_exits} />
                                 </div>
@@ -305,23 +295,23 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                     <div className="grid gap-3 md:grid-cols-5">
                                         <div>
                                             <div className="text-muted-foreground">Entradas manuais</div>
-                                            <div>{money(manualEntries)}</div>
+                                            <div>{formatBRL(manualEntries)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Saídas manuais</div>
-                                            <div>{money(manualExits)}</div>
+                                            <div>{formatBRL(manualExits)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Sangrias</div>
-                                            <div>{money(withdrawalsTotal)}</div>
+                                            <div>{formatBRL(withdrawalsTotal)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Saldo contado</div>
-                                            <div>{money(countedBalance)}</div>
+                                            <div>{formatBRL(countedBalance)}</div>
                                         </div>
                                         <div>
                                             <div className="text-muted-foreground">Diferença</div>
-                                            <div className="font-medium">{money(closingDifference)}</div>
+                                            <div className="font-medium">{formatBRL(closingDifference)}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -359,13 +349,11 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                         <form onSubmit={handleWithdrawal} className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="withdrawal_amount">Valor da sangria</Label>
-                                <Input
+                                <MoneyInput
                                     id="withdrawal_amount"
-                                    type="text"
-                                    inputMode="numeric"
                                     placeholder="0,00"
-                                    value={maskMoney(withdrawalForm.data.amount)}
-                                    onChange={(e) => withdrawalForm.setData('amount', maskMoneyDot(e.target.value))}
+                                    value={withdrawalForm.data.amount}
+                                    onValueChange={(value) => withdrawalForm.setData('amount', value)}
                                 />
                                 <InputError message={withdrawalForm.errors.amount} />
                             </div>
@@ -422,7 +410,7 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                                     )}
                                                 </TableCell>
                                                 <TableCell className={withdrawal.cancelled_at ? 'text-right line-through' : 'text-right font-medium'}>
-                                                    {money(withdrawal.amount)}
+                                                    {formatBRL(withdrawal.amount)}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {!withdrawal.cancelled_at && (
@@ -473,7 +461,7 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                         <form onSubmit={handleCancelWithdrawal} className="grid gap-4">
                             <div className="rounded-lg border p-3 text-sm">
                                 <div className="text-muted-foreground">Valor registrado</div>
-                                <div className="font-medium">{money(selectedWithdrawal?.amount)}</div>
+                                <div className="font-medium">{formatBRL(selectedWithdrawal?.amount)}</div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="cancellation_reason">Motivo do cancelamento</Label>
@@ -525,11 +513,11 @@ export default function CashierIndex({ currentSession, sessions, openTotals }: a
                                         </TableCell>
                                         <TableCell>{moment(session.opened_at).format('DD/MM/YYYY HH:mm')}</TableCell>
                                         <TableCell>{session.closed_at ? moment(session.closed_at).format('DD/MM/YYYY HH:mm') : '-'}</TableCell>
-                                        <TableCell>{money(session.opening_balance)}</TableCell>
-                                        <TableCell>{money(activeWithdrawalsTotal(session.withdrawals || []))}</TableCell>
-                                        <TableCell>{money(session.expected_balance)}</TableCell>
-                                        <TableCell>{money(session.closing_balance)}</TableCell>
-                                        <TableCell>{money(session.difference)}</TableCell>
+                                        <TableCell>{formatBRL(session.opening_balance)}</TableCell>
+                                        <TableCell>{formatBRL(activeWithdrawalsTotal(session.withdrawals || []))}</TableCell>
+                                        <TableCell>{formatBRL(session.expected_balance)}</TableCell>
+                                        <TableCell>{formatBRL(session.closing_balance)}</TableCell>
+                                        <TableCell>{formatBRL(session.difference)}</TableCell>
                                         <TableCell className="flex justify-end">
                                             {session.status === 'closed' && (
                                                 <Button

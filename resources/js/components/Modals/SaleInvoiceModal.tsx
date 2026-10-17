@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
-import { maskCpfCnpj, maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
+import { maskCpfCnpj } from '@/Utils/mask';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -113,7 +114,7 @@ export default function SaleInvoiceModal({ open, onClose, sale }: SaleInvoiceMod
                                     {item?.name} x {item.selected_quantity}
                                 </span>
 
-                                <span>R$ {maskMoney(String(item.sale_price ?? ''))}</span>
+                                <span>{formatBRL(item.sale_price ?? '')}</span>
                             </div>
                         ))}
 
@@ -122,7 +123,7 @@ export default function SaleInvoiceModal({ open, onClose, sale }: SaleInvoiceMod
                         <div className="flex justify-between font-medium">
                             <span>Total</span>
 
-                            <span>R$ {maskMoney(String(sale.total ?? ''))}</span>
+                            <span>{formatBRL(sale.total ?? '')}</span>
                         </div>
 
                         {!canIssueInvoice ? (

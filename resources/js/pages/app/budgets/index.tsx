@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
-import { maskMoney } from '@/Utils/mask';
 import { Head, Link } from '@inertiajs/react';
 import { Edit, Plus, ScrollText } from 'lucide-react';
 import moment from 'moment';
@@ -98,7 +98,7 @@ export default function CheckList({ budgets, company, search }: any) {
                                                     {budget.validity ? `${budget.validity} dias` : '-'}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>R$ {maskMoney(budget.total_value)}</TableCell>
+                                            <TableCell>{formatBRL(budget.total_value)}</TableCell>
                                             <TableCell>
                                                 <div className="space-y-1">
                                                     <div>{moment(budget.created_at).format('DD/MM/YYYY')}</div>

@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from '@inertiajs/react';
 import { Plus, Save } from 'lucide-react';
@@ -96,7 +97,7 @@ export default function CreatePeriod({ plans }: CreatePeriodProps) {
 
                     <div className="grid gap-2">
                         <Label htmlFor="price">Preço</Label>
-                        <Input type="text" id="price" value={data.price} onChange={(e) => setData('price', e.target.value)} />
+                        <MoneyInput id="price" value={data.price} onValueChange={(value) => setData('price', value)} error={errors.price} />
                         {errors.price && <div className="text-sm text-red-500">{errors.price}</div>}
                     </div>
 

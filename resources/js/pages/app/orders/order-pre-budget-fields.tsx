@@ -1,7 +1,6 @@
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
-import { maskMoney, maskMoneyDot } from '@/Utils/mask';
 
 type OrderPreBudgetFieldsProps = {
     data: {
@@ -30,22 +29,13 @@ export default function OrderPreBudgetFields({
         <>
             <div className="grid gap-2 md:col-span-2">
                 <Label htmlFor="budget_description">{descriptionLabel}</Label>
-                <Textarea
-                    id="budget_description"
-                    value={data.budget_description}
-                    onChange={(e) => setData('budget_description', e.target.value)}
-                />
+                <Textarea id="budget_description" value={data.budget_description} onChange={(e) => setData('budget_description', e.target.value)} />
                 {errors.budget_description && <div className="text-sm text-red-500">{errors.budget_description}</div>}
             </div>
 
             <div className="grid gap-2">
                 <Label htmlFor="budget_value">{valueLabel}</Label>
-                <Input
-                    type="text"
-                    id="budget_value"
-                    value={maskMoney(String(data.budget_value ?? '0'))}
-                    onChange={(e) => setData('budget_value', maskMoneyDot(e.target.value))}
-                />
+                <MoneyInput id="budget_value" value={data.budget_value ?? '0'} onValueChange={(value) => setData('budget_value', value)} />
                 {errors.budget_value && <div className="text-sm text-red-500">{errors.budget_value}</div>}
             </div>
         </>

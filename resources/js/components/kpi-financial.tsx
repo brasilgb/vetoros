@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatBRL } from '@/lib/money';
 import { ReactNode } from 'react';
 
 interface KpiFinancialProps {
@@ -19,11 +20,7 @@ interface KpiFinancialProps {
 export function KpiFinancial({ title, total = 0, services = 0, parts = 0, orders = 0, ordersLabel, comparison, icon }: KpiFinancialProps) {
     const toNumber = (value?: number | string) => Number(value || 0);
 
-    const format = (v?: number | string) =>
-        toNumber(v).toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-        });
+    const format = (v?: number | string) => formatBRL(v);
 
     const formatPercent = (value?: number | null) =>
         value === null || value === undefined ? 'Sem base anterior' : `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;

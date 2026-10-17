@@ -11,7 +11,6 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, OptionType, SharedData } from '@/types';
 import { statusOrcamento } from '@/Utils/dataSelect';
-import { maskMoneyDot } from '@/Utils/mask';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { AlertTriangle, ArrowLeft, Printer, Save, Wrench } from 'lucide-react';
@@ -111,10 +110,6 @@ export default function CreateOrder({
         e.preventDefault();
         post(route('app.orders.store'));
     };
-
-    useEffect(() => {
-        setData('budget_value', maskMoneyDot(String(data.budget_value)));
-    }, [data.budget_value, setData]);
 
     useEffect(() => {
         if (flash?.success) {

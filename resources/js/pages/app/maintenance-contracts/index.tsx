@@ -13,10 +13,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL, normalizeMoney } from '@/lib/money';
 import type { OptionType } from '@/types';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
@@ -125,33 +127,12 @@ function InvoiceIndicator({ status, kind }: { status?: Contract['invoice_status'
     );
 }
 
-function formatCurrency(value: number | string) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function formatCurrencyMask(value: string) {
-    const digits = value.replace(/\D/g, '');
-    if (!digits) return '';
-    const number = Number(digits) / 100;
-    return number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function parseCurrencyMask(value: string) {
-    const normalized = value
-        .replace(/\./g, '')
-        .replace(',', '.')
-        .replace(/[^\d.]/g, '');
-    const amount = Number(normalized);
-    return Number.isFinite(amount) ? amount.toFixed(2) : '';
-}
-
 export default function MaintenanceContracts({ contracts, search, status, totals, technicians, invoiceBlocker, canFiscal }: any) {
     const { flash, auth } = usePage().props as any;
     const canManage = auth?.role !== 'technician' && auth?.permissions?.includes('finance');
 
     const [openModal, setOpenModal] = useState(false);
     const [editingContract, setEditingContract] = useState<Contract | null>(null);
-    const [amountDisplay, setAmountDisplay] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<OptionType | null>(null);
     const [hasDuration, setHasDuration] = useState(false);
     const [hasAutoVisit, setHasAutoVisit] = useState(false);
@@ -180,7 +161,6 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         form.clearErrors();
         form.setData('start_date', moment().format('YYYY-MM-DD'));
         form.setData('billing_day', '5');
-        setAmountDisplay('');
         setSelectedCustomer(null);
         setHasDuration(false);
         setHasAutoVisit(false);
@@ -198,7 +178,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         form.setData({
             customer_id: String(contract.customer_id ?? contract.customer?.id ?? ''),
             description: contract.description ?? '',
-            monthly_amount: Number(contract.monthly_amount ?? 0).toFixed(2),
+            monthly_amount: normalizeMoney(contract.monthly_amount ?? 0),
             billing_day: String(contract.billing_day ?? 5),
             start_date: contract.start_date ? moment(contract.start_date).format('YYYY-MM-DD') : '',
             duration_months: contract.duration_months ? String(contract.duration_months) : '',
@@ -209,7 +189,6 @@ export default function MaintenanceContracts({ contracts, search, status, totals
             auto_send_invoice: !!contract.auto_send_invoice,
             invoice_competence: contract.invoice_competence ?? 'due_month',
         });
-        setAmountDisplay(Number(contract.monthly_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         setSelectedCustomer(contract.customer ? { value: contract.customer.id, label: contract.customer.name } : null);
         setHasDuration(!!contract.duration_months);
         setHasAutoVisit(!!contract.visit_frequency_days);
@@ -223,8 +202,8 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         const customer = contract.customer?.name ?? 'o cliente';
         const question =
             target.kind === 'charge'
-                ? `Emitir a NFS-e de ${formatCurrency(target.amount)} (vencimento ${due}) para ${customer}?`
-                : `Gerar a cobrança do ciclo ${due} (${formatCurrency(target.amount)}) e emitir a NFS-e para ${customer}?`;
+                ? `Emitir a NFS-e de ${formatBRL(target.amount)} (vencimento ${due}) para ${customer}?`
+                : `Gerar a cobrança do ciclo ${due} (${formatBRL(target.amount)}) e emitir a NFS-e para ${customer}?`;
         if (!window.confirm(question)) return;
         const loading = toast.loading('Emitindo NFS-e…', { description: customer });
         router.post(route('app.maintenance-contracts.invoice', contract.id), {}, { preserveScroll: true, onFinish: () => toast.dismiss(loading) });
@@ -245,12 +224,6 @@ export default function MaintenanceContracts({ contracts, search, status, totals
         }
 
         form.post(route('app.maintenance-contracts.store'), { onSuccess: () => closeModal() });
-    };
-
-    const onAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const masked = formatCurrencyMask(event.target.value);
-        setAmountDisplay(masked);
-        form.setData('monthly_amount', parseCurrencyMask(masked));
     };
 
     const changeCustomer = (option: OptionType | null) => {
@@ -355,7 +328,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                     <CardContent className="flex items-center justify-between py-4">
                         <div>
                             <p className="text-muted-foreground text-sm">Receita mensal recorrente</p>
-                            <p className="text-xl font-semibold">{formatCurrency(totals?.monthly_revenue ?? 0)}</p>
+                            <p className="text-xl font-semibold">{formatBRL(totals?.monthly_revenue ?? 0)}</p>
                         </div>
                         <Wallet className="text-muted-foreground h-8 w-8" />
                     </CardContent>
@@ -417,7 +390,7 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                                 <div className="text-muted-foreground text-xs">{contract.description}</div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{formatCurrency(contract.monthly_amount)}</TableCell>
+                                        <TableCell>{formatBRL(contract.monthly_amount)}</TableCell>
                                         <TableCell>
                                             {contract.status === 'active' && contract.next_billing_date
                                                 ? moment(contract.next_billing_date).format('DD/MM/YYYY')
@@ -594,13 +567,12 @@ export default function MaintenanceContracts({ contracts, search, status, totals
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="monthly_amount">Valor da mensalidade</Label>
-                                        <Input
+                                        <MoneyInput
                                             id="monthly_amount"
-                                            type="text"
-                                            inputMode="decimal"
                                             placeholder="0,00"
-                                            value={amountDisplay}
-                                            onChange={onAmountChange}
+                                            value={form.data.monthly_amount}
+                                            onValueChange={(value) => form.setData('monthly_amount', value)}
+                                            error={form.errors.monthly_amount}
                                         />
                                         <InputError message={form.errors.monthly_amount} />
                                     </div>

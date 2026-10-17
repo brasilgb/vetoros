@@ -19,6 +19,9 @@ use Symfony\Component\HttpFoundation\Response;
  * Assinatura do tenant (VETOR-SAAS-EFI-04): consulta e pagamento em qualquer estado (ativa, perto do
  * vencimento, vencendo hoje, em carência ou bloqueada). Fica fora do middleware de assinatura, então o
  * cliente bloqueado sempre alcança a tela, o checkout Efí, a consulta do pagamento e o logout.
+ *
+ * Fora do bloqueio, situação e pagamento ficam no bloco "Licença de uso do sistema" de Sistema e
+ * módulos (pageData); /subscription só redireciona para lá.
  */
 class SubscriptionController extends Controller
 {
@@ -31,20 +34,25 @@ class SubscriptionController extends Controller
         }
 
         if ($tenant->subscriptionBucket() !== Tenant::SUBSCRIPTION_BLOCKED) {
-            return redirect()->route('subscription.show');
+            return redirect()->to(self::licenseUrl());
         }
 
         return $this->render($tenant);
     }
 
-    public function show(Request $request): Response|RedirectResponse
+    /** Endereço antigo da "Minha assinatura" (banner, e-mails, favoritos): leva ao bloco da licença. */
+    public function show(Request $request): RedirectResponse
     {
-        $tenant = $request->user()->tenant;
-        if (! $tenant) {
+        if (! $request->user()->tenant) {
             return redirect()->route('admin.dashboard');
         }
 
-        return $this->render($tenant);
+        return redirect()->to(self::licenseUrl());
+    }
+
+    public static function licenseUrl(): string
+    {
+        return route('app.other-settings.index').'#licenca';
     }
 
     /**
@@ -92,6 +100,17 @@ class SubscriptionController extends Controller
 
     private function render(Tenant $tenant): Response
     {
+        $response = Inertia::render('Subscription/Blocked', self::pageData($tenant))->toResponse(request());
+
+        // A tela muda com o pagamento: sem cache, para não reaparecer bloqueada depois da liberação.
+        $response->headers->set('Cache-Control', 'no-store, private');
+
+        return $response;
+    }
+
+    /** Situação, cobrança/renovação e checkout Efí: tela de bloqueio e bloco da licença. */
+    public static function pageData(Tenant $tenant): array
+    {
         $contracts = app(SaasContractService::class);
         $charge = $contracts->openChargeFor($tenant);
         $checkout = SaasCheckoutController::props($tenant);
@@ -102,14 +121,14 @@ class SubscriptionController extends Controller
         // Alvo atual para mostrar a transação Efí pendente depois de recarregar a página.
         $pending = null;
         if ($charge) {
-            $pending = $this->pendingPayment(SaasPaymentTarget::forCharge($charge));
+            $pending = self::pendingPayment(SaasPaymentTarget::forCharge($charge));
         } elseif ($tenant->plan_id && $plans->contains('id', $tenant->plan_id)) {
-            $pending = $this->pendingPayment(SaasPaymentTarget::forPlan($tenant, $plans->firstWhere('id', $tenant->plan_id)));
+            $pending = self::pendingPayment(SaasPaymentTarget::forPlan($tenant, $plans->firstWhere('id', $tenant->plan_id)));
         }
 
-        $response = Inertia::render('Subscription/Blocked', [
+        return [
             'tenant' => ['id' => $tenant->id, 'name' => $tenant->name, 'company' => $tenant->company],
-            'status' => $this->status($tenant),
+            'status' => self::status($tenant),
             'plans' => $plans->map(fn (Plan $plan) => [
                 'id' => $plan->id,
                 'name' => $plan->name,
@@ -130,16 +149,11 @@ class SubscriptionController extends Controller
             'active' => $tenant->subscriptionBucket() !== Tenant::SUBSCRIPTION_BLOCKED,
             'checkout' => $checkout,
             'pending_payment' => $pending ? SaasCheckoutController::present($pending) : null,
-        ])->toResponse(request());
-
-        // A tela muda com o pagamento: sem cache, para não reaparecer bloqueada depois da liberação.
-        $response->headers->set('Cache-Control', 'no-store, private');
-
-        return $response;
+        ];
     }
 
     /** Situação da assinatura em linguagem do cliente (datas e prazos calculados no servidor). */
-    private function status(Tenant $tenant): array
+    private static function status(Tenant $tenant): array
     {
         $bucket = $tenant->subscriptionBucket();
         $expiresAt = $tenant->expires_at?->copy()->startOfDay();
@@ -173,7 +187,7 @@ class SubscriptionController extends Controller
         ];
     }
 
-    private function pendingPayment(SaasPaymentTarget $target): ?Payment
+    private static function pendingPayment(SaasPaymentTarget $target): ?Payment
     {
         return Payment::query()
             ->where('tenant_id', $target->tenant->id)

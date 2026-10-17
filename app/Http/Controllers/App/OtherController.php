@@ -60,13 +60,20 @@ class OtherController extends Controller
             'nfse_enabled' => false,
             'nfse_mode' => 'national',
         ]) : null;
-        $time_remaining = '';
-
-        if ($tenant?->expires_at) {
-            $expiresAt = Carbon::parse($tenant->expires_at);
-            $diff = Carbon::now()->diff($expiresAt);
-            $time_remaining = ',  '.$diff->days.' dias restantes';
-        }
+        // Licença de uso: titular (empresa, ou o cadastro do tenant quando a empresa está
+        // incompleta), endereço só com as partes preenchidas e dias até o vencimento
+        // (negativo quando já venceu).
+        $pick = fn (string $companyField, string $tenantField) => trim((string) ($company?->{$companyField} ?: $tenant?->{$tenantField}));
+        $cityState = implode(' - ', array_filter([$pick('city', 'city'), $pick('state', 'state')]));
+        $license = [
+            'plan' => $tenant?->plan?->name,
+            'holder' => $pick('companyname', 'company') ?: ($tenant?->name ?? ''),
+            'cnpj' => $pick('cnpj', 'cnpj'),
+            'address' => implode(', ', array_filter([$pick('street', 'street'), $pick('number', 'number'), $pick('district', 'district'), $cityState])),
+            'days_remaining' => $tenant?->expires_at
+                ? (int) now()->startOfDay()->diffInDays(Carbon::parse($tenant->expires_at)->startOfDay(), false)
+                : null,
+        ];
 
         $mailSettings = [
             'mail_mailer' => $othersettings->mail_mailer ?? 'smtp',
@@ -102,9 +109,9 @@ class OtherController extends Controller
         return Inertia::render('app/others/index', [
             'othersettings' => $othersettings,
             'company' => $company,
-            'time_remaining' => $time_remaining,
-            // A relação tenant.plan não vem em auth.user para todos os papéis.
-            'licensePlanName' => $tenant?->plan?->name,
+            'license' => $license,
+            // Situação e pagamento da assinatura (antes na tela "Minha assinatura"), para quem cuida da empresa.
+            'subscription' => $tenant && Auth::user()?->hasPermission('company') ? SubscriptionController::pageData($tenant) : null,
             'mailSettings' => $mailSettings,
             'businessMetrics' => $businessMetrics,
             // Taxas por meio de pagamento (sem linha = taxa desconhecida).

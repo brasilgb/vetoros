@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
-import { createSlug, maskMoney, maskMoneyDot } from '@/Utils/mask';
+import { createSlug } from '@/Utils/mask';
 import { useForm } from '@inertiajs/react';
 import { Plus, Save } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 
 export default function CreatePlan() {
     const [open, setOpen] = useState(false);
@@ -36,10 +37,6 @@ export default function CreatePlan() {
             },
         });
     };
-
-    useEffect(() => {
-        setData('value', maskMoneyDot(data.value) ?? '');
-    }, [data.value]);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -74,7 +71,7 @@ export default function CreatePlan() {
 
                     <div className="grid gap-2">
                         <Label htmlFor="value">Valor</Label>
-                        <Input type="text" id="value" value={maskMoney(data.value)} onChange={(e) => setData('value', e.target.value)} />
+                        <MoneyInput id="value" value={data.value} onValueChange={(value) => setData('value', value)} error={errors.value} />
                         {errors.value && <div className="text-sm text-red-500">{errors.value}</div>}
                     </div>
 

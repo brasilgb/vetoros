@@ -1,6 +1,7 @@
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from 'recharts';
 
 import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { formatBRL } from '@/lib/money';
 import moment from 'moment';
 
 const chartConfig = {
@@ -63,7 +64,7 @@ export function FinancialRevenueChart({ data }: { data: FinancialRevenuePoint[] 
                             formatter={(value, name) => (
                                 <div className="flex w-full items-center justify-between gap-3">
                                     <span>{String(name)}</span>
-                                    <span className="font-mono font-medium tabular-nums">{formatCurrency(Number(value || 0))}</span>
+                                    <span className="font-mono font-medium tabular-nums">{formatBRL(Number(value || 0))}</span>
                                 </div>
                             )}
                         />
@@ -81,13 +82,6 @@ export function FinancialRevenueChart({ data }: { data: FinancialRevenuePoint[] 
     );
 }
 
-function formatCurrency(value?: number) {
-    return Number(value || 0).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    });
-}
-
 export function FinancialRevenueTrendChart({ data }: { data: FinancialRevenuePoint[] }) {
     const chartData = data.map((item) => ({
         ...item,
@@ -99,18 +93,7 @@ export function FinancialRevenueTrendChart({ data }: { data: FinancialRevenuePoi
             <BarChart data={chartData} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="dateLabel" tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={56}
-                    tickFormatter={(value) =>
-                        Number(value || 0).toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                            maximumFractionDigits: 0,
-                        })
-                    }
-                />
+                <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={(value) => formatBRL(value, { wholeReais: true })} />
                 <ChartTooltip
                     cursor={false}
                     content={
@@ -121,7 +104,7 @@ export function FinancialRevenueTrendChart({ data }: { data: FinancialRevenuePoi
                                 return (
                                     <div className="flex w-full items-center justify-between gap-3">
                                         <span>{label}</span>
-                                        <span className="font-mono font-medium tabular-nums">{formatCurrency(Number(value || 0))}</span>
+                                        <span className="font-mono font-medium tabular-nums">{formatBRL(Number(value || 0))}</span>
                                     </div>
                                 );
                             }}

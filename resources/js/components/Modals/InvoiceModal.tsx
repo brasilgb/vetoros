@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { maskCpfCnpj, maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
+import { maskCpfCnpj } from '@/Utils/mask';
 import { router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
@@ -128,17 +129,17 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
 
                         <div className="flex justify-between text-sm">
                             <span>Peças</span>
-                            <span>R$ {maskMoney(String(partsValue))}</span>
+                            <span>{formatBRL(partsValue)}</span>
                         </div>
 
                         <div className="flex justify-between text-sm">
                             <span>Mão de obra</span>
-                            <span>R$ {maskMoney(String(serviceValue))}</span>
+                            <span>{formatBRL(serviceValue)}</span>
                         </div>
 
                         <div className="flex justify-between font-medium">
                             <span>Total</span>
-                            <span>R$ {maskMoney(String(totalOrder))}</span>
+                            <span>{formatBRL(totalOrder)}</span>
                         </div>
 
                         {!canIssueInvoice ? (
@@ -176,71 +177,71 @@ export default function InvoiceModal({ open, onClose, order, summary = null }: I
                 </div>
 
                 {(!hasNative || hasRegisteredFiscal) && (
-                <Card>
-                    <CardContent className="space-y-3 pt-4 text-sm">
-                        {hasRegisteredFiscal ? (
-                            <>
-                                <div className="font-medium">Comprovante fiscal já registrado</div>
-                                <div>
-                                    <span className="font-medium">Número:</span> {order.fiscal_document_number || '-'}
-                                </div>
-                                <div>
-                                    <span className="font-medium">Emitido em:</span> {order.fiscal_issued_at || '-'}
-                                </div>
-                                {order.fiscal_notes ? (
+                    <Card>
+                        <CardContent className="space-y-3 pt-4 text-sm">
+                            {hasRegisteredFiscal ? (
+                                <>
+                                    <div className="font-medium">Comprovante fiscal já registrado</div>
                                     <div>
-                                        <span className="font-medium">Observações:</span> {order.fiscal_notes}
+                                        <span className="font-medium">Número:</span> {order.fiscal_document_number || '-'}
                                     </div>
-                                ) : null}
-                                {order.fiscal_document_url ? (
-                                    <div className="flex justify-end">
-                                        <Button asChild>
-                                            <a href={order.fiscal_document_url} target="_blank" rel="noopener noreferrer">
-                                                Abrir link da nota
-                                            </a>
-                                        </Button>
+                                    <div>
+                                        <span className="font-medium">Emitido em:</span> {order.fiscal_issued_at || '-'}
                                     </div>
-                                ) : null}
-                            </>
-                        ) : (
-                            <>
-                                <div className="font-medium">Registrar NFS-e emitida para consulta e auditoria</div>
+                                    {order.fiscal_notes ? (
+                                        <div>
+                                            <span className="font-medium">Observações:</span> {order.fiscal_notes}
+                                        </div>
+                                    ) : null}
+                                    {order.fiscal_document_url ? (
+                                        <div className="flex justify-end">
+                                            <Button asChild>
+                                                <a href={order.fiscal_document_url} target="_blank" rel="noopener noreferrer">
+                                                    Abrir link da nota
+                                                </a>
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="font-medium">Registrar NFS-e emitida para consulta e auditoria</div>
 
-                                <div className="space-y-1">
-                                    <Label htmlFor="fiscal_document_number">Número do documento</Label>
-                                    <Input
-                                        id="fiscal_document_number"
-                                        value={data.fiscal_document_number}
-                                        onChange={(e) => setData('fiscal_document_number', e.target.value)}
-                                        placeholder="Número da NFS-e"
-                                    />
-                                    <InputError message={errors.fiscal_document_number} />
-                                </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="fiscal_document_number">Número do documento</Label>
+                                        <Input
+                                            id="fiscal_document_number"
+                                            value={data.fiscal_document_number}
+                                            onChange={(e) => setData('fiscal_document_number', e.target.value)}
+                                            placeholder="Número da NFS-e"
+                                        />
+                                        <InputError message={errors.fiscal_document_number} />
+                                    </div>
 
-                                <div className="space-y-1">
-                                    <Label htmlFor="fiscal_document_url">Link de consulta (opcional)</Label>
-                                    <Input
-                                        id="fiscal_document_url"
-                                        value={data.fiscal_document_url}
-                                        onChange={(e) => setData('fiscal_document_url', e.target.value)}
-                                        placeholder="https://..."
-                                    />
-                                    <InputError message={errors.fiscal_document_url} />
-                                </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="fiscal_document_url">Link de consulta (opcional)</Label>
+                                        <Input
+                                            id="fiscal_document_url"
+                                            value={data.fiscal_document_url}
+                                            onChange={(e) => setData('fiscal_document_url', e.target.value)}
+                                            placeholder="https://..."
+                                        />
+                                        <InputError message={errors.fiscal_document_url} />
+                                    </div>
 
-                                <div className="space-y-1">
-                                    <Label htmlFor="fiscal_issued_at">Emitido em</Label>
-                                    <Input
-                                        id="fiscal_issued_at"
-                                        type="datetime-local"
-                                        value={data.fiscal_issued_at}
-                                        onChange={(e) => setData('fiscal_issued_at', e.target.value)}
-                                    />
-                                    <InputError message={errors.fiscal_issued_at} />
-                                </div>
-                            </>
-                        )}
-                    </CardContent>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="fiscal_issued_at">Emitido em</Label>
+                                        <Input
+                                            id="fiscal_issued_at"
+                                            type="datetime-local"
+                                            value={data.fiscal_issued_at}
+                                            onChange={(e) => setData('fiscal_issued_at', e.target.value)}
+                                        />
+                                        <InputError message={errors.fiscal_issued_at} />
+                                    </div>
+                                </>
+                            )}
+                        </CardContent>
                     </Card>
                 )}
 

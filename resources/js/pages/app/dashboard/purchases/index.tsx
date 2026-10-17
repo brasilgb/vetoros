@@ -2,6 +2,7 @@ import { ChartPurchasesTrend } from '@/components/Charts/chart-purchases-trend';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatBRL } from '@/lib/money';
 import { connectBackend } from '@/Utils/connectApi';
 import { AlertTriangle, FileChartColumn, HandCoins, PackageSearch, ShoppingBag } from 'lucide-react';
 import moment from 'moment';
@@ -27,10 +28,6 @@ type PartRow = { id: number; name: string; quantity: number; total: number };
 function formatIsoDate(date: Date | string) {
     const d = date instanceof Date ? date : new Date(date);
     return moment(d).format('YYYY-MM-DD');
-}
-
-function formatCurrency(value?: number) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 export default function PurchasesDashboard({
@@ -78,7 +75,7 @@ export default function PurchasesDashboard({
                         <HandCoins className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(kpis?.total_spent)}</div>
+                        <div className="text-2xl font-bold">{formatBRL(kpis?.total_spent)}</div>
                         <p className="text-muted-foreground text-xs">{kpis?.received_count ?? 0} ordem(ns) recebida(s)</p>
                     </CardContent>
                 </Card>
@@ -89,7 +86,7 @@ export default function PurchasesDashboard({
                         <ShoppingBag className="text-muted-foreground h-4 w-4" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(kpis?.average_ticket)}</div>
+                        <div className="text-2xl font-bold">{formatBRL(kpis?.average_ticket)}</div>
                         <p className="text-muted-foreground text-xs">Média das ordens recebidas no período</p>
                     </CardContent>
                 </Card>
@@ -101,7 +98,7 @@ export default function PurchasesDashboard({
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{kpis?.pending_count ?? 0}</div>
-                        <p className="text-muted-foreground text-xs">{formatCurrency(kpis?.pending_value)} em rascunho/enviadas</p>
+                        <p className="text-muted-foreground text-xs">{formatBRL(kpis?.pending_value)} em rascunho/enviadas</p>
                     </CardContent>
                 </Card>
 
@@ -155,7 +152,7 @@ export default function PurchasesDashboard({
                                                 <div className="font-medium">{supplier.name}</div>
                                                 <div className="text-muted-foreground text-xs">{supplier.orders_count} ordem(ns)</div>
                                             </TableCell>
-                                            <TableCell className="text-right">{formatCurrency(supplier.total)}</TableCell>
+                                            <TableCell className="text-right">{formatBRL(supplier.total)}</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
@@ -195,7 +192,7 @@ export default function PurchasesDashboard({
                                         <TableCell className="text-right">
                                             <Badge variant="secondary">{part.quantity}</Badge>
                                         </TableCell>
-                                        <TableCell className="text-right">{formatCurrency(part.total)}</TableCell>
+                                        <TableCell className="text-right">{formatBRL(part.total)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (

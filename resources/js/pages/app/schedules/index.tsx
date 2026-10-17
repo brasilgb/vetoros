@@ -1,5 +1,6 @@
 import { Icon } from '@/components/icon';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Calendar, Camera, ClipboardCheck, CreditCard, Edit, Eye, FileText, Loader2, MapPin, Plus, Smartphone, Timer, X } from 'lucide-react';
@@ -15,11 +16,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { statusAgenda } from '@/Utils/dataSelect';
-import { maskMoney, maskMoneyDot, normalizeWhatsappPhone } from '@/Utils/mask';
+import { normalizeWhatsappPhone } from '@/Utils/mask';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -48,24 +49,11 @@ function formatMaterialChecklist(materials: any): string {
         .join(', ');
 }
 
-function formatCurrency(value: any) {
-    return Number(value || 0).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    });
-}
-
 const DEFAULT_TECHNICIAN_SCHEDULE_TEMPLATE =
     '{{ saudacao }}, {{ tecnico }}!\nVisita agendada para {{ data_visita }}.\nServiço: {{ servico }}.\nMateriais: {{ materiais }}.\nCliente: {{ cliente }}.\nEndereço: {{ endereco }}.';
 
 function normalizePlaceholderKey(key: string) {
-    return key
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/\s+/g, '_')
-        .replace(/-/g, '_');
+    return key.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_').replace(/-/g, '_');
 }
 
 function applyTemplate(template: string, values: Record<string, string>) {
@@ -329,7 +317,7 @@ function TechnicianMobileTable({ schedules, pagination, canManageSchedules }: { 
                                         <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
                                             <CreditCard className="h-3 w-3" />
                                             Pagamento local{' '}
-                                            {formatCurrency(selectedSummary?.local_payment_amount ?? selectedSchedule?.local_payment_amount)}
+                                            {formatBRL(selectedSummary?.local_payment_amount ?? selectedSchedule?.local_payment_amount)}
                                         </Badge>
                                     )}
                                     {selectedSummary?.service_closure_status === 'requested' && (
@@ -347,7 +335,7 @@ function TechnicianMobileTable({ schedules, pagination, canManageSchedules }: { 
                                             className="border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-200"
                                         >
                                             <CreditCard className="h-3 w-3" />
-                                            Valor liberado: {formatCurrency(selectedSummary.service_closure_amount)}
+                                            Valor liberado: {formatBRL(selectedSummary.service_closure_amount)}
                                         </Badge>
                                     )}
                                     {selectedSummary?.local_payment_registered_in_cashier && (
@@ -376,11 +364,9 @@ function TechnicianMobileTable({ schedules, pagination, canManageSchedules }: { 
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                                        <Input
-                                                            type="text"
-                                                            value={maskMoney(priceForm.data.amount)}
-                                                            onChange={(event) => priceForm.setData('amount', maskMoneyDot(event.target.value))}
-                                                            inputMode="decimal"
+                                                        <MoneyInput
+                                                            value={priceForm.data.amount}
+                                                            onValueChange={(value) => priceForm.setData('amount', value)}
                                                             placeholder="0,00"
                                                             aria-label="Valor do atendimento"
                                                             className="border-amber-300 bg-white text-slate-950 placeholder:text-slate-500 focus-visible:border-amber-500 focus-visible:ring-amber-500/30 sm:w-48 dark:border-amber-700 dark:bg-slate-950 dark:text-slate-50 dark:placeholder:text-slate-400"
@@ -585,7 +571,9 @@ export default function Schedules({ schedules, search, status, tab, whats }: any
                                                                     type="button"
                                                                     size="icon"
                                                                     className="bg-green-500 text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
-                                                                    title={sendingWhatsappId === schedule.id ? 'Enviando mensagem...' : 'Enviar WhatsApp'}
+                                                                    title={
+                                                                        sendingWhatsappId === schedule.id ? 'Enviando mensagem...' : 'Enviar WhatsApp'
+                                                                    }
                                                                     aria-label={`Enviar WhatsApp para ${schedule.user?.name}`}
                                                                     disabled={
                                                                         !normalizeWhatsappPhone(schedule.user?.whatsapp) ||
@@ -594,7 +582,12 @@ export default function Schedules({ schedules, search, status, tab, whats }: any
                                                                     onClick={() =>
                                                                         router.post(
                                                                             route('app.schedules.whatsapp.send', schedule.id),
-                                                                            { message: getTechnicianWhatsappMessage(schedule, whats?.technicianschedule) },
+                                                                            {
+                                                                                message: getTechnicianWhatsappMessage(
+                                                                                    schedule,
+                                                                                    whats?.technicianschedule,
+                                                                                ),
+                                                                            },
                                                                             {
                                                                                 preserveScroll: true,
                                                                                 preserveState: true,

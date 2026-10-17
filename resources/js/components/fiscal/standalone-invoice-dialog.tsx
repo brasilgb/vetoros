@@ -7,8 +7,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { formatBRL, multiplyMoney, normalizeMoney, sumMoney, toCents } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { useForm } from '@inertiajs/react';
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
@@ -49,7 +51,6 @@ const taxationLabels: Record<string, string> = {
     nonIncidence: 'Não incidência',
 };
 
-const money = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const toNumber = (value: string) => Number(String(value).replace(',', '.')) || 0;
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -58,7 +59,7 @@ function emptyForm() {
         request_key: '',
         type: '' as Model | '',
         customer_id: null as number | null,
-        items: [] as { part_id: number; quantity: number; unit_price: number }[],
+        items: [] as { part_id: number; quantity: number; unit_price: string }[],
         description: '',
         service_amount: '',
         service_list_item: '',
@@ -96,9 +97,10 @@ export default function StandaloneInvoiceDialog({
     const isService = type === 'nfse';
     const blocker = type ? options.blockers[type] : null;
     const productRows = rows.filter((row) => row.part);
+    // Valores monetários em centavos inteiros (lib/money): o total do resumo é exato.
     const total = isService
-        ? toNumber(form.data.service_amount)
-        : productRows.reduce((sum, row) => sum + Math.round(toNumber(row.quantity) * toNumber(row.unit_price) * 100) / 100, 0);
+        ? normalizeMoney(form.data.service_amount)
+        : sumMoney(productRows.map((row) => multiplyMoney(row.unit_price, toNumber(row.quantity))));
     const issRate = form.data.iss_rate !== '' ? toNumber(form.data.iss_rate) : options.nfse.iss_rate;
     const financeMode = registerFinance ? form.data.finance_mode : 'none';
 
@@ -132,10 +134,10 @@ export default function StandaloneInvoiceDialog({
         if (type && type !== 'nfce' && !customer) problems.push('Selecione o cliente.');
         if (isService && form.data.description.trim() === '') problems.push('Descreva o serviço prestado.');
         if (!isService && type && productRows.length === 0) problems.push('Adicione ao menos um produto.');
-        if (!isService && productRows.some((row) => toNumber(row.quantity) <= 0 || toNumber(row.unit_price) <= 0)) {
+        if (!isService && productRows.some((row) => toNumber(row.quantity) <= 0 || toCents(row.unit_price) <= 0)) {
             problems.push('Informe quantidade e valor unitário maiores que zero em todos os produtos.');
         }
-        if (total <= 0) problems.push('O valor da nota deve ser maior que zero.');
+        if (toCents(total) <= 0) problems.push('O valor da nota deve ser maior que zero.');
         if ((type === 'nfe' || type === 'nfce' || financeMode === 'received') && !form.data.payment_method)
             problems.push('Informe a forma de pagamento.');
         if (financeMode === 'receivable' && !form.data.due_date) problems.push('Informe o vencimento da conta a receber.');
@@ -160,7 +162,11 @@ export default function StandaloneInvoiceDialog({
             customer_id: customer?.value ?? null,
             items: isService
                 ? []
-                : productRows.map((row) => ({ part_id: row.part!.value, quantity: toNumber(row.quantity), unit_price: toNumber(row.unit_price) })),
+                : productRows.map((row) => ({
+                      part_id: row.part!.value,
+                      quantity: toNumber(row.quantity),
+                      unit_price: normalizeMoney(row.unit_price),
+                  })),
             payment_method: data.payment_method || null,
             finance_mode: financeMode,
             due_date: financeMode === 'receivable' ? data.due_date : null,
@@ -286,12 +292,11 @@ export default function StandaloneInvoiceDialog({
                                         />
                                         <div className="grid gap-3 sm:grid-cols-3">
                                             <div className="grid gap-1">
-                                                <Label htmlFor="standalone-amount">Valor (R$)</Label>
-                                                <Input
+                                                <Label htmlFor="standalone-amount">Valor</Label>
+                                                <MoneyInput
                                                     id="standalone-amount"
-                                                    inputMode="decimal"
                                                     value={form.data.service_amount}
-                                                    onChange={(e) => form.setData('service_amount', e.target.value)}
+                                                    onValueChange={(value) => form.setData('service_amount', value)}
                                                 />
                                             </div>
                                             <div className="grid gap-1">
@@ -338,7 +343,7 @@ export default function StandaloneInvoiceDialog({
                                                             updateRow(index, {
                                                                 part: option ?? null,
                                                                 unit_price:
-                                                                    option && !row.unit_price ? String(option.sale_price || '') : row.unit_price,
+                                                                    option && !row.unit_price ? normalizeMoney(option.sale_price) : row.unit_price,
                                                             })
                                                         }
                                                         mapOption={(item) => ({
@@ -360,11 +365,11 @@ export default function StandaloneInvoiceDialog({
                                                     />
                                                 </div>
                                                 <div className="grid gap-1">
-                                                    <span className="text-muted-foreground text-xs">Valor unit. (R$)</span>
-                                                    <Input
-                                                        inputMode="decimal"
+                                                    <span className="text-muted-foreground text-xs">Valor unit.</span>
+                                                    <MoneyInput
+                                                        aria-label="Valor unitário"
                                                         value={row.unit_price}
-                                                        onChange={(e) => updateRow(index, { unit_price: e.target.value })}
+                                                        onValueChange={(value) => updateRow(index, { unit_price: value })}
                                                     />
                                                 </div>
                                                 <Button
@@ -419,7 +424,7 @@ export default function StandaloneInvoiceDialog({
                                         </Select>
                                     </div>
                                     <div className="flex items-end justify-end text-sm">
-                                        Total: <strong className="ml-1">{money(total)}</strong>
+                                        Total: <strong className="ml-1">{formatBRL(total)}</strong>
                                     </div>
                                 </section>
 
@@ -536,7 +541,7 @@ export default function StandaloneInvoiceDialog({
                                         <ul className="grid gap-1">
                                             {productRows.map((row, index) => (
                                                 <li key={index}>
-                                                    {toNumber(row.quantity)} × {row.part!.label} — {money(toNumber(row.unit_price))}
+                                                    {toNumber(row.quantity)} × {row.part!.label} — {formatBRL(row.unit_price)}
                                                     <span className="text-muted-foreground">
                                                         {' '}
                                                         (NCM {row.part!.ncm || '—'}, CFOP {row.part!.cfop || '—'})
@@ -550,7 +555,7 @@ export default function StandaloneInvoiceDialog({
                             <dt className="text-muted-foreground">Pagamento</dt>
                             <dd>{form.data.payment_method ? (methodLabels[form.data.payment_method] ?? form.data.payment_method) : '—'}</dd>
                             <dt className="text-muted-foreground">Total</dt>
-                            <dd className="font-semibold">{money(total)}</dd>
+                            <dd className="font-semibold">{formatBRL(total)}</dd>
                             <dt className="text-muted-foreground">Financeiro</dt>
                             <dd>
                                 {financeMode === 'none' && 'Não registrar'}

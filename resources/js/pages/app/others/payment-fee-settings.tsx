@@ -2,6 +2,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { useForm } from '@inertiajs/react';
 import { Save } from 'lucide-react';
 import type { FormEvent } from 'react';
@@ -75,14 +76,11 @@ export default function PaymentFeeSettings({ paymentFees, disabled }: { paymentF
                                 <InputError message={(errors as Record<string, string>)[`fees.${index}.fee_percentage`]} />
                             </div>
                             <div>
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="Valor fixo (R$)"
+                                <MoneyInput
+                                    placeholder="Valor fixo"
                                     aria-label={`Valor fixo ${METHODS[index].label}`}
                                     value={fee.fee_fixed_amount ?? ''}
-                                    onChange={(e) => update(index, 'fee_fixed_amount', e.target.value)}
+                                    onValueChange={(value) => update(index, 'fee_fixed_amount', value)}
                                     disabled={disabled}
                                 />
                                 <InputError message={(errors as Record<string, string>)[`fees.${index}.fee_fixed_amount`]} />

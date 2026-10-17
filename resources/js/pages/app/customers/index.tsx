@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { buildMessage } from '@/components/WhatsAppButtonProps';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { maskCpfCnpj, maskPhone, normalizeWhatsappPhone, unMask } from '@/Utils/mask';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -167,11 +168,7 @@ export default function Customers({ customers, search, pending, whats }: any) {
                                         </TableCell>
                                         <TableCell>
                                             {Number(customer.pending_amount || 0) > 0 ? (
-                                                <Badge variant="destructive">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                                        Number(customer.pending_amount || 0),
-                                                    )}
-                                                </Badge>
+                                                <Badge variant="destructive">{formatBRL(Number(customer.pending_amount || 0))}</Badge>
                                             ) : (
                                                 <Badge variant="secondary">Sem pendência</Badge>
                                             )}

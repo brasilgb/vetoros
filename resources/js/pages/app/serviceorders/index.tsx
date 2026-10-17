@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Toaster } from '@/components/ui/sonner';
+import { formatBRL } from '@/lib/money';
 import { normalizeWhatsappPhone } from '@/Utils/mask';
 import { ORDER_STATUS, orderStatusLabel } from '@/Utils/order-status';
 import { Head, router, usePage } from '@inertiajs/react';
@@ -104,17 +105,6 @@ function formatDate(value?: string) {
 function formatDateTime(value?: string) {
     if (!value) return '-';
     return new Date(value).toLocaleString('pt-BR');
-}
-
-function formatCurrency(value?: number | string | null) {
-    const amount = Number(value ?? 0);
-
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(Number.isFinite(amount) ? amount : 0);
 }
 
 function getRemainingTime(deliveryDate?: string) {
@@ -648,9 +638,7 @@ function ServiceOrders({ order }: { order: Order }) {
                                                     <CreditCard className="h-5 w-5 text-slate-500" />
                                                     <div>
                                                         <p className="text-sm text-slate-500">Total do atendimento</p>
-                                                        <p className="text-lg font-semibold text-slate-900">
-                                                            {formatCurrency(financialSummary.total)}
-                                                        </p>
+                                                        <p className="text-lg font-semibold text-slate-900">{formatBRL(financialSummary.total)}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -662,7 +650,7 @@ function ServiceOrders({ order }: { order: Order }) {
                                                         <p
                                                             className={`text-lg font-semibold ${financialSummary.remaining > 0.009 ? 'text-rose-600' : 'text-emerald-600'}`}
                                                         >
-                                                            {formatCurrency(financialSummary.remaining)}
+                                                            {formatBRL(financialSummary.remaining)}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -735,7 +723,7 @@ function ServiceOrders({ order }: { order: Order }) {
                                         </div>
                                         <div className="min-w-0 rounded-2xl border border-red-200 bg-red-50 p-4">
                                             <p className="text-sm text-slate-500">Valor do orçamento</p>
-                                            <p className="mt-2 text-2xl font-semibold text-red-600">{formatCurrency(order.budget_value)}</p>
+                                            <p className="mt-2 text-2xl font-semibold text-red-600">{formatBRL(order.budget_value)}</p>
                                             <p className="mt-3 text-sm break-words text-slate-600">
                                                 Status atual: <span className="font-medium">{orderStatusLabel(order.service_status)}</span>
                                             </p>
@@ -760,15 +748,15 @@ function ServiceOrders({ order }: { order: Order }) {
                                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
                                         <div className="rounded-2xl border border-slate-200 p-4">
                                             <p className="text-sm text-slate-500">Peças</p>
-                                            <p className="mt-2 text-lg font-semibold text-slate-900">{formatCurrency(order.parts_value)}</p>
+                                            <p className="mt-2 text-lg font-semibold text-slate-900">{formatBRL(order.parts_value)}</p>
                                         </div>
                                         <div className="rounded-2xl border border-slate-200 p-4">
                                             <p className="text-sm text-slate-500">Serviço</p>
-                                            <p className="mt-2 text-lg font-semibold text-slate-900">{formatCurrency(order.service_value)}</p>
+                                            <p className="mt-2 text-lg font-semibold text-slate-900">{formatBRL(order.service_value)}</p>
                                         </div>
                                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                                             <p className="text-sm text-slate-500">Total</p>
-                                            <p className="mt-2 text-lg font-semibold text-emerald-700">{formatCurrency(order.service_cost)}</p>
+                                            <p className="mt-2 text-lg font-semibold text-emerald-700">{formatBRL(order.service_cost)}</p>
                                         </div>
                                     </div>
                                 </section>
@@ -1037,18 +1025,18 @@ function ServiceOrders({ order }: { order: Order }) {
                                 <div className="grid gap-3 sm:grid-cols-3">
                                     <div className="rounded-2xl border border-slate-200 p-4">
                                         <p className="text-sm text-slate-500">Total</p>
-                                        <p className="mt-2 font-semibold text-slate-900">{formatCurrency(financialSummary.total)}</p>
+                                        <p className="mt-2 font-semibold text-slate-900">{formatBRL(financialSummary.total)}</p>
                                     </div>
                                     <div className="rounded-2xl border border-slate-200 p-4">
                                         <p className="text-sm text-slate-500">Pago</p>
-                                        <p className="mt-2 font-semibold text-emerald-700">{formatCurrency(financialSummary.paid)}</p>
+                                        <p className="mt-2 font-semibold text-emerald-700">{formatBRL(financialSummary.paid)}</p>
                                     </div>
                                     <div className="rounded-2xl border border-slate-200 p-4">
                                         <p className="text-sm text-slate-500">Saldo</p>
                                         <p
                                             className={`mt-2 font-semibold ${financialSummary.remaining > 0.009 ? 'text-rose-600' : 'text-emerald-700'}`}
                                         >
-                                            {formatCurrency(financialSummary.remaining)}
+                                            {formatBRL(financialSummary.remaining)}
                                         </p>
                                     </div>
                                 </div>
@@ -1059,7 +1047,7 @@ function ServiceOrders({ order }: { order: Order }) {
                                             <div key={payment.id} className="rounded-2xl border border-slate-200 px-4 py-3">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div>
-                                                        <p className="font-medium text-slate-900">{formatCurrency(payment.amount)}</p>
+                                                        <p className="font-medium text-slate-900">{formatBRL(payment.amount)}</p>
                                                         <p className="text-sm text-slate-500">
                                                             {payment.payment_method || 'Pagamento'} • {formatDateTime(payment.paid_at)}
                                                         </p>
@@ -1072,7 +1060,6 @@ function ServiceOrders({ order }: { order: Order }) {
                             </section>
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -1100,7 +1087,7 @@ function ServiceOrders({ order }: { order: Order }) {
                         </div>
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                             <p className="text-sm text-emerald-800">Valor do orçamento</p>
-                            <p className="mt-1 text-2xl font-semibold text-emerald-900">{formatCurrency(order.budget_value)}</p>
+                            <p className="mt-1 text-2xl font-semibold text-emerald-900">{formatBRL(order.budget_value)}</p>
                             {publicBudget && (
                                 <p className="mt-1 text-xs text-emerald-800">
                                     Versão {publicBudget.version}

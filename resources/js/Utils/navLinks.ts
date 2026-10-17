@@ -277,14 +277,6 @@ const mainConfItems = [
                 permission: 'company',
             },
             {
-                // Minha assinatura (VETOR-SAAS-EFI-04): situação, vencimento e pagamento pela Efí.
-                title: 'Assinatura',
-                url: route('subscription.show'),
-                icon: WalletCards,
-                active: 'subscription.*',
-                permission: 'company',
-            },
-            {
                 title: 'Sistema e módulos',
                 url: route('app.other-settings.index'),
                 icon: CogIcon,

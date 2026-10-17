@@ -1,3 +1,4 @@
+import { formatBRL } from '@/lib/money';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 
 type Props = {
@@ -199,7 +200,7 @@ function renderReceiptTemplate(template: string, order: any) {
         modelo: order?.model ?? '',
         ordem: String(order?.order_number ?? ''),
         prazo: order?.delivery_forecast ?? '',
-        valor_orcamento: formatMoney(order?.budget_value),
+        valor_orcamento: formatBRL(order?.budget_value),
     };
 
     return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, key) => {
@@ -211,10 +212,6 @@ function renderReceiptTemplate(template: string, order: any) {
 
         return '';
     });
-}
-
-function formatMoney(value: any) {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value ?? 0));
 }
 
 function partQuantity(part: any) {
@@ -307,7 +304,7 @@ export default function OrderReceiptPDF({ order, company, type, receipt, checkli
                             </View>
                             <View style={styles.col}>
                                 <Text style={styles.text}>Defeito: {order?.defect ?? '-'}</Text>
-                                <Text style={styles.text}>Valor previsto: {formatMoney(order?.budget_value)}</Text>
+                                <Text style={styles.text}>Valor previsto: {formatBRL(order?.budget_value)}</Text>
                             </View>
                         </View>
                         <Text style={styles.text}>Pré-orçamento: {order?.budget_description ?? '-'}</Text>
@@ -328,7 +325,7 @@ export default function OrderReceiptPDF({ order, company, type, receipt, checkli
                             <Text style={styles.text}>{order?.budget_description ?? '-'}</Text>
                             <View style={styles.totalRow}>
                                 <Text>Valor</Text>
-                                <Text>{formatMoney(order?.budget_value)}</Text>
+                                <Text>{formatBRL(order?.budget_value)}</Text>
                             </View>
                         </View>
                     </View>
@@ -341,9 +338,9 @@ export default function OrderReceiptPDF({ order, company, type, receipt, checkli
                             <Text style={styles.text}>{order?.services_performed ?? '-'}</Text>
                             <Text style={styles.text}>Peças adicionadas: {partsDescription(orderParts, order?.parts)}</Text>
                             <View style={styles.totalRow}>
-                                <Text>Peças: {formatMoney(partsValue)}</Text>
-                                <Text>Serviço: {formatMoney(order?.service_value)}</Text>
-                                <Text>Total: {formatMoney(order?.service_cost)}</Text>
+                                <Text>Peças: {formatBRL(partsValue)}</Text>
+                                <Text>Serviço: {formatBRL(order?.service_value)}</Text>
+                                <Text>Total: {formatBRL(order?.service_cost)}</Text>
                             </View>
                         </View>
                     </View>

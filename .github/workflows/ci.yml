@@ -69,7 +69,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: npm
 
       - name: Cache Composer dependencies
@@ -93,6 +93,9 @@ jobs:
 
       - name: Run TypeScript checks
         run: npm run types
+
+      - name: Run frontend unit tests
+        run: npm run test:js
 
       # As páginas Inertia renderizam @vite: sem o manifest, os testes de tela falham com 500.
       - name: Build assets

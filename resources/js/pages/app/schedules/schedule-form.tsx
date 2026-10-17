@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { formatBRL } from '@/lib/money';
 import { Customer, Scheduler, User } from '@/types';
 import { statusAgenda } from '@/Utils/dataSelect';
 import selectStyles from '@/Utils/selectStyles';
@@ -49,15 +50,6 @@ function normalizeMaterialChecklist(items: any): MaterialChecklistItem[] {
             return name ? { name, quantity, part_id: item?.part_id ?? null, used: Boolean(item?.used) } : null;
         })
         .filter(Boolean) as MaterialChecklistItem[];
-}
-
-function formatCurrency(value: any) {
-    const amount = Number(value || 0);
-
-    return amount.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    });
 }
 
 function formatDateTime(value: any) {
@@ -243,7 +235,7 @@ function TechnicianAttendancePanel({ schedule }: { schedule: any }) {
                         <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
                             <div>
                                 <span className="text-muted-foreground">Valor: </span>
-                                <span className="font-medium">{formatCurrency(localPaymentAmount)}</span>
+                                <span className="font-medium">{formatBRL(localPaymentAmount)}</span>
                             </div>
                             <div>
                                 <span className="text-muted-foreground">Registrado em: </span>

@@ -10,9 +10,11 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL, normalizeMoney } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { AlertTriangle, Banknote, Edit, HandCoins, Plus } from 'lucide-react';
@@ -56,36 +58,14 @@ const statusMeta: Record<Bill['status'], { label: string; className: string }> =
     cancelled: { label: 'Cancelado', className: 'bg-muted text-muted-foreground' },
 };
 
-function formatCurrency(value: number | string) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function formatCurrencyMask(value: string) {
-    const digits = value.replace(/\D/g, '');
-    if (!digits) return '';
-    const number = Number(digits) / 100;
-    return number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function parseCurrencyMask(value: string) {
-    const normalized = value
-        .replace(/\./g, '')
-        .replace(',', '.')
-        .replace(/[^\d.]/g, '');
-    const amount = Number(normalized);
-    return Number.isFinite(amount) ? amount.toFixed(2) : '';
-}
-
 export default function AccountsPayable({ bills, search, status, totals }: any) {
     const { flash, auth } = usePage().props as any;
     const canManage = auth?.role !== 'technician' && auth?.permissions?.includes('finance');
 
     const [openModal, setOpenModal] = useState(false);
     const [editingBill, setEditingBill] = useState<Bill | null>(null);
-    const [amountDisplay, setAmountDisplay] = useState('');
 
     const [payingBill, setPayingBill] = useState<Bill | null>(null);
-    const [paymentAmountDisplay, setPaymentAmountDisplay] = useState('');
 
     const form = useForm<BillForm>({
         supplier_name: '',
@@ -105,7 +85,6 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
     const resetForm = () => {
         form.reset();
         form.clearErrors();
-        setAmountDisplay('');
     };
 
     const openCreateModal = () => {
@@ -121,11 +100,10 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
             supplier_name: bill.supplier_name ?? '',
             description: bill.description ?? '',
             category: bill.category ?? '',
-            total_amount: Number(bill.total_amount ?? 0).toFixed(2),
+            total_amount: normalizeMoney(bill.total_amount ?? 0),
             due_date: bill.due_date ? moment(bill.due_date).format('YYYY-MM-DD') : '',
             notes: bill.notes ?? '',
         });
-        setAmountDisplay(Number(bill.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         setOpenModal(true);
     };
 
@@ -146,32 +124,17 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
         form.post(route('app.accounts-payable.store'), { onSuccess: () => closeModal() });
     };
 
-    const onAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const masked = formatCurrencyMask(event.target.value);
-        setAmountDisplay(masked);
-        form.setData('total_amount', parseCurrencyMask(masked));
-    };
-
     const openPaymentModal = (bill: Bill) => {
         setPayingBill(bill);
         paymentForm.reset();
         paymentForm.clearErrors();
         paymentForm.setData('paid_at', moment().format('YYYY-MM-DD'));
-        const masked = Number(bill.balance_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        setPaymentAmountDisplay(masked);
-        paymentForm.setData('amount', parseCurrencyMask(masked));
+        paymentForm.setData('amount', normalizeMoney(bill.balance_amount || 0));
     };
 
     const closePaymentModal = () => {
         setPayingBill(null);
         paymentForm.reset();
-        setPaymentAmountDisplay('');
-    };
-
-    const onPaymentAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const masked = formatCurrencyMask(event.target.value);
-        setPaymentAmountDisplay(masked);
-        paymentForm.setData('amount', parseCurrencyMask(masked));
     };
 
     const handleRegisterPayment = (e: React.FormEvent) => {
@@ -211,7 +174,7 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
                     <CardContent className="flex items-center justify-between py-4">
                         <div>
                             <p className="text-muted-foreground text-sm">Saldo em aberto</p>
-                            <p className="text-xl font-semibold">{formatCurrency(totals?.open_balance ?? 0)}</p>
+                            <p className="text-xl font-semibold">{formatBRL(totals?.open_balance ?? 0)}</p>
                         </div>
                         <Banknote className="text-muted-foreground h-8 w-8" />
                     </CardContent>
@@ -285,8 +248,8 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{formatCurrency(bill.total_amount)}</TableCell>
-                                        <TableCell>{formatCurrency(bill.balance_amount)}</TableCell>
+                                        <TableCell>{formatBRL(bill.total_amount)}</TableCell>
+                                        <TableCell>{formatBRL(bill.balance_amount)}</TableCell>
                                         <TableCell>
                                             <Badge className={statusMeta[bill.status].className} variant="outline">
                                                 {statusMeta[bill.status].label}
@@ -394,13 +357,12 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="total_amount">Valor</Label>
-                                    <Input
+                                    <MoneyInput
                                         id="total_amount"
-                                        type="text"
-                                        inputMode="decimal"
                                         placeholder="0,00"
-                                        value={amountDisplay}
-                                        onChange={onAmountChange}
+                                        value={form.data.total_amount}
+                                        onValueChange={(value) => form.setData('total_amount', value)}
+                                        error={form.errors.total_amount}
                                     />
                                     <InputError message={form.errors.total_amount} />
                                 </div>
@@ -438,18 +400,17 @@ export default function AccountsPayable({ bills, search, status, totals }: any) 
                     {payingBill && (
                         <form onSubmit={handleRegisterPayment} className="space-y-4">
                             <p className="text-muted-foreground text-sm">
-                                {payingBill.description} — saldo atual: <strong>{formatCurrency(payingBill.balance_amount)}</strong>
+                                {payingBill.description} — saldo atual: <strong>{formatBRL(payingBill.balance_amount)}</strong>
                             </p>
 
                             <div className="grid gap-2">
                                 <Label htmlFor="amount">Valor pago</Label>
-                                <Input
+                                <MoneyInput
                                     id="amount"
-                                    type="text"
-                                    inputMode="decimal"
                                     placeholder="0,00"
-                                    value={paymentAmountDisplay}
-                                    onChange={onPaymentAmountChange}
+                                    value={paymentForm.data.amount}
+                                    onValueChange={(value) => paymentForm.setData('amount', value)}
+                                    error={paymentForm.errors.amount}
                                 />
                                 <InputError message={paymentForm.errors.amount} />
                             </div>

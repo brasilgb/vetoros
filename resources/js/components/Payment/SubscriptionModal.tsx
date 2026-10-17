@@ -24,7 +24,9 @@ const STORAGE_KEY = 'subscription_modal_last_shown';
  * Diálogo acessível (foco preso, Esc fecha); abre no máximo a cada 3 horas.
  */
 export default function SubscriptionModal() {
-    const { subscription_alert, custom_contract } = usePage<SubscriptionModalPageProps>().props;
+    const { subscription_alert, custom_contract, auth } = usePage<SubscriptionModalPageProps & { auth?: { permissions?: string[] } }>().props;
+    // O pagamento fica em Sistema e módulos: só oferece o atalho a quem acessa essa tela.
+    const canPay = Boolean(auth?.permissions?.includes('other_settings') && auth?.permissions?.includes('company'));
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
@@ -75,11 +77,13 @@ export default function SubscriptionModal() {
                 </p>
 
                 <DialogFooter className="flex-col gap-3 sm:flex-col">
-                    <Button asChild className="w-full">
-                        <Link href={route('subscription.show')} onClick={() => setIsOpen(false)}>
-                            Ver opções de pagamento
-                        </Link>
-                    </Button>
+                    {canPay && (
+                        <Button asChild className="w-full">
+                            <Link href={`${route('app.other-settings.index')}#licenca`} onClick={() => setIsOpen(false)}>
+                                Ver opções de pagamento
+                            </Link>
+                        </Button>
+                    )}
                     <Button type="button" variant="ghost" className="w-full text-gray-500" onClick={() => setIsOpen(false)}>
                         Fechar e pagar depois
                     </Button>

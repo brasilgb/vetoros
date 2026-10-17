@@ -11,10 +11,12 @@ type SubscriptionAlert = {
 
 /**
  * Aviso de assinatura (VETOR-SAAS-EFI-04): discreto perto do vencimento, destacado no dia e de atraso na
- * carência (acesso preservado). O botão leva direto à tela "Minha assinatura", com o checkout Efí.
+ * carência (acesso preservado). O botão leva ao bloco da licença em Sistema e módulos, com o checkout Efí
+ * (só para quem acessa essa tela; os demais veem apenas o aviso).
  */
 export default function SubscriptionBanner() {
-    const { subscription_alert } = usePage<{ subscription_alert?: SubscriptionAlert }>().props;
+    const { subscription_alert, auth } = usePage<{ subscription_alert?: SubscriptionAlert; auth?: { permissions?: string[] } }>().props;
+    const canPay = Boolean(auth?.permissions?.includes('other_settings') && auth?.permissions?.includes('company'));
     const status = subscription_alert?.status;
 
     if (!status) return null;
@@ -55,12 +57,14 @@ export default function SubscriptionBanner() {
         <div role={status === 'due_soon' ? 'status' : 'alert'} className={`${tone} mx-4 rounded-md px-4 py-2 shadow-sm`}>
             <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 sm:flex-row">
                 <span className="text-center text-sm font-medium sm:text-left">{message}</span>
-                <Link
-                    href={route('subscription.show')}
-                    className="shrink-0 rounded-full bg-white px-4 py-1 text-xs font-bold text-gray-800 uppercase shadow-sm transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                >
-                    {status === 'due_soon' ? 'Ver assinatura' : 'Pagar agora'}
-                </Link>
+                {canPay && (
+                    <Link
+                        href={`${route('app.other-settings.index')}#licenca`}
+                        className="shrink-0 rounded-full bg-white px-4 py-1 text-xs font-bold text-gray-800 uppercase shadow-sm transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    >
+                        {status === 'due_soon' ? 'Ver assinatura' : 'Pagar agora'}
+                    </Link>
+                )}
             </div>
         </div>
     );

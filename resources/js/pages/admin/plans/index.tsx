@@ -4,8 +4,8 @@ import { Icon } from '@/components/icon';
 import InputSearch from '@/components/inputSearch';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AdminLayout from '@/layouts/admin/admin-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
-import { maskMoney } from '@/Utils/mask';
 import { Head } from '@inertiajs/react';
 import { Copyright } from 'lucide-react';
 import moment from 'moment';
@@ -75,7 +75,7 @@ export default function PlansIndex({ plans }: any) {
                                         <TableCell>{plan.name}</TableCell>
                                         <TableCell>{plan.slug}</TableCell>
                                         <TableCell>{plan.description}</TableCell>
-                                        <TableCell>R$ {maskMoney(plan.value)}</TableCell>
+                                        <TableCell>{formatBRL(plan.value)}</TableCell>
                                         <TableCell>{formatBillingCycle(plan.billing_months)}</TableCell>
                                         <TableCell>{moment(plan.created_at).format('DD/MM/YYYY')}</TableCell>
                                         <TableCell className="flex justify-end gap-2">

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { formatBRL } from '@/lib/money';
 
 type DateRangeValue = {
     from?: Date | string;
@@ -55,13 +56,6 @@ function formatIsoDate(date: Date | string) {
 function formatBrDate(date: Date | string) {
     const d = date instanceof Date ? date : new Date(date);
     return moment(d).format('DD/MM/YYYY');
-}
-
-function formatCurrency(value?: number | null) {
-    return Number(value || 0).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    });
 }
 
 function formatDuration(minutes?: number | null) {
@@ -213,17 +207,37 @@ export default function ScheduleDashboard({
                 />
                 <ScheduleMetricCard
                     title="Pagamento local"
-                    value={formatCurrency(kpis?.local_payment_total)}
+                    value={formatBRL(kpis?.local_payment_total)}
                     description={comparisonLabel(kpis?.comparison?.local_payment_total)}
                     icon={<Receipt size={18} />}
                 />
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-                <ScheduleMetricCard title="Hoje" value={kpis?.today ?? 0} description="Atendimentos programados para hoje" icon={<CalendarClock size={18} />} />
-                <ScheduleMetricCard title="Amanhã" value={kpis?.tomorrow ?? 0} description="Atendimentos programados para amanhã" icon={<CalendarClock size={18} />} />
-                <ScheduleMetricCard title="Em aberto" value={pendingCount} description={`${kpis?.in_progress ?? 0} em atendimento`} icon={<MapPin size={18} />} />
-                <ScheduleMetricCard title="Tempo médio" value={formatDuration(kpis?.average_service_minutes)} description={comparisonLabel(kpis?.comparison?.average_service_minutes)} icon={<Clock size={18} />} />
+                <ScheduleMetricCard
+                    title="Hoje"
+                    value={kpis?.today ?? 0}
+                    description="Atendimentos programados para hoje"
+                    icon={<CalendarClock size={18} />}
+                />
+                <ScheduleMetricCard
+                    title="Amanhã"
+                    value={kpis?.tomorrow ?? 0}
+                    description="Atendimentos programados para amanhã"
+                    icon={<CalendarClock size={18} />}
+                />
+                <ScheduleMetricCard
+                    title="Em aberto"
+                    value={pendingCount}
+                    description={`${kpis?.in_progress ?? 0} em atendimento`}
+                    icon={<MapPin size={18} />}
+                />
+                <ScheduleMetricCard
+                    title="Tempo médio"
+                    value={formatDuration(kpis?.average_service_minutes)}
+                    description={comparisonLabel(kpis?.comparison?.average_service_minutes)}
+                    icon={<Clock size={18} />}
+                />
             </div>
 
             <div className="mt-3 grid gap-4 xl:grid-cols-3">

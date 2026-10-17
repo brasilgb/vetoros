@@ -13,8 +13,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { formatBRL } from '@/lib/money';
 import { router, useForm } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
 import moment from 'moment';
@@ -62,7 +64,6 @@ export type Commercial = {
 
 type Action = { kind: 'pay' | 'refund' | 'adjust'; charge: Charge } | { kind: 'revert' } | null;
 
-const money = (value: string | number) => Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const date = (value: string | null) => (value ? moment(value).format('DD/MM/YYYY') : '-');
 const fiscalLabels: Record<string, string> = {
     processing: 'Em processamento',
@@ -244,8 +245,13 @@ export function CommercialContractPanel({ ctl }: { ctl: TenantCommercialControll
             {form.data.custom_contract && (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="amount">Valor por ciclo (R$)</Label>
-                        <Input id="amount" inputMode="decimal" value={form.data.amount} onChange={(e) => form.setData('amount', e.target.value)} />
+                        <Label htmlFor="amount">Valor por ciclo</Label>
+                        <MoneyInput
+                            id="amount"
+                            value={form.data.amount}
+                            onValueChange={(value) => form.setData('amount', value)}
+                            error={form.errors.amount}
+                        />
                         <InputError message={form.errors.amount} />
                     </div>
                     <div className="grid gap-2">
@@ -371,7 +377,7 @@ export function CommercialChargesPanel({ ctl }: { ctl: TenantCommercialControlle
         <div className="space-y-3">
             {commercial.next_charge ? (
                 <p className="text-sm">
-                    Próxima cobrança: <strong>{money(commercial.next_charge.amount)}</strong> com vencimento em{' '}
+                    Próxima cobrança: <strong>{formatBRL(commercial.next_charge.amount)}</strong> com vencimento em{' '}
                     <strong>{date(commercial.next_charge.due_date)}</strong> (gerada e enviada a partir de{' '}
                     {date(commercial.next_charge.generated_from)}). Acesso válido até {date(commercial.expires_at)}.
                 </p>
@@ -404,7 +410,7 @@ export function CommercialChargesPanel({ ctl }: { ctl: TenantCommercialControlle
                                             {date(charge.cycle_start)} a {date(charge.cycle_end)}
                                         </td>
                                         <td className="p-2">{date(charge.due_date)}</td>
-                                        <td className="p-2">{money(charge.amount)}</td>
+                                        <td className="p-2">{formatBRL(charge.amount)}</td>
                                         <td className="p-2">
                                             {charge.status_label}
                                             {charge.paid_at && (
@@ -542,12 +548,12 @@ export function CommercialDialogs({ ctl }: { ctl: TenantCommercialController }) 
                     <div className="space-y-3">
                         {current && current.kind !== 'refund' && current.kind !== 'revert' && (
                             <div className="grid gap-2">
-                                <Label htmlFor="action_amount">Valor (R$)</Label>
-                                <Input
+                                <Label htmlFor="action_amount">Valor</Label>
+                                <MoneyInput
                                     id="action_amount"
-                                    inputMode="decimal"
                                     value={action.data.amount}
-                                    onChange={(e) => action.setData('amount', e.target.value)}
+                                    onValueChange={(value) => action.setData('amount', value)}
+                                    error={action.errors.amount}
                                 />
                                 <InputError message={action.errors.amount} />
                             </div>
@@ -645,8 +651,8 @@ export function CommercialDialogs({ ctl }: { ctl: TenantCommercialController }) 
                         <AlertDialogTitle>Ativar contrato personalizado?</AlertDialogTitle>
                         <AlertDialogDescription>
                             A empresa deixa de usar os planos tradicionais: a seleção de plano fica bloqueada e a cobrança passa a ser de{' '}
-                            {ctl.form.data.amount ? money(String(ctl.form.data.amount).replace(',', '.')) : 'valor a definir'} por ciclo, com primeiro
-                            vencimento em {date(ctl.form.data.next_due_date)}. Para voltar, use "Voltar ao plano tradicional".
+                            {ctl.form.data.amount ? formatBRL(ctl.form.data.amount) : 'valor a definir'} por ciclo, com primeiro vencimento em{' '}
+                            {date(ctl.form.data.next_due_date)}. Para voltar, use "Voltar ao plano tradicional".
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

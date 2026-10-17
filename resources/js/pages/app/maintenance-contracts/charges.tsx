@@ -6,10 +6,12 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL, normalizeMoney } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, CheckCircle2, ReceiptText, RefreshCcw, Send, Undo2, Wallet } from 'lucide-react';
@@ -135,10 +137,6 @@ const historyLabels: Record<string, string> = {
     invoice_file_accessed: 'Cliente abriu o documento fiscal',
 };
 
-function money(value: number) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 function date(value: string | null, withTime = false) {
     return value ? moment(value).format(withTime ? 'DD/MM/YYYY HH:mm' : 'DD/MM/YYYY') : '-';
 }
@@ -155,7 +153,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
 
     const openPayment = (charge: Charge) => {
         paymentForm.setData({
-            amount: charge.balance_amount.toFixed(2),
+            amount: normalizeMoney(charge.balance_amount),
             paid_at: moment().format('YYYY-MM-DDTHH:mm'),
             payment_method: paymentMethods[0] ?? 'pix',
             notes: '',
@@ -176,7 +174,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
     };
 
     const reverse = (payment: Payment) => {
-        const reason = window.prompt(`Motivo do estorno de ${money(payment.amount)}:`);
+        const reason = window.prompt(`Motivo do estorno de ${formatBRL(payment.amount)}:`);
         if (!reason) return;
         router.post(route('app.maintenance-contracts.payments.reverse', [contract.id, payment.id]), { reason }, { preserveScroll: true });
     };
@@ -271,7 +269,7 @@ export default function MaintenanceContractCharges({ contract, charges, history,
                                     <li key={entry.id} className="flex flex-wrap justify-between gap-2 border-b pb-2 last:border-b-0">
                                         <span>
                                             <strong>{historyLabels[entry.action] ?? entry.action}</strong>
-                                            {typeof entry.data?.amount === 'number' && ` · ${money(entry.data.amount as number)}`}
+                                            {typeof entry.data?.amount === 'number' && ` · ${formatBRL(entry.data.amount as number)}`}
                                             {typeof entry.data?.number === 'string' && ` · nº ${entry.data.number}`}
                                             {typeof entry.data?.reason === 'string' && ` · ${entry.data.reason}`}
                                             {typeof entry.data?.error === 'string' && (
@@ -296,17 +294,15 @@ export default function MaintenanceContractCharges({ contract, charges, history,
                     </DialogHeader>
                     <form onSubmit={submitPayment} className="space-y-4">
                         <p className="text-muted-foreground text-sm">
-                            {paying?.description} · saldo {money(paying?.balance_amount ?? 0)}. O valor entra no caixa aberto.
+                            {paying?.description} · saldo {formatBRL(paying?.balance_amount ?? 0)}. O valor entra no caixa aberto.
                         </p>
                         <div className="grid gap-2">
                             <Label htmlFor="amount">Valor recebido</Label>
-                            <Input
+                            <MoneyInput
                                 id="amount"
-                                type="number"
-                                step="0.01"
-                                min="0.01"
                                 value={paymentForm.data.amount}
-                                onChange={(e) => paymentForm.setData('amount', e.target.value)}
+                                onValueChange={(value) => paymentForm.setData('amount', value)}
+                                error={paymentForm.errors.amount}
                             />
                             <InputError message={paymentForm.errors.amount} />
                         </div>
@@ -377,7 +373,7 @@ function ChargeRows({ charge, onPay, onReverse, onRefresh, onSend }: RowProps) {
         <>
             <TableRow>
                 <TableCell>{date(charge.due_date)}</TableCell>
-                <TableCell>{money(charge.total_amount)}</TableCell>
+                <TableCell>{formatBRL(charge.total_amount)}</TableCell>
                 <TableCell>
                     {/* Pagamento e situação fiscal ficam em colunas separadas. */}
                     <div className="grid justify-items-start gap-1 text-sm">
@@ -419,7 +415,7 @@ function ChargeRows({ charge, onPay, onReverse, onRefresh, onSend }: RowProps) {
                         )}
                         {(charge.status === 'partial' || state === 'awaiting_automatic') && charge.paid_amount > 0 && (
                             <span className="text-muted-foreground text-xs">
-                                Recebido {money(charge.paid_amount)} · saldo {money(charge.balance_amount)}
+                                Recebido {formatBRL(charge.paid_amount)} · saldo {formatBRL(charge.balance_amount)}
                             </span>
                         )}
                     </div>
@@ -493,7 +489,7 @@ function ChargeRows({ charge, onPay, onReverse, onRefresh, onSend }: RowProps) {
                 <TableRow key={`payment-${payment.id}`} className="bg-muted/30 text-sm">
                     <TableCell colSpan={4} className="pl-8">
                         <span className={payment.reversed_at ? 'line-through' : ''}>
-                            {money(payment.amount)} em {date(payment.paid_at, true)} ·{' '}
+                            {formatBRL(payment.amount)} em {date(payment.paid_at, true)} ·{' '}
                             {methodLabels[payment.payment_method] ?? payment.payment_method} ·{' '}
                             {payment.source === 'integration' ? 'pagamento integrado' : `confirmado por ${payment.received_by ?? '-'}`}
                         </span>

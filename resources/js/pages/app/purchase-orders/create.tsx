@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL, multiplyMoney, sumMoney } from '@/lib/money';
 import { BreadcrumbItem, OptionType } from '@/types';
-import { maskMoney, maskMoneyDot } from '@/Utils/mask';
 import { Head, useForm } from '@inertiajs/react';
 import { Plus, Trash2, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -46,10 +47,6 @@ type SuggestedItem = {
     unit_cost: number;
     supplier_id: number | null;
 };
-
-function formatCurrency(value: number) {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 export default function PurchaseOrderCreate({
     purchaseOrder,
@@ -121,10 +118,7 @@ export default function PurchaseOrderCreate({
         form.setData('items', items);
     };
 
-    const total = useMemo(
-        () => form.data.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_cost || 0), 0),
-        [form.data.items],
-    );
+    const total = useMemo(() => sumMoney(form.data.items.map((item) => multiplyMoney(item.unit_cost, item.quantity))), [form.data.items]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -255,16 +249,15 @@ export default function PurchaseOrderCreate({
                                                 <InputError message={(form.errors as any)[`items.${index}.quantity`]} />
                                             </TableCell>
                                             <TableCell>
-                                                <Input
-                                                    type="text"
-                                                    inputMode="decimal"
+                                                <MoneyInput
                                                     placeholder="0,00"
-                                                    value={maskMoney(item.unit_cost)}
-                                                    onChange={(e) => updateItem(index, 'unit_cost', maskMoneyDot(e.target.value))}
+                                                    aria-label="Custo unitário"
+                                                    value={item.unit_cost}
+                                                    onValueChange={(value) => updateItem(index, 'unit_cost', value)}
                                                 />
                                                 <InputError message={(form.errors as any)[`items.${index}.unit_cost`]} />
                                             </TableCell>
-                                            <TableCell>{formatCurrency(Number(item.quantity || 0) * Number(item.unit_cost || 0))}</TableCell>
+                                            <TableCell>{formatBRL(multiplyMoney(item.unit_cost, item.quantity))}</TableCell>
                                             <TableCell>
                                                 {form.data.items.length > 1 && (
                                                     <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>
@@ -278,7 +271,7 @@ export default function PurchaseOrderCreate({
                             </Table>
                         </div>
 
-                        <div className="mt-4 flex justify-end text-lg font-semibold">Total: {formatCurrency(total)}</div>
+                        <div className="mt-4 flex justify-end text-lg font-semibold">Total: {formatBRL(total)}</div>
                     </CardContent>
                 </Card>
 

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { formatBRL } from '@/lib/money';
 import { connectBackend } from '@/Utils/connectApi';
 import { BadgeDollarSign, PackageSearch, ShoppingCart, TrendingUp, WalletCards, XCircle } from 'lucide-react';
 import moment from 'moment';
@@ -15,13 +16,6 @@ function formatIsoDate(date: Date | string) {
 function formatBrDate(date: Date | string) {
     const d = date instanceof Date ? date : new Date(date);
     return moment(d).format('DD/MM/YYYY');
-}
-
-function formatCurrency(value?: number) {
-    return Number(value || 0).toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    });
 }
 
 type SalesRevenuePoint = {
@@ -122,18 +116,7 @@ function SalesRevenueChart({ data }: { data: SalesRevenuePoint[] }) {
             <ComposedChart data={chartData} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="dateLabel" tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={56}
-                    tickFormatter={(value) =>
-                        Number(value || 0).toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                            maximumFractionDigits: 0,
-                        })
-                    }
-                />
+                <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={(value) => formatBRL(value, { wholeReais: true })} />
                 <ChartTooltip
                     cursor={false}
                     content={
@@ -144,22 +127,14 @@ function SalesRevenueChart({ data }: { data: SalesRevenuePoint[] }) {
                                 return (
                                     <div className="flex w-full items-center justify-between gap-3">
                                         <span>{label}</span>
-                                        <span className="font-mono font-medium tabular-nums">{formatCurrency(Number(value || 0))}</span>
+                                        <span className="font-mono font-medium tabular-nums">{formatBRL(Number(value || 0))}</span>
                                     </div>
                                 );
                             }}
                         />
                     }
                 />
-                <Line
-                    type="monotone"
-                    dataKey="total"
-                    name="total"
-                    stroke="var(--color-total)"
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    activeDot={{ r: 4 }}
-                />
+                <Line type="monotone" dataKey="total" name="total" stroke="var(--color-total)" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
                 <Line
                     type="monotone"
                     dataKey="expenses"
@@ -225,7 +200,7 @@ function SalesPaymentMethodsPie({
                             formatter={(value, name) => (
                                 <div className="flex w-full items-center justify-between gap-3">
                                     <span>{String(name)}</span>
-                                    <span className="font-mono font-medium tabular-nums">{formatCurrency(Number(value || 0))}</span>
+                                    <span className="font-mono font-medium tabular-nums">{formatBRL(Number(value || 0))}</span>
                                 </div>
                             )}
                         />
@@ -277,7 +252,7 @@ function KpiCard({
 
             <CardContent className="space-y-3">
                 <CardTitle className="text-xl leading-tight font-bold break-words tabular-nums sm:text-2xl 2xl:text-3xl">
-                    {formatCurrency(value)}
+                    {formatBRL(value)}
                 </CardTitle>
                 {comparison && (
                     <div className={`text-xs font-medium ${comparisonClass}`}>{formatPercent(comparison.percent)} vs período anterior</div>
@@ -342,12 +317,15 @@ function TopProductsCard({ products }: { products?: SalesKpis['top_products'] })
                 ) : (
                     <div className="space-y-3">
                         {items.map((item, index) => (
-                            <div key={`${item.name}-${index}`} className="flex items-center justify-between gap-3 border-b pb-2 last:border-b-0 last:pb-0">
+                            <div
+                                key={`${item.name}-${index}`}
+                                className="flex items-center justify-between gap-3 border-b pb-2 last:border-b-0 last:pb-0"
+                            >
                                 <div className="min-w-0">
                                     <p className="truncate text-sm font-medium">{item.name}</p>
                                     <p className="text-muted-foreground text-xs">{Number(item.quantity || 0)} un.</p>
                                 </div>
-                                <span className="shrink-0 text-sm font-medium tabular-nums">{formatCurrency(item.total)}</span>
+                                <span className="shrink-0 text-sm font-medium tabular-nums">{formatBRL(item.total)}</span>
                             </div>
                         ))}
                     </div>
@@ -484,14 +462,14 @@ export default function FinanceiroSales({
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <InsightCard
                     title="Pendente em vendas"
-                    value={formatCurrency(kpisSales?.pending_sales_amount)}
+                    value={formatBRL(kpisSales?.pending_sales_amount)}
                     description="Saldo ainda aberto em vendas parciais ou pendentes"
                     icon={<BadgeDollarSign size={18} />}
                     tone={Number(kpisSales?.pending_sales_amount || 0) > 0 ? 'warning' : 'default'}
                 />
                 <InsightCard
                     title="Vendas canceladas"
-                    value={formatCurrency(kpisSales?.cancelled_sales_amount)}
+                    value={formatBRL(kpisSales?.cancelled_sales_amount)}
                     description={`${Number(kpisSales?.cancelled_sales_count || 0)} ${Number(kpisSales?.cancelled_sales_count || 0) === 1 ? 'cancelamento' : 'cancelamentos'} no período`}
                     icon={<XCircle size={18} />}
                     tone={Number(kpisSales?.cancelled_sales_amount || 0) > 0 ? 'warning' : 'default'}

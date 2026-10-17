@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
-/** A tela Sistema e módulos lia auth.user.tenant.plan.name, que não é carregado para administradores. */
+/** A tela Sistema e módulos lia auth.user.tenant.plan.name, que não é carregado para administradores (hoje vem em license.plan). */
 class OtherSettingsLicenseTest extends TestCase
 {
     use RefreshDatabase;
@@ -25,7 +25,7 @@ class OtherSettingsLicenseTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('app/others/index')
-                ->where('licensePlanName', $tenant->plan->name));
+                ->where('license.plan', $tenant->plan->name));
     }
 
     public function test_license_plan_name_is_null_when_tenant_has_no_plan(): void
@@ -38,6 +38,6 @@ class OtherSettingsLicenseTest extends TestCase
             ->withSession(['tenant_id' => $tenant->id])
             ->get(route('app.other-settings.index'))
             ->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('licensePlanName', null));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('license.plan', null));
     }
 }

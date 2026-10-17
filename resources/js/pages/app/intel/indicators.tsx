@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { orderStatusLabel } from '@/Utils/order-status';
 import { Head, Link } from '@inertiajs/react';
@@ -100,7 +101,6 @@ const QUALITY_LABELS: Record<string, string> = {
     profitability_incomplete: 'OS entregues com custos incompletos',
 };
 
-const currency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 function quickRange(key: string, maxDays: number): Pick<Filters, 'from' | 'to'> {
@@ -362,7 +362,7 @@ export default function IntelIndicators({ defaults }: { defaults: Filters & { ma
                                 <MetricCard
                                     title="Orçamentos aguardando"
                                     value={String(data.budgets_awaiting.count)}
-                                    context={`${currency(data.budgets_awaiting.amount)} em decisão`}
+                                    context={`${formatBRL(data.budgets_awaiting.amount)} em decisão`}
                                     warning={
                                         data.budgets_awaiting.age_unknown > 0
                                             ? plural(data.budgets_awaiting.age_unknown, 'sem data de envio', 'sem data de envio')
@@ -373,7 +373,7 @@ export default function IntelIndicators({ defaults }: { defaults: Filters & { ma
                                 <MetricCard
                                     title="Orçamentos vencendo"
                                     value={String(data.budgets_expiring.count)}
-                                    context={`em até ${data.budgets_expiring.within_days} dias · ${currency(data.budgets_expiring.amount)}`}
+                                    context={`em até ${data.budgets_expiring.within_days} dias · ${formatBRL(data.budgets_expiring.amount)}`}
                                     href="#intel-budgets"
                                 />
                                 <MetricCard
@@ -419,7 +419,7 @@ export default function IntelIndicators({ defaults }: { defaults: Filters & { ma
                                 />
                                 <MetricCard
                                     title="Margem conhecida"
-                                    value={data.profitability.complete === 0 ? null : currency(data.profitability.margin_complete)}
+                                    value={data.profitability.complete === 0 ? null : formatBRL(data.profitability.margin_complete)}
                                     context={`${plural(data.profitability.complete, 'OS completa', 'OS completas')}${data.profitability.margin_rate_complete !== null ? ` · ${data.profitability.margin_rate_complete.toLocaleString('pt-BR')}% da receita` : ''}`}
                                     warning={
                                         data.profitability.incomplete > 0
@@ -518,7 +518,7 @@ export default function IntelIndicators({ defaults }: { defaults: Filters & { ma
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <MetricCard
                                     title="Aguardando aprovação"
-                                    value={currency(data.budgets_awaiting.amount)}
+                                    value={formatBRL(data.budgets_awaiting.amount)}
                                     context={`${plural(data.budgets_awaiting.count, 'orçamento', 'orçamentos')} · idade média ${data.budgets_awaiting.average_age_days === null ? '—' : `${data.budgets_awaiting.average_age_days.toLocaleString('pt-BR')} dias`}`}
                                 />
                                 <MetricCard
@@ -561,7 +561,7 @@ export default function IntelIndicators({ defaults }: { defaults: Filters & { ma
                                             <Link href={route('app.orders.show', budget.order_id)} className="underline-offset-2 hover:underline">
                                                 Orçamento v{budget.version}
                                             </Link>{' '}
-                                            vence em {moment(budget.valid_until).format('DD/MM/YYYY')} · {currency(budget.quoted_amount)}
+                                            vence em {moment(budget.valid_until).format('DD/MM/YYYY')} · {formatBRL(budget.quoted_amount)}
                                         </li>
                                     ))}
                                 </ul>
@@ -664,17 +664,17 @@ export default function IntelIndicators({ defaults }: { defaults: Filters & { ma
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <MetricCard
                                     title="Receita (OS completas)"
-                                    value={data.profitability.complete === 0 ? null : currency(data.profitability.revenue_complete)}
+                                    value={data.profitability.complete === 0 ? null : formatBRL(data.profitability.revenue_complete)}
                                     context={plural(data.profitability.complete, 'OS completa', 'OS completas')}
                                 />
                                 <MetricCard
                                     title="Custo conhecido"
-                                    value={data.profitability.complete === 0 ? null : currency(data.profitability.known_cost_complete)}
+                                    value={data.profitability.complete === 0 ? null : formatBRL(data.profitability.known_cost_complete)}
                                     context="peças, avulsos, comissão e taxas"
                                 />
                                 <MetricCard
                                     title="Margem conhecida"
-                                    value={data.profitability.complete === 0 ? null : currency(data.profitability.margin_complete)}
+                                    value={data.profitability.complete === 0 ? null : formatBRL(data.profitability.margin_complete)}
                                     context={
                                         data.profitability.margin_rate_complete === null
                                             ? 'sem receita no período'

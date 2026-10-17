@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Edit, Package, Plus, Send, Truck, X } from 'lucide-react';
@@ -33,10 +34,6 @@ const statusMeta: Record<PurchaseOrder['status'], { label: string; className: st
     received: { label: 'Recebida', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' },
     cancelled: { label: 'Cancelada', className: 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300' },
 };
-
-function formatCurrency(value: number | string) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 export default function PurchaseOrders({ purchaseOrders, search, status }: any) {
     const { flash, auth } = usePage().props as any;
@@ -126,7 +123,7 @@ export default function PurchaseOrders({ purchaseOrders, search, status }: any) 
                                         <TableCell>{po.purchase_order_number ?? '-'}</TableCell>
                                         <TableCell>{po.supplier?.name ?? 'Sem fornecedor'}</TableCell>
                                         <TableCell>{po.expected_date ? moment(po.expected_date).format('DD/MM/YYYY') : '-'}</TableCell>
-                                        <TableCell>{formatCurrency(po.total_amount)}</TableCell>
+                                        <TableCell>{formatBRL(po.total_amount)}</TableCell>
                                         <TableCell>
                                             <Badge className={statusMeta[po.status].className} variant="outline">
                                                 {statusMeta[po.status].label}

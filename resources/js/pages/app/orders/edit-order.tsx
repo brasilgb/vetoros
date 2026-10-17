@@ -12,12 +12,13 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL, fromCents, multiplyMoney, normalizeMoney, sumMoney, toCents } from '@/lib/money';
 import { BreadcrumbItem, OptionType } from '@/types';
 import { statusServico } from '@/Utils/dataSelect';
-import { maskMoney, maskMoneyDot } from '@/Utils/mask';
 import { ORDER_STATUS, ORDER_STATUSES_READY_FOR_INVOICE, orderStatusChangeRequirement } from '@/Utils/order-status';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
@@ -29,8 +30,8 @@ import AddPartsModal from './add-parts';
 import CustomerEquipmentField, { customerEquipmentLabel } from './customer-equipment-field';
 import OrderBudgetHistory, { type OrderBudgetVersion } from './order-budget-history';
 import OrderMessages, { type OrderMessageEntry } from './order-messages';
-import OrderPreBudgetFields from './order-pre-budget-fields';
 import OrderPaymentsModal from './order-payments-modal';
+import OrderPreBudgetFields from './order-pre-budget-fields';
 
 function formatRelativeTimePtBr(value?: string | Date | null) {
     if (!value) return '-';
@@ -120,17 +121,6 @@ export default function EditOrder({
         return 'Cobrança';
     };
 
-    const toMoneyNumber = (value: unknown): number => {
-        if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-        const raw = String(value ?? '').trim();
-        if (!raw) return 0;
-
-        const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(/,/g, '');
-
-        const parsed = Number(normalized);
-        return Number.isFinite(parsed) ? parsed : 0;
-    };
-
     const { othersetting, auth, fiscalSetting } = usePage().props as any;
     const canManageOrders = auth?.role !== 'technician' && auth?.permissions?.includes('orders');
     // Trocar cliente/equipamento exige a permissão de clientes (o servidor também confere);
@@ -138,7 +128,8 @@ export default function EditOrder({
     const canChangeCustomer = Boolean(auth?.permissions?.includes('customers'));
     const canAccessSalesModules =
         auth?.role === 'administrator' || auth?.role === 'operator' || auth?.role === 'root_app' || auth?.role === 'root_system';
-    const canManagePayments = canManageOrders && canAccessSalesModules && Boolean(othersetting?.enable_finance) && Boolean(auth?.permissions?.includes('finance'));
+    const canManagePayments =
+        canManageOrders && canAccessSalesModules && Boolean(othersetting?.enable_finance) && Boolean(auth?.permissions?.includes('finance'));
     const canIssueServiceInvoice = canManageOrders && Boolean(fiscalSetting?.enabled) && Boolean(fiscalSetting?.nfse_enabled);
     const [partsData, setPartsData] = useState<any>([]);
     // Preço praticado congelado no item da OS; o sale_price atual só vale para peça nova.
@@ -148,7 +139,6 @@ export default function EditOrder({
             .map((item: { source_id: number; unit_price: string }) => [Number(item.source_id), item.unit_price]),
     );
     const partUnitPrice = (part: { id: number; sale_price: string | number }) => frozenPartPrices.get(Number(part.id)) ?? part.sale_price;
-
 
     const optionsTechnical = technicals.map((technical: any) => ({
         value: technical.id,
@@ -235,7 +225,7 @@ export default function EditOrder({
         const allpartsPayload = finalListWithDetails.map((p) => ({ part_id: p.id, quantity: p.quantity }));
 
         // Calcula o total. Se não houver peças, o total é 0.
-        const totalValue = finalListWithDetails.reduce((acc, p) => acc + toMoneyNumber(p.sale_price) * Number(p.quantity || 0), 0);
+        const totalValue = sumMoney(finalListWithDetails.map((p) => multiplyMoney(p.sale_price, p.quantity)));
 
         setData((currentData: any) => ({
             ...currentData,
@@ -243,20 +233,22 @@ export default function EditOrder({
             // Se o total for 0 e não houver peças, fixa 0.
             // Removido a condição "totalValue ? totalValue : order?.parts_value"
             // que causava a insistência no valor antigo do banco.
-            stock_parts_value: totalValue.toFixed(2),
+            stock_parts_value: totalValue,
         }));
     }, [partsData, orderparts]);
 
     useEffect(() => {
         // Prévia para exibição; o servidor recalcula os totais ao salvar (OrderTotalsService).
-        const stockParts = toMoneyNumber(data?.stock_parts_value);
-        const partsValue = stockParts + toMoneyNumber(data?.manual_parts_value);
-        const total = toMoneyNumber(data?.service_value) + partsValue + toMoneyNumber(data?.surcharge_amount) - toMoneyNumber(data?.discount_amount);
+        // Em centavos inteiros: sem erro de arredondamento de float na prévia.
+        const partsValue = sumMoney([data?.stock_parts_value, data?.manual_parts_value]);
+        const total = fromCents(
+            toCents(data?.service_value) + toCents(partsValue) + toCents(data?.surcharge_amount) - toCents(data?.discount_amount),
+        );
 
         setData((prev: any) => ({
             ...prev,
-            parts_value: partsValue.toFixed(2),
-            service_cost: total.toFixed(2),
+            parts_value: partsValue,
+            service_cost: total,
         }));
     }, [data.stock_parts_value, data.manual_parts_value, data.service_value, data.surcharge_amount, data.discount_amount]);
 
@@ -360,7 +352,9 @@ export default function EditOrder({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Ordens" />
-            {canIssueServiceInvoice && <InvoiceModal open={openInvoiceModal} onClose={() => setOpenInvoiceModal(false)} order={order} summary={paymentSummary} />}
+            {canIssueServiceInvoice && (
+                <InvoiceModal open={openInvoiceModal} onClose={() => setOpenInvoiceModal(false)} order={order} summary={paymentSummary} />
+            )}
             <div className="flex min-h-16 flex-col justify-center gap-1 px-4 py-3">
                 <div className="flex items-center gap-2">
                     <Icon iconNode={Wrench} className="h-8 w-8" />
@@ -394,12 +388,14 @@ export default function EditOrder({
                             </a>
                         </Button>
                     )}
-                    {canIssueServiceInvoice && ORDER_STATUSES_READY_FOR_INVOICE.includes(Number(order.service_status)) && canIssueInvoiceWithValue && (
-                        <Button onClick={() => setOpenInvoiceModal(true)} className="rounded-lg py-2 text-sm font-medium">
-                            <FileTextIcon className="h-4 w-4" />
-                            Emitir NFSe
-                        </Button>
-                    )}
+                    {canIssueServiceInvoice &&
+                        ORDER_STATUSES_READY_FOR_INVOICE.includes(Number(order.service_status)) &&
+                        canIssueInvoiceWithValue && (
+                            <Button onClick={() => setOpenInvoiceModal(true)} className="rounded-lg py-2 text-sm font-medium">
+                                <FileTextIcon className="h-4 w-4" />
+                                Emitir NFSe
+                            </Button>
+                        )}
                     {canManageOrders && order.can_send_budget_follow_up && (
                         <Button
                             type="button"
@@ -686,8 +682,8 @@ export default function EditOrder({
                                                     <AccordionContent className="px-0 pb-0">
                                                         <div className="divide-y border-t">
                                                             {combinedParts.map((part: any, index: number) => {
-                                                                const unitPrice = toMoneyNumber(part.sale_price);
-                                                                const total = unitPrice * Number(part.quantity || 0);
+                                                                const unitPrice = normalizeMoney(part.sale_price);
+                                                                const total = multiplyMoney(unitPrice, part.quantity);
 
                                                                 return (
                                                                     <div
@@ -698,12 +694,12 @@ export default function EditOrder({
                                                                             <span className="text-sm font-medium">{part.name}</span>
 
                                                                             <span className="text-muted-foreground text-xs">
-                                                                                {maskMoney(String(unitPrice))} × {part.quantity}
+                                                                                {formatBRL(unitPrice)} × {part.quantity}
                                                                             </span>
                                                                         </div>
 
                                                                         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                                                                            <span className="text-sm font-semibold">{maskMoney(String(total))}</span>
+                                                                            <span className="text-sm font-semibold">{formatBRL(total)}</span>
 
                                                                             <Badge variant={part.source === 'database' ? 'outline' : 'default'}>
                                                                                 {part.source === 'database' ? 'Salvo' : 'Novo'}
@@ -742,22 +738,21 @@ export default function EditOrder({
                                                     label="Peças do estoque"
                                                     content="Soma das peças adicionadas, pelo preço praticado quando cada peça entrou na OS."
                                                 />
-                                                <Input
-                                                    type="text"
+                                                <MoneyInput
                                                     id="stock_parts_value"
-                                                    value={maskMoney(data.stock_parts_value ?? '0')}
+                                                    value={data.stock_parts_value ?? '0'}
+                                                    onValueChange={() => {}}
                                                     readOnly
                                                     disabled
                                                 />
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label htmlFor="manual_parts_value">Peças e materiais avulsos</Label>
-                                                <Input
-                                                    type="text"
+                                                <MoneyInput
                                                     id="manual_parts_value"
                                                     name="manual_parts_value"
-                                                    value={maskMoney(data.manual_parts_value ?? '0')}
-                                                    onChange={(e) => setData('manual_parts_value', maskMoneyDot(e.target.value))}
+                                                    value={data.manual_parts_value ?? '0'}
+                                                    onValueChange={(value) => setData('manual_parts_value', value)}
                                                 />
                                                 <InputError message={errors.manual_parts_value} />
                                             </div>
@@ -767,18 +762,12 @@ export default function EditOrder({
                                                     label="Custo das peças avulsas"
                                                     content="Quanto a assistência pagou pelas peças/materiais avulsos. Deixe em branco se não souber; use 0 se não houve custo."
                                                 />
-                                                <Input
-                                                    type="text"
+                                                {/* Opcional: vazio = não informado; 0,00 = sem custo. */}
+                                                <MoneyInput
                                                     id="manual_parts_cost"
                                                     name="manual_parts_cost"
-                                                    value={
-                                                        data.manual_parts_cost === '' || data.manual_parts_cost === null
-                                                            ? ''
-                                                            : maskMoney(data.manual_parts_cost)
-                                                    }
-                                                    onChange={(e) =>
-                                                        setData('manual_parts_cost', e.target.value === '' ? '' : maskMoneyDot(e.target.value))
-                                                    }
+                                                    value={data.manual_parts_cost}
+                                                    onValueChange={(value) => setData('manual_parts_cost', value)}
                                                     placeholder="Não informado"
                                                 />
                                                 <InputError message={errors.manual_parts_cost} />
@@ -786,34 +775,31 @@ export default function EditOrder({
 
                                             <div className="grid gap-2">
                                                 <Label htmlFor="service_value">Valor do serviço</Label>
-                                                <Input
-                                                    type="text"
+                                                <MoneyInput
                                                     id="service_value"
                                                     name="service_value"
-                                                    value={maskMoney(data.service_value ?? '0')}
-                                                    onChange={(e) => setData('service_value', maskMoneyDot(e.target.value))}
+                                                    value={data.service_value ?? '0'}
+                                                    onValueChange={(value) => setData('service_value', value)}
                                                 />
                                             </div>
 
                                             <div className="grid gap-2">
                                                 <Label htmlFor="discount_amount">Desconto</Label>
-                                                <Input
-                                                    type="text"
+                                                <MoneyInput
                                                     id="discount_amount"
                                                     name="discount_amount"
-                                                    value={maskMoney(data.discount_amount ?? '0')}
-                                                    onChange={(e) => setData('discount_amount', maskMoneyDot(e.target.value))}
+                                                    value={data.discount_amount ?? '0'}
+                                                    onValueChange={(value) => setData('discount_amount', value)}
                                                 />
                                                 <InputError message={errors.discount_amount} />
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label htmlFor="surcharge_amount">Acréscimo</Label>
-                                                <Input
-                                                    type="text"
+                                                <MoneyInput
                                                     id="surcharge_amount"
                                                     name="surcharge_amount"
-                                                    value={maskMoney(data.surcharge_amount ?? '0')}
-                                                    onChange={(e) => setData('surcharge_amount', maskMoneyDot(e.target.value))}
+                                                    value={data.surcharge_amount ?? '0'}
+                                                    onValueChange={(value) => setData('surcharge_amount', value)}
                                                 />
                                                 <InputError message={errors.surcharge_amount} />
                                             </div>
@@ -822,7 +808,14 @@ export default function EditOrder({
                                                     label="Valor total"
                                                     content="Serviço + peças + acréscimo − desconto. Calculado novamente pelo sistema ao salvar."
                                                 />
-                                                <Input type="text" id="service_cost" value={maskMoney(data.service_cost)} readOnly disabled />
+                                                <MoneyInput
+                                                    id="service_cost"
+                                                    value={data.service_cost}
+                                                    onValueChange={() => {}}
+                                                    readOnly
+                                                    disabled
+                                                    allowNegative
+                                                />
                                                 <InputError message={errors.service_cost} />
                                             </div>
                                         </div>
@@ -962,8 +955,8 @@ export default function EditOrder({
                                                     <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
                                                         <p className="font-medium">Esta OS é um retorno em garantia</p>
                                                         <p className="mt-1">
-                                                            Vinculada à OS #{equipmentHistory?.warranty_source_order?.order_number ?? 'não informada'}.
-                                                            Esse vínculo é permanente para preservar o histórico da garantia.
+                                                            Vinculada à OS #{equipmentHistory?.warranty_source_order?.order_number ?? 'não informada'}
+                                                            . Esse vínculo é permanente para preservar o histórico da garantia.
                                                         </p>
                                                     </div>
                                                 ) : (
@@ -988,7 +981,8 @@ export default function EditOrder({
                                                         <option value="">Selecione a OS de origem</option>
                                                         {eligibleWarrantyOrders.map((item: any) => (
                                                             <option key={item.id} value={item.id}>
-                                                                OS #{item.order_number}{item.model ? ` • ${item.model}` : ''} • garantia até{' '}
+                                                                OS #{item.order_number}
+                                                                {item.model ? ` • ${item.model}` : ''} • garantia até{' '}
                                                                 {moment(item.warranty_expires_at).format('DD/MM/YYYY')}
                                                             </option>
                                                         ))}
@@ -1086,7 +1080,7 @@ export default function EditOrder({
                                                             </div>
                                                             <p className="text-muted-foreground mt-2 line-clamp-2">{item.defect}</p>
                                                             <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                                <Badge variant="secondary">{maskMoney(String(item.service_cost ?? 0))}</Badge>
+                                                                <Badge variant="secondary">{formatBRL(item.service_cost)}</Badge>
                                                                 {item.warranty_expires_at && (
                                                                     <Badge variant="outline">
                                                                         Garantia até {moment(item.warranty_expires_at).format('DD/MM/YYYY')}

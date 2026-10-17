@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
 import selectStyles from '@/Utils/selectStyles';
 import { useForm } from '@inertiajs/react';
 import { MemoryStickIcon, Trash2, WrenchIcon } from 'lucide-react';
@@ -16,9 +16,7 @@ export default function AddPartsModal({ onSubmit, parts, submitLabel = 'Inserir 
         if (!raw) return 0;
 
         // "1.234,56" -> "1234.56" | "1234.56" -> "1234.56"
-        const normalized = raw.includes(',')
-            ? raw.replace(/\./g, '').replace(',', '.')
-            : raw.replace(/,/g, '');
+        const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(/,/g, '');
 
         const parsed = Number(normalized);
         return Number.isFinite(parsed) ? parsed : 0;
@@ -124,8 +122,8 @@ export default function AddPartsModal({ onSubmit, parts, submitLabel = 'Inserir 
                                         onChange={(e) => handleQuantityChange(part.id, e.target.value)}
                                         className="mx-2 w-20 text-sm"
                                     />
-                                    <div className="w-4 text-sm">{maskMoney(String(toMoneyNumber(part.sale_price)))}</div>
-                                    <div className="w-4 text-sm">{maskMoney(String(toMoneyNumber(part.sale_price) * Number(part.quantity || 0)))}</div>
+                                    <div className="w-4 text-sm">{formatBRL(toMoneyNumber(part.sale_price))}</div>
+                                    <div className="w-4 text-sm">{formatBRL(toMoneyNumber(part.sale_price) * Number(part.quantity || 0))}</div>
                                     <Button variant={'destructive'} onClick={() => handleRemovePart(part.id)} className="btn btn-danger btn-sm">
                                         <Trash2 className="h-4 w-4" />
                                     </Button>

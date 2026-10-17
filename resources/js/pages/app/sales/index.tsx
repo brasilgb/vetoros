@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { EyeIcon, FileText, Loader2, PrinterIcon, ShoppingCartIcon } from 'lucide-react';
@@ -243,17 +244,10 @@ export default function Sales({ sales, parts, search, financial_status, financia
                                             </TableCell>
                                             <TableCell>
                                                 <div className="space-y-1">
-                                                    <div>
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                                            sale.total_amount,
-                                                        )}
-                                                    </div>
+                                                    <div>{formatBRL(sale.total_amount)}</div>
                                                     {sale.remaining_amount !== undefined && (
                                                         <div className="text-muted-foreground text-xs">
-                                                            Saldo:{' '}
-                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                                                Number(sale.remaining_amount || 0),
-                                                            )}
+                                                            Saldo: {formatBRL(Number(sale.remaining_amount || 0))}
                                                         </div>
                                                     )}
                                                 </div>

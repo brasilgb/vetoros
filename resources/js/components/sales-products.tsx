@@ -1,5 +1,4 @@
 import { apios } from '@/Utils/connectApi';
-import { maskMoney } from '@/Utils/mask';
 import selectStyles from '@/Utils/selectStyles';
 import AsyncResourceSelect from '@/components/async-resource-select';
 import { normalizeScannedEan13 } from '@/components/ean13-barcode';
@@ -9,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePaperSize } from '@/hooks/usePaperSize';
+import { formatBRL, multiplyMoney } from '@/lib/money';
 import Receipt from '@/pages/app/sales/receipt';
 import type { OptionType, PageProps, User } from '@/types';
 import { useForm, usePage } from '@inertiajs/react';
@@ -508,16 +508,16 @@ export function SalesProducts({ parts, iconSize, triggerLabel, triggerClassName 
                                         </div>
                                         <div className="text-sm">
                                             Valor unitário:{' '}
-                                            <span className="font-semibold text-blue-400">R$ {maskMoney(Number(selectedPart?.sale_price))}</span>
+                                            <span className="font-semibold text-blue-400">{formatBRL(Number(selectedPart?.sale_price))}</span>
                                         </div>
                                         <div className="text-sm">
                                             Total:{' '}
                                             <span className="font-semibold text-blue-400">
-                                                R${' '}
-                                                {maskMoney(
-                                                    data?.quantity <= selectedPart?.quantity
-                                                        ? data?.quantity * Number(selectedPart?.sale_price)
-                                                        : selectedPart?.quantity * Number(selectedPart?.sale_price),
+                                                {formatBRL(
+                                                    multiplyMoney(
+                                                        selectedPart?.sale_price,
+                                                        data?.quantity <= selectedPart?.quantity ? data?.quantity : selectedPart?.quantity,
+                                                    ),
                                                 )}
                                             </span>
                                         </div>
@@ -534,7 +534,7 @@ export function SalesProducts({ parts, iconSize, triggerLabel, triggerClassName 
                             {cartItems.map((item) => (
                                 <div key={item.cartItemId} className="mb-2 flex items-center justify-between">
                                     <span>
-                                        {item.name} (x{item.selected_quantity}) - R$ {maskMoney(Number(item.sale_price) * item.selected_quantity)}
+                                        {item.name} (x{item.selected_quantity}) - {formatBRL(Number(item.sale_price) * item.selected_quantity)}
                                     </span>
                                     <Button variant="destructive" size="sm" onClick={() => removeFromCart(item.cartItemId)}>
                                         <Trash2 size={16} />
@@ -543,7 +543,7 @@ export function SalesProducts({ parts, iconSize, triggerLabel, triggerClassName 
                             ))}
                             <div className="mt-4 flex items-center justify-between font-bold">
                                 <span>Total do Carrinho:</span>
-                                <span>R$ {maskMoney(cartTotal)}</span>
+                                <span>{formatBRL(cartTotal)}</span>
                             </div>
                             {errors.paid_amount && <p className="mt-2 text-right text-xs text-red-500">{errors.paid_amount}</p>}
                             {errors.total_amount && <p className="col-span-4 text-right text-xs text-red-500">{errors.total_amount}</p>}

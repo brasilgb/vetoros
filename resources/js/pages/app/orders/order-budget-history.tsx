@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import { maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
 import moment from 'moment';
 
 export type OrderBudgetVersion = {
@@ -69,7 +69,7 @@ export default function OrderBudgetHistory({ budgets }: { budgets: OrderBudgetVe
                                     {isCurrent && <Badge variant="outline">Atual</Badge>}
                                     <Badge className={status.className}>{status.label}</Badge>
                                 </div>
-                                <span className="font-semibold">R$ {maskMoney(String(budget.quoted_amount ?? 0))}</span>
+                                <span className="font-semibold">{formatBRL(budget.quoted_amount ?? 0)}</span>
                             </div>
 
                             {budget.description && (
@@ -104,7 +104,7 @@ export default function OrderBudgetHistory({ budgets }: { budgets: OrderBudgetVe
                                                 <span>
                                                     {item.description} × {Number(item.quantity)}
                                                 </span>
-                                                <span>R$ {maskMoney(String(item.total_price))}</span>
+                                                <span>{formatBRL(item.total_price)}</span>
                                             </li>
                                         ))}
                                     </ul>

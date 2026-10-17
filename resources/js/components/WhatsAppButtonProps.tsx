@@ -1,4 +1,5 @@
 import { toastWarning } from '@/components/app-toast-messages';
+import { formatBRL } from '@/lib/money';
 import { normalizeWhatsappPhone } from '@/Utils/mask';
 import { router } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
@@ -187,15 +188,6 @@ const formatTemplateMessage = ({
     return withGreeting(greeting, customerName, parsed);
 };
 
-const formatCurrency = (value?: number) => {
-    if (!value || Number(value) <= 0) return 'R$ 0,00';
-
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-    }).format(Number(value));
-};
-
 export const buildMessage = ({
     customerName,
     orderNumber,
@@ -216,7 +208,7 @@ export const buildMessage = ({
         ordem: String(orderNumber ?? ''),
         link_os: trackingUrl,
         status: String(currentStatus),
-        saldo: formatCurrency(amountDue),
+        saldo: formatBRL(amountDue, { clampNegative: true }),
         dias_pendentes: String(daysPending ?? 0),
     };
 

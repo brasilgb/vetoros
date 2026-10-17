@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { formatBRL } from '@/lib/money';
 import { Link } from '@inertiajs/react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import moment from 'moment';
@@ -11,10 +12,6 @@ const normalizePlaceholderKey = (key: string) =>
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/\s+/g, '_')
         .replace(/-/g, '_');
-
-function formatCurrency(value: number | string) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
 
 function contractVigencyLabel(contract: any) {
     if (!contract?.duration_months) return 'Indeterminada';
@@ -30,7 +27,7 @@ function renderContractTemplate(template: string, contract: any, company: any) {
         cliente: contract?.customer?.name ?? '',
         cpf_cnpj: contract?.customer?.cpfcnpj ?? '',
         descricao: contract?.description ?? '',
-        valor_mensalidade: formatCurrency(contract?.monthly_amount),
+        valor_mensalidade: formatBRL(contract?.monthly_amount),
         dia_cobranca: String(contract?.billing_day ?? ''),
         data_inicio: contract?.start_date ? moment(contract.start_date).format('DD/MM/YYYY') : '',
         vigencia: contractVigencyLabel(contract),
@@ -131,7 +128,7 @@ export default function PrintMaintenanceContract({ contract, company, template }
                             <span className="font-semibold">Descrição:</span> {contract?.description ?? '-'}
                         </p>
                         <p>
-                            <span className="font-semibold">Mensalidade:</span> {formatCurrency(contract?.monthly_amount)}
+                            <span className="font-semibold">Mensalidade:</span> {formatBRL(contract?.monthly_amount)}
                         </p>
                         <p>
                             <span className="font-semibold">Dia de cobrança:</span> {contract?.billing_day ?? '-'}

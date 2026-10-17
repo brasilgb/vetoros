@@ -9,9 +9,11 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL, normalizeMoney } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { BanknoteArrowDownIcon, Edit, Plus } from 'lucide-react';
@@ -43,35 +45,11 @@ type ExpenseForm = {
     notes: string;
 };
 
-function formatCurrency(value: number | string) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function formatCurrencyMask(value: string) {
-    const digits = value.replace(/\D/g, '');
-    if (!digits) return '';
-    const number = Number(digits) / 100;
-    return number.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
-}
-
-function parseCurrencyMask(value: string) {
-    const normalized = value
-        .replace(/\./g, '')
-        .replace(',', '.')
-        .replace(/[^\d.]/g, '');
-    const amount = Number(normalized);
-    return Number.isFinite(amount) ? amount.toFixed(2) : '';
-}
-
 export default function Expenses({ expenses }: any) {
     const { flash, auth } = usePage().props as any;
     const [openModal, setOpenModal] = useState(false);
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const canManageOrders = auth?.role !== 'technician' && auth?.permissions?.includes('orders');
-    const [amountDisplay, setAmountDisplay] = useState('');
     const expenseDateRef = useRef<HTMLInputElement | null>(null);
 
     const form = useForm<ExpenseForm>({
@@ -87,7 +65,6 @@ export default function Expenses({ expenses }: any) {
         form.clearErrors();
         form.setData('expense_date', moment().format('YYYY-MM-DD'));
         form.setData('amount', '');
-        setAmountDisplay('');
     };
 
     const openCreateModal = () => {
@@ -104,15 +81,9 @@ export default function Expenses({ expenses }: any) {
             expense_date: moment(expense.expense_date).format('YYYY-MM-DD'),
             description: expense.description ?? '',
             category: categoryValue,
-            amount: Number(expense.amount ?? 0).toFixed(2),
+            amount: normalizeMoney(expense.amount ?? 0),
             notes: expense.notes ?? '',
         });
-        setAmountDisplay(
-            Number(expense.amount || 0).toLocaleString('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }),
-        );
         setOpenModal(true);
     };
 
@@ -135,12 +106,6 @@ export default function Expenses({ expenses }: any) {
         form.post(route('app.expenses.store'), {
             onSuccess: () => closeModal(),
         });
-    };
-
-    const onAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const masked = formatCurrencyMask(event.target.value);
-        setAmountDisplay(masked);
-        form.setData('amount', parseCurrencyMask(masked));
     };
 
     return (
@@ -193,7 +158,7 @@ export default function Expenses({ expenses }: any) {
                                                 <div className="text-muted-foreground text-xs">{expense.category || 'Sem categoria'}</div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{formatCurrency(expense.amount)}</TableCell>
+                                        <TableCell>{formatBRL(expense.amount)}</TableCell>
                                         <TableCell>{expense.created_by?.name ?? expense.createdBy?.name ?? '-'}</TableCell>
                                         <TableCell className="min-w-[120px] text-right">
                                             <div className="flex flex-wrap justify-end gap-2">
@@ -283,13 +248,12 @@ export default function Expenses({ expenses }: any) {
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="amount">Valor</Label>
-                                    <Input
+                                    <MoneyInput
                                         id="amount"
-                                        type="text"
-                                        inputMode="decimal"
                                         placeholder="0,00"
-                                        value={amountDisplay}
-                                        onChange={onAmountChange}
+                                        value={form.data.amount}
+                                        onValueChange={(value) => form.setData('amount', value)}
+                                        error={form.errors.amount}
                                     />
                                     <InputError message={form.errors.amount} />
                                 </div>

@@ -1,3 +1,6 @@
+import AlertSuccess from '@/components/app-alert-success';
+import AppPagination, { PaginationSummary } from '@/components/app-pagination';
+import { Icon } from '@/components/icon';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -9,18 +12,15 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import AlertSuccess from '@/components/app-alert-success';
-import AppPagination, { PaginationSummary } from '@/components/app-pagination';
-import { Icon } from '@/components/icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { BadgePercent, Banknote, CheckCircle2, Clock3 } from 'lucide-react';
-import moment from 'moment';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Painel', href: route('app.dashboard') },
@@ -45,10 +45,6 @@ const statusMeta: Record<string, { label: string; className: string }> = {
     cancelled: { label: 'Cancelado', className: 'bg-muted text-muted-foreground' },
 };
 
-function formatCurrency(value: number | string) {
-    return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 function PayCommissionButton({ accountPayableId, balance }: { accountPayableId: number; balance: number }) {
     const form = useForm({
         amount: balance.toFixed(2),
@@ -70,7 +66,7 @@ function PayCommissionButton({ accountPayableId, balance }: { accountPayableId: 
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar pagamento de comissão?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Isso registra o pagamento de {formatCurrency(balance)} para esta comissão em Contas a pagar.
+                        Isso registra o pagamento de {formatBRL(balance)} para esta comissão em Contas a pagar.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -88,11 +84,7 @@ export default function TechnicianCommissions({ commissions, totals, technicians
     const { flash } = usePage().props as any;
 
     const updateFilters = (patch: Record<string, string | undefined>) => {
-        router.get(
-            route('app.technician-commissions.index'),
-            { ...filters, ...patch, page: undefined },
-            { preserveState: true, replace: true },
-        );
+        router.get(route('app.technician-commissions.index'), { ...filters, ...patch, page: undefined }, { preserveState: true, replace: true });
     };
 
     return (
@@ -115,7 +107,7 @@ export default function TechnicianCommissions({ commissions, totals, technicians
                     <CardContent className="flex items-center justify-between py-4">
                         <div>
                             <p className="text-muted-foreground text-sm">Comissão gerada</p>
-                            <p className="text-xl font-semibold">{formatCurrency(totals?.commission_amount ?? 0)}</p>
+                            <p className="text-xl font-semibold">{formatBRL(totals?.commission_amount ?? 0)}</p>
                         </div>
                         <Banknote className="text-muted-foreground h-8 w-8" />
                     </CardContent>
@@ -124,7 +116,7 @@ export default function TechnicianCommissions({ commissions, totals, technicians
                     <CardContent className="flex items-center justify-between py-4">
                         <div>
                             <p className="text-muted-foreground text-sm">Já paga</p>
-                            <p className="text-xl font-semibold">{formatCurrency(totals?.paid_amount ?? 0)}</p>
+                            <p className="text-xl font-semibold">{formatBRL(totals?.paid_amount ?? 0)}</p>
                         </div>
                         <CheckCircle2 className="text-muted-foreground h-8 w-8" />
                     </CardContent>
@@ -133,7 +125,7 @@ export default function TechnicianCommissions({ commissions, totals, technicians
                     <CardContent className="flex items-center justify-between py-4">
                         <div>
                             <p className="text-muted-foreground text-sm">Pendente</p>
-                            <p className="text-xl font-semibold">{formatCurrency(totals?.pending_amount ?? 0)}</p>
+                            <p className="text-xl font-semibold">{formatBRL(totals?.pending_amount ?? 0)}</p>
                         </div>
                         <Clock3 className="text-muted-foreground h-8 w-8" />
                     </CardContent>
@@ -216,9 +208,9 @@ export default function TechnicianCommissions({ commissions, totals, technicians
                                                 )}
                                                 <div className="text-muted-foreground text-xs">{commission.order?.customer?.name}</div>
                                             </TableCell>
-                                            <TableCell>{formatCurrency(commission.base_amount)}</TableCell>
+                                            <TableCell>{formatBRL(commission.base_amount)}</TableCell>
                                             <TableCell>{Number(commission.commission_percentage).toFixed(2)}%</TableCell>
-                                            <TableCell className="font-medium">{formatCurrency(commission.commission_amount)}</TableCell>
+                                            <TableCell className="font-medium">{formatBRL(commission.commission_amount)}</TableCell>
                                             <TableCell>
                                                 {meta && (
                                                     <Badge className={meta.className} variant="outline">

@@ -1,5 +1,5 @@
-import { maskMoney } from '@/Utils/mask';
-import { Document, Page, StyleSheet, Text, View, Image } from '@react-pdf/renderer';
+import { formatBRL } from '@/lib/money';
+import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import moment from 'moment';
 
 interface CartItem {
@@ -119,7 +119,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
-
 });
 
 const SaleReceiptPDF = ({ items, total, customerName, sale, company }: SaleReceiptPDFProps) => (
@@ -165,17 +164,15 @@ const SaleReceiptPDF = ({ items, total, customerName, sale, company }: SaleRecei
                         <View key={index} style={styles.tableRow}>
                             <Text style={[styles.tableCol, styles.col1]}>{item.name}</Text>
                             <Text style={[styles.tableCol, styles.col2]}>{item.selected_quantity}</Text>
-                            <Text style={[styles.tableCol, styles.col3]}>R$ {maskMoney(String(item.sale_price || 0))}</Text>
-                            <Text style={[styles.tableCol, styles.col4]}>
-                                R$ {maskMoney(String((item.sale_price || 0) * (item.selected_quantity || 0)))}
-                            </Text>
+                            <Text style={[styles.tableCol, styles.col3]}>{formatBRL(item.sale_price || 0)}</Text>
+                            <Text style={[styles.tableCol, styles.col4]}>{formatBRL((item.sale_price || 0) * (item.selected_quantity || 0))}</Text>
                         </View>
                     ))}
                 </View>
             </View>
 
             <View style={styles.totalSection}>
-                <Text style={styles.totalText}>Total: R$ {maskMoney(String(total || 0))}</Text>
+                <Text style={styles.totalText}>Total: {formatBRL(total || 0)}</Text>
             </View>
 
             <View style={styles.footer}>

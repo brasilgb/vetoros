@@ -1,7 +1,7 @@
 import { toastError } from '@/components/app-toast-messages';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
-import { maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
 import { Link } from '@inertiajs/react';
 import { ArrowLeft, Printer, Square } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -42,7 +42,7 @@ function renderReceiptTemplate(template: string, order: any) {
         modelo: order?.model ?? '',
         ordem: String(order?.order_number ?? ''),
         prazo: order?.delivery_forecast ?? '',
-        valor_orcamento: maskMoney(order?.budget_value),
+        valor_orcamento: formatBRL(order?.budget_value),
     };
 
     return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, key) => {
@@ -164,7 +164,7 @@ function ReceiptCopy({
                         <span className="font-semibold">Pré-orçamento:</span> {order?.budget_description ?? '-'}
                     </p>
                     <p>
-                        <span className="font-semibold">Valor:</span> R$ {maskMoney(order?.budget_value)}
+                        <span className="font-semibold">Valor:</span> {formatBRL(order?.budget_value)}
                     </p>
                 </div>
             </div>
@@ -194,7 +194,7 @@ function ReceiptCopy({
                     <h2 className="border-b border-gray-300 bg-gray-50 px-3 py-1.5 text-[11px] font-bold text-gray-950">Orçamento Gerado</h2>
                     <div className="p-3">
                         <p className="mb-2 whitespace-pre-wrap">{order?.budget_description ?? '-'}</p>
-                        <p className="border-t border-gray-300 pt-2 text-right font-bold">Valor: R$ {maskMoney(order?.budget_value)}</p>
+                        <p className="border-t border-gray-300 pt-2 text-right font-bold">Valor: {formatBRL(order?.budget_value)}</p>
                     </div>
                 </div>
             )}
@@ -223,15 +223,15 @@ function ReceiptCopy({
                         <div className="grid grid-cols-3 border-t border-gray-300 pt-2 text-right">
                             <div>
                                 <span className="block text-[10px] text-gray-500">Peças</span>
-                                <span className="font-semibold">R$ {maskMoney(partsValue)}</span>
+                                <span className="font-semibold">{formatBRL(partsValue)}</span>
                             </div>
                             <div>
                                 <span className="block text-[10px] text-gray-500">Serviço</span>
-                                <span className="font-semibold">R$ {maskMoney(order?.service_value)}</span>
+                                <span className="font-semibold">{formatBRL(order?.service_value)}</span>
                             </div>
                             <div>
                                 <span className="block text-[10px] text-gray-500">Total</span>
-                                <span className="font-bold">R$ {maskMoney(order?.service_cost)}</span>
+                                <span className="font-bold">{formatBRL(order?.service_cost)}</span>
                             </div>
                         </div>
                     </div>

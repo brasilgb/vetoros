@@ -463,8 +463,8 @@ class EfiSaasPaymentsTest extends TestCase
         // O agendador não cria boleto enquanto o pagamento anterior vale; a tela mostra o aviso.
         $this->assertSame(0, Payment::query()->where('gateway', 'efi')->count());
         $this->actingAs($this->tenantUser)->postJson(route('subscription.efi.pix'))->assertUnprocessable()->assertJsonValidationErrors('payment');
-        $this->actingAs($this->tenantUser)->get(route('subscription.show'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('checkout.methods', [])->where('checkout.unavailable_message', fn ($message) => str_contains($message, 'pagamento anterior')));
+        $this->actingAs($this->tenantUser)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.checkout.methods', [])->where('subscription.checkout.unavailable_message', fn ($message) => str_contains($message, 'pagamento anterior')));
         $this->assertSame(0, $this->cobRequests());
         $this->artisan('vetoros:legacy-payments-report')->assertFailed();
 
@@ -485,8 +485,8 @@ class EfiSaasPaymentsTest extends TestCase
         $this->assertDatabaseHas('fiscal_admin_audits', ['action' => 'saas_payment.collection_blocked', 'subject_id' => $charge->id]);
         $this->actingAs($this->tenantUser)->postJson(route('subscription.efi.pix'))->assertUnprocessable()
             ->assertJsonValidationErrors(['method' => 'Pagamento online indisponível no momento. Fale com o atendimento da ABrasil Sistemas.']);
-        $this->actingAs($this->tenantUser)->get(route('subscription.show'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('checkout.provider', 'efi')->where('checkout.methods', [])->has('checkout.unavailable_message'));
+        $this->actingAs($this->tenantUser)->get(route('app.other-settings.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('subscription.checkout.provider', 'efi')->where('subscription.checkout.methods', [])->has('subscription.checkout.unavailable_message'));
         // Nenhuma chamada a outro provedor e nenhuma rota legada.
         Http::assertNothingSent();
         $this->postJson('/api/webhooks/mercadopago/qualquer')->assertNotFound();

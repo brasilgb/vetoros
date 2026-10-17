@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { apios } from '@/Utils/connectApi';
 import { partsType } from '@/Utils/dataSelect';
-import { maskMoney, maskMoneyDot } from '@/Utils/mask';
 import { useForm } from '@inertiajs/react';
 import { Barcode, Info, Save, UploadCloud } from 'lucide-react';
 import { DragEvent, useEffect, useRef, useState } from 'react';
@@ -139,11 +139,6 @@ export default function PartForm({ initialData }: PartFormProps) {
             console.error(error);
         }
     };
-
-    useEffect(() => {
-        setData((data: any) => ({ ...data, cost_price: maskMoneyDot(data.cost_price) }));
-        setData((data: any) => ({ ...data, sale_price: maskMoneyDot(data.sale_price) }));
-    }, [data.cost_price, data.sale_price]);
 
     useEffect(() => {
         if (!isEdit && !data.reference_number) {
@@ -403,26 +398,26 @@ export default function PartForm({ initialData }: PartFormProps) {
                     <div className="mt-4 grid gap-4 md:grid-cols-4">
                         <div className="grid gap-2">
                             <Label htmlFor="cost_price">Preço de Custo</Label>
-                            <Input
-                                type="text"
+                            <MoneyInput
                                 id="cost_price"
-                                value={maskMoney(data.cost_price)}
-                                onChange={(e) => setData('cost_price', e.target.value)}
+                                value={data.cost_price}
+                                onValueChange={(value) => setData('cost_price', value)}
                                 readOnly={disableInput}
-                                placeholder="0"
+                                placeholder="0,00"
+                                error={errors.cost_price}
                             />
                             {errors.cost_price && <div className="text-sm text-red-500">{errors.cost_price}</div>}
                         </div>
 
                         <div className="grid gap-2">
                             <Label htmlFor="sale_price">Preço de Venda</Label>
-                            <Input
-                                type="text"
+                            <MoneyInput
                                 id="sale_price"
-                                value={maskMoney(data.sale_price)}
-                                onChange={(e) => setData('sale_price', e.target.value)}
+                                value={data.sale_price}
+                                onValueChange={(value) => setData('sale_price', value)}
                                 readOnly={disableInput}
-                                placeholder="0"
+                                placeholder="0,00"
+                                error={errors.sale_price}
                             />
                             {errors.sale_price && <div className="text-sm text-red-500">{errors.sale_price}</div>}
                         </div>

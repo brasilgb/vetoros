@@ -1,5 +1,6 @@
 import type { PaginationData } from '@/components/app-pagination';
 import { Icon } from '@/components/icon';
+import { formatBRL } from '@/lib/money';
 import { Link } from '@inertiajs/react';
 import { Landmark } from 'lucide-react';
 
@@ -51,8 +52,9 @@ export function formatDate(value?: string | null) {
     return value ? new Date(value).toLocaleDateString('pt-BR') : '-';
 }
 
+/** Mantido para os imports existentes; a formatação é a central (VETOR-UX-MONEY-01). */
 export function money(value: number | string) {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+    return formatBRL(value);
 }
 
 export type Paginated<T> = PaginationData & { data: T[] };

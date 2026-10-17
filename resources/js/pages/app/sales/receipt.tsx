@@ -1,4 +1,5 @@
-import { maskCnpj, maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
+import { maskCnpj } from '@/Utils/mask';
 import { usePage } from '@inertiajs/react';
 import moment from 'moment';
 import { forwardRef } from 'react';
@@ -54,9 +55,9 @@ const Receipt = forwardRef<HTMLDivElement, Props>(({ paper, items, total, custom
                         {item.name}
                         <div className="flex justify-between pl-2">
                             <span>
-                                {item.selected_quantity} x R$ {maskMoney(String(item.sale_price))}
+                                {item.selected_quantity} x {formatBRL(item.sale_price)}
                             </span>
-                            <span>R$ {maskMoney(String(item.selected_quantity * item.sale_price))}</span>
+                            <span>{formatBRL(item.selected_quantity * item.sale_price)}</span>
                         </div>
                     </div>
                 ))}

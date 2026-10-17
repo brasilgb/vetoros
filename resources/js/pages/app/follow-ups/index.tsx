@@ -21,8 +21,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
-import { maskMoney, maskPhone } from '@/Utils/mask';
+import { maskPhone } from '@/Utils/mask';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { CheckCircle2, Filter, LinkIcon, Mail, MessageCircle, PauseCircle, PlayCircle, Search, Wrench } from 'lucide-react';
 import moment from 'moment';
@@ -205,198 +206,203 @@ function FollowUpTable({
 
     return (
         <>
-        <Card className="h-full">
-            <CardHeader>
-                <CardTitle className="text-base">{title}</CardTitle>
-                <p className="text-muted-foreground text-sm">{description}</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {!orders?.data?.length ? (
-                    <p className="text-muted-foreground text-sm">Nenhuma ordem elegível no momento.</p>
-                ) : (
-                    <>
-                        <div className="h-[420px] overflow-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>#</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Técnico da OS</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        {type === 'payment' && <TableHead>Saldo pendente</TableHead>}
-                                        <TableHead>Dias sem retorno</TableHead>
-                                        <TableHead>Último contato</TableHead>
-                                        <TableHead></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {orders.data.map((order: any) => {
-                                        const aging = agingMeta(Number(order.communication_days_pending ?? 0));
+            <Card className="h-full">
+                <CardHeader>
+                    <CardTitle className="text-base">{title}</CardTitle>
+                    <p className="text-muted-foreground text-sm">{description}</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {!orders?.data?.length ? (
+                        <p className="text-muted-foreground text-sm">Nenhuma ordem elegível no momento.</p>
+                    ) : (
+                        <>
+                            <div className="h-[420px] overflow-auto rounded-lg border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>#</TableHead>
+                                            <TableHead>Cliente</TableHead>
+                                            <TableHead>Técnico da OS</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            {type === 'payment' && <TableHead>Saldo pendente</TableHead>}
+                                            <TableHead>Dias sem retorno</TableHead>
+                                            <TableHead>Último contato</TableHead>
+                                            <TableHead></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {orders.data.map((order: any) => {
+                                            const aging = agingMeta(Number(order.communication_days_pending ?? 0));
 
-                                        return (
-                                            <TableRow
-                                                key={`${type}-${order.id}`}
-                                                className={!order[pauseKey] ? aging.rowClassName || undefined : undefined}
-                                            >
-                                                <TableCell>{order.order_number}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-medium">{order.customer?.name}</span>
-                                                        <span className="text-muted-foreground text-xs">
-                                                            {maskPhone(order.customer?.phone ?? '')}
-                                                        </span>
-                                                        <Badge
-                                                            variant={order[pauseKey] ? 'outline' : 'secondary'}
-                                                            className={`w-fit ${priorityMeta(order, type).className}`}
-                                                        >
-                                                            {priorityMeta(order, type).label}
-                                                        </Badge>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>{order.user?.name ?? 'Não definido'}</TableCell>
-                                                <TableCell>
-                                                    <StatusBadge category="ordem" value={order.service_status} />
-                                                </TableCell>
-                                                {type === 'payment' && (
+                                            return (
+                                                <TableRow
+                                                    key={`${type}-${order.id}`}
+                                                    className={!order[pauseKey] ? aging.rowClassName || undefined : undefined}
+                                                >
+                                                    <TableCell>{order.order_number}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary" className="w-fit bg-rose-100 text-rose-900 hover:bg-rose-100">
-                                                            {maskMoney(String(order.remaining_amount ?? 0))}
-                                                        </Badge>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="font-medium">{order.customer?.name}</span>
+                                                            <span className="text-muted-foreground text-xs">
+                                                                {maskPhone(order.customer?.phone ?? '')}
+                                                            </span>
+                                                            <Badge
+                                                                variant={order[pauseKey] ? 'outline' : 'secondary'}
+                                                                className={`w-fit ${priorityMeta(order, type).className}`}
+                                                            >
+                                                                {priorityMeta(order, type).label}
+                                                            </Badge>
+                                                        </div>
                                                     </TableCell>
-                                                )}
-                                                <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span>{order.communication_days_pending} dia(s)</span>
-                                                        <Badge variant="secondary" className={`w-fit ${aging.className}`}>
-                                                            {aging.label}
-                                                        </Badge>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {order[pauseKey] ? (
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className="text-sm">Automação pausada</span>
-                                                            <span className="text-muted-foreground text-xs">
-                                                                {order[pauseReasonKey] || 'Motivo não informado'}
-                                                            </span>
-                                                        </div>
-                                                    ) : order.last_communication?.created_at ? (
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className="text-sm">{communicationLabel(order.last_communication)}</span>
-                                                            <span className="text-muted-foreground text-xs">
-                                                                {order.last_communication?.trigger === 'automatic' ? 'automático' : 'manual'} •{' '}
-                                                                {moment(order.last_communication.created_at).fromNow()}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-muted-foreground text-sm">Sem contato</span>
+                                                    <TableCell>{order.user?.name ?? 'Não definido'}</TableCell>
+                                                    <TableCell>
+                                                        <StatusBadge category="ordem" value={order.service_status} />
+                                                    </TableCell>
+                                                    {type === 'payment' && (
+                                                        <TableCell>
+                                                            <Badge variant="secondary" className="w-fit bg-rose-100 text-rose-900 hover:bg-rose-100">
+                                                                {formatBRL(order.remaining_amount ?? 0)}
+                                                            </Badge>
+                                                        </TableCell>
                                                     )}
-                                                </TableCell>
-                                                <TableCell className="min-w-[280px]">
-                                                    <div className="flex flex-wrap justify-end gap-2">
-                                                        {canManageOrders && !order[responseKey] && (
+                                                    <TableCell>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span>{order.communication_days_pending} dia(s)</span>
+                                                            <Badge variant="secondary" className={`w-fit ${aging.className}`}>
+                                                                {aging.label}
+                                                            </Badge>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {order[pauseKey] ? (
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="text-sm">Automação pausada</span>
+                                                                <span className="text-muted-foreground text-xs">
+                                                                    {order[pauseReasonKey] || 'Motivo não informado'}
+                                                                </span>
+                                                            </div>
+                                                        ) : order.last_communication?.created_at ? (
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="text-sm">{communicationLabel(order.last_communication)}</span>
+                                                                <span className="text-muted-foreground text-xs">
+                                                                    {order.last_communication?.trigger === 'automatic' ? 'automático' : 'manual'} •{' '}
+                                                                    {moment(order.last_communication.created_at).fromNow()}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-sm">Sem contato</span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="min-w-[280px]">
+                                                        <div className="flex flex-wrap justify-end gap-2">
+                                                            {canManageOrders && !order[responseKey] && (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="icon"
+                                                                    variant="outline"
+                                                                    title="Registrar retorno do cliente"
+                                                                    aria-label={`Registrar retorno da ordem ${order.order_number}`}
+                                                                    onClick={() => handleResponse(order.id)}
+                                                                >
+                                                                    <CheckCircle2 className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                            {canManageOrders && automaticFollowUpsEnabled && !order[pauseKey] && (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="icon"
+                                                                    variant="outline"
+                                                                    title="Pausar automação"
+                                                                    aria-label={`Pausar automação da ordem ${order.order_number}`}
+                                                                    onClick={() => handlePause(order.id)}
+                                                                >
+                                                                    <PauseCircle className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                            {canManageOrders && order[pauseKey] && (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="icon"
+                                                                    variant="outline"
+                                                                    title="Retomar automação"
+                                                                    aria-label={`Retomar automação da ordem ${order.order_number}`}
+                                                                    onClick={() => setOrderToResume(order.id)}
+                                                                >
+                                                                    <PlayCircle className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                            {canManageOrders && !order[pauseKey] && (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleAction(order.id)}
+                                                                >
+                                                                    <Mail className="h-4 w-4" />
+                                                                    {type === 'budget' ? 'Cobrar orçamento' : 'Cobrar saldo'}
+                                                                </Button>
+                                                            )}
                                                             <Button
-                                                                type="button"
+                                                                asChild
                                                                 size="icon"
-                                                                variant="outline"
-                                                                title="Registrar retorno do cliente"
-                                                                aria-label={`Registrar retorno da ordem ${order.order_number}`}
-                                                                onClick={() => handleResponse(order.id)}
+                                                                className="!bg-solar-blue-primary hover:!bg-solar-blue-primary/90 !text-white hover:!text-white"
                                                             >
-                                                                <CheckCircle2 className="h-4 w-4" />
+                                                                <a
+                                                                    target="_blank"
+                                                                    href={route('os.token', order.tracking_token)}
+                                                                    title="Link público da ordem"
+                                                                    aria-label={`Abrir link público da ordem ${order.order_number}`}
+                                                                >
+                                                                    <LinkIcon className="h-4 w-4" />
+                                                                </a>
                                                             </Button>
-                                                        )}
-                                                        {canManageOrders && automaticFollowUpsEnabled && !order[pauseKey] && (
                                                             <Button
-                                                                type="button"
+                                                                asChild
                                                                 size="icon"
-                                                                variant="outline"
-                                                                title="Pausar automação"
-                                                                aria-label={`Pausar automação da ordem ${order.order_number}`}
-                                                                onClick={() => handlePause(order.id)}
+                                                                className="bg-orange-500 text-white hover:bg-orange-600"
+                                                                title="Abrir ordem"
                                                             >
-                                                                <PauseCircle className="h-4 w-4" />
+                                                                <Link
+                                                                    href={route('app.orders.edit', order.id)}
+                                                                    aria-label={`Abrir ordem ${order.order_number}`}
+                                                                >
+                                                                    <Wrench className="h-4 w-4" />
+                                                                </Link>
                                                             </Button>
-                                                        )}
-                                                        {canManageOrders && order[pauseKey] && (
-                                                            <Button
-                                                                type="button"
-                                                                size="icon"
-                                                                variant="outline"
-                                                                title="Retomar automação"
-                                                                aria-label={`Retomar automação da ordem ${order.order_number}`}
-                                                                onClick={() => setOrderToResume(order.id)}
-                                                            >
-                                                                <PlayCircle className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                        {canManageOrders && !order[pauseKey] && (
-                                                            <Button type="button" size="sm" variant="outline" onClick={() => handleAction(order.id)}>
-                                                                <Mail className="h-4 w-4" />
-                                                                {type === 'budget' ? 'Cobrar orçamento' : 'Cobrar saldo'}
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            asChild
-                                                            size="icon"
-                                                            className="!bg-solar-blue-primary hover:!bg-solar-blue-primary/90 !text-white hover:!text-white"
-                                                        >
-                                                            <a
-                                                                target="_blank"
-                                                                href={route('os.token', order.tracking_token)}
-                                                                title="Link público da ordem"
-                                                                aria-label={`Abrir link público da ordem ${order.order_number}`}
-                                                            >
-                                                                <LinkIcon className="h-4 w-4" />
-                                                            </a>
-                                                        </Button>
-                                                        <Button
-                                                            asChild
-                                                            size="icon"
-                                                            className="bg-orange-500 text-white hover:bg-orange-600"
-                                                            title="Abrir ordem"
-                                                        >
-                                                            <Link
-                                                                href={route('app.orders.edit', order.id)}
-                                                                aria-label={`Abrir ordem ${order.order_number}`}
-                                                            >
-                                                                <Wrench className="h-4 w-4" />
-                                                            </Link>
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <AppPagination data={orders} />
-                    </>
-                )}
-            </CardContent>
-        </Card>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <AppPagination data={orders} />
+                        </>
+                    )}
+                </CardContent>
+            </Card>
 
-        <AlertDialog open={orderToResume !== null} onOpenChange={(open) => !open && setOrderToResume(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Reativar automação?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        O envio automático de acompanhamento desta ordem voltará a seguir o intervalo configurado.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                        onClick={() => {
-                            if (orderToResume !== null) handleResume(orderToResume);
-                        }}
-                    >
-                        Reativar
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+            <AlertDialog open={orderToResume !== null} onOpenChange={(open) => !open && setOrderToResume(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Reativar automação?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            O envio automático de acompanhamento desta ordem voltará a seguir o intervalo configurado.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (orderToResume !== null) handleResume(orderToResume);
+                            }}
+                        >
+                            Reativar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
@@ -766,7 +772,7 @@ export default function FollowUps({ filters, summary, budgetOrders, paymentOrder
                                     {canManageOtherSettings ? (
                                         <Link
                                             href={`${route('app.other-settings.index')}?tab=operational#intervalo-follow-up-cliente`}
-                                            className="font-medium text-primary underline-offset-4 hover:underline"
+                                            className="text-primary font-medium underline-offset-4 hover:underline"
                                         >
                                             Alterar janela
                                         </Link>

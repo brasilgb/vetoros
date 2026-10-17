@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { maskMoney } from '@/Utils/mask';
+import { formatBRL } from '@/lib/money';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, CreditCard, Printer, ReceiptText } from 'lucide-react';
 
@@ -36,15 +36,13 @@ export default function PaymentProof({ order, company, backUrl }: any) {
                     <div className="border-b border-slate-200 bg-slate-950 px-6 py-8 text-white">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
-                                <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Comprovante financeiro</p>
+                                <p className="text-xs tracking-[0.24em] text-slate-300 uppercase">Comprovante financeiro</p>
                                 <h1 className="text-3xl font-semibold tracking-tight">Ordem de serviço #{order?.order_number}</h1>
-                                <p className="max-w-2xl text-sm text-slate-300">
-                                    Resumo dos pagamentos registrados para este atendimento.
-                                </p>
+                                <p className="max-w-2xl text-sm text-slate-300">Resumo dos pagamentos registrados para este atendimento.</p>
                             </div>
 
                             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Cliente</p>
+                                <p className="text-xs tracking-[0.18em] text-slate-300 uppercase">Cliente</p>
                                 <p className="mt-2 font-medium text-white">{order?.customer?.name || '-'}</p>
                             </div>
                         </div>
@@ -54,16 +52,16 @@ export default function PaymentProof({ order, company, backUrl }: any) {
                         <section className="grid gap-4 md:grid-cols-3">
                             <div className="rounded-2xl border border-slate-200 p-4">
                                 <p className="text-sm text-slate-500">Total do atendimento</p>
-                                <p className="mt-2 text-xl font-semibold text-slate-900">R$ {maskMoney(String(totalOrder))}</p>
+                                <p className="mt-2 text-xl font-semibold text-slate-900">{formatBRL(totalOrder)}</p>
                             </div>
                             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                                 <p className="text-sm text-slate-500">Valor pago</p>
-                                <p className="mt-2 text-xl font-semibold text-emerald-700">R$ {maskMoney(String(totalPaid))}</p>
+                                <p className="mt-2 text-xl font-semibold text-emerald-700">{formatBRL(totalPaid)}</p>
                             </div>
                             <div className="rounded-2xl border border-slate-200 p-4">
                                 <p className="text-sm text-slate-500">Saldo remanescente</p>
                                 <p className={`mt-2 text-xl font-semibold ${remaining > 0.009 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                                    R$ {maskMoney(String(remaining))}
+                                    {formatBRL(remaining)}
                                 </p>
                             </div>
                         </section>
@@ -88,7 +86,7 @@ export default function PaymentProof({ order, company, backUrl }: any) {
 
                                             <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">
                                                 <CreditCard className="h-4 w-4" />
-                                                <span className="font-semibold">R$ {maskMoney(String(payment?.amount ?? 0))}</span>
+                                                <span className="font-semibold">{formatBRL(payment?.amount ?? 0)}</span>
                                             </div>
                                         </div>
                                     </div>
