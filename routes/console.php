@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Admin\SupportSession;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -42,6 +43,11 @@ Schedule::command('vetoros:send-tenant-feedback-requests')
 
 Schedule::command('vetoros:process-customer-feedback-requests')
     ->dailyAt('11:30')
+    ->withoutOverlapping();
+
+// Retenção dos registros do Modo Suporte (config support.retention_days).
+Schedule::command('model:prune', ['--model' => [SupportSession::class]])
+    ->daily()
     ->withoutOverlapping();
 
 Schedule::command('fiscal:sync-spedy')

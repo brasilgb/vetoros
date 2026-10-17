@@ -232,6 +232,13 @@ class TenantController extends Controller
 
         return Inertia::render('admin/tenants/index', [
             'tenants' => $tenants,
+            // Modo Suporte (VETOR-STABILIZE-03): o modal mostra em que ambiente o acesso acontece.
+            'environment' => match (app()->environment()) {
+                'production' => 'Produção',
+                'staging', 'homologation' => 'Homologação',
+                'local' => 'Desenvolvimento local',
+                default => app()->environment(),
+            },
             'filters' => [
                 'search' => $search,
                 'subscription_filter' => $subscriptionFilter,

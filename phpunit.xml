@@ -54,6 +54,9 @@
         <env name="AWS_ACCESS_KEY_ID" value="" force="true"/>
         <env name="AWS_SECRET_ACCESS_KEY" value="" force="true"/>
         <env name="MAIL_PASSWORD" value="" force="true"/>
+        <env name="ABRASIL_MAIL_PASSWORD" value="" force="true"/>
+        <env name="ABRASIL_MAIL_HOST" value="" force="true"/>
+        <env name="ABRASIL_MAIL_USERNAME" value="" force="true"/>
         <env name="REDIS_PASSWORD" value="" force="true"/>
         <env name="CRM_REGISTRATION_CHECK_TOKEN" value="" force="true"/>
         <!-- O Laravel lê $_SERVER antes de $_ENV: as variáveis críticas são forçadas nos dois. -->

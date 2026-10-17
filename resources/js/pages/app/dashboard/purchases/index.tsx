@@ -1,12 +1,13 @@
+import { ChartLoadState } from '@/components/Charts/chart-load-state';
 import { ChartPurchasesTrend } from '@/components/Charts/chart-purchases-trend';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useDashboardResource } from '@/hooks/use-dashboard-resource';
+import { parsePurchasesPayload } from '@/lib/dashboard-payload';
 import { formatBRL } from '@/lib/money';
-import { connectBackend } from '@/Utils/connectApi';
 import { AlertTriangle, FileChartColumn, HandCoins, PackageSearch, ShoppingBag } from 'lucide-react';
 import moment from 'moment';
-import { useEffect, useState } from 'react';
 
 type DateRangeValue = {
     from?: Date | string;
@@ -30,6 +31,8 @@ function formatIsoDate(date: Date | string) {
     return moment(d).format('YYYY-MM-DD');
 }
 
+const parsePurchases = (payload: unknown) => parsePurchasesPayload<PurchasesKpis, Supplier, PartRow, { date: string; total: number }>(payload);
+
 export default function PurchasesDashboard({
     timerange,
     dateRange,
@@ -39,32 +42,25 @@ export default function PurchasesDashboard({
     dateRange?: DateRangeValue;
     customRange?: boolean;
 }) {
-    const [kpis, setKpis] = useState<PurchasesKpis | null>(null);
-    const [topSuppliers, setTopSuppliers] = useState<Supplier[]>([]);
-    const [topParts, setTopParts] = useState<PartRow[]>([]);
-    const [trend, setTrend] = useState<Array<{ date: string; total: number }>>([]);
+    // Uma chamada alimenta a aba inteira; falha mostra erro com nova tentativa, nunca R$ 0,00 (VETOR-STABILIZE-03).
+    const rangeQuery =
+        customRange && dateRange?.from && dateRange?.to ? `?from=${formatIsoDate(dateRange.from)}&to=${formatIsoDate(dateRange.to)}` : '';
+    const resource = useDashboardResource(`kpisPurchases/${timerange}${rangeQuery}`, parsePurchases);
 
-    useEffect(() => {
-        const getPurchases = async () => {
-            try {
-                const query = new URLSearchParams();
+    if (resource.load.status !== 'ready' || !resource.data) {
+        return (
+            <div className="min-w-0">
+                <ChartLoadState
+                    load={resource.load.status === 'ready' ? { status: 'loading' } : resource.load}
+                    onRetry={resource.retry}
+                    className="h-[320px]"
+                    label="dashboard de compras"
+                />
+            </div>
+        );
+    }
 
-                if (customRange && dateRange?.from && dateRange?.to) {
-                    query.set('from', formatIsoDate(dateRange.from));
-                    query.set('to', formatIsoDate(dateRange.to));
-                }
-
-                const response = await connectBackend.get(`kpisPurchases/${timerange}${query.toString() ? `?${query.toString()}` : ''}`);
-                setKpis(response.data.kpis);
-                setTopSuppliers(response.data.topSuppliers ?? []);
-                setTopParts(response.data.topParts ?? []);
-                setTrend(response.data.trend ?? []);
-            } catch (error) {
-                console.error('Erro ao carregar dados do dashboard de compras', error);
-            }
-        };
-        getPurchases();
-    }, [timerange, customRange, dateRange]);
+    const { kpis, topSuppliers, topParts, trend } = resource.data;
 
     return (
         <div className="min-w-0">

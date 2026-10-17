@@ -20,7 +20,8 @@ class CheckSubscriptionStatus
         $user = $request->user();
         $tenant = $user?->tenant;
 
-        if (! $tenant) {
+        // Modo Suporte: o RootAdmin investiga inclusive empresas bloqueadas, sem passar pelo checkout.
+        if (! $tenant || $request->attributes->has('support_session')) {
             return $next($request);
         }
 

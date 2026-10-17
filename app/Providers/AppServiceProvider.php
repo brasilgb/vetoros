@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Listeners\EndSupportSessionOnLogout;
 use App\Listeners\SetTenantIdInSession;
 use App\Models\App\AccountPayable;
 use App\Models\App\CashSession;
@@ -27,6 +28,7 @@ use App\Services\Payments\ReceivablePaymentChannel;
 use App\Support\DatabaseSafety;
 use App\Support\RequestCache;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -94,5 +96,7 @@ class AppServiceProvider extends ServiceProvider
             Login::class,
             SetTenantIdInSession::class
         );
+
+        Event::listen(Logout::class, EndSupportSessionOnLogout::class);
     }
 }

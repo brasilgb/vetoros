@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AdminAccessMiddleware;
 use App\Http\Middleware\AppAccessMiddleware;
+use App\Http\Middleware\ApplySupportSession;
 use App\Http\Middleware\CheckSubscriptionStatus;
 use App\Http\Middleware\Cors;
 use App\Http\Middleware\HandleAppearance;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession as BaseStartSession;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -74,9 +76,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.subscription' => CheckSubscriptionStatus::class,
             'root.admin' => RootAdminOnly::class,
         ]);
+        // Modo Suporte antes do route model binding: a ligação já usa a empresa do suporte.
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: ApplySupportSession::class);
         $middleware->web(replace: [
             BaseStartSession::class => StartSession::class,
         ], append: [
+            ApplySupportSession::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

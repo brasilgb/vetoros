@@ -1,11 +1,13 @@
+import { ChartLoadState } from '@/components/Charts/chart-load-state';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { useDashboardResource } from '@/hooks/use-dashboard-resource';
+import { parseKpisPayload, parseSeriesPayload } from '@/lib/dashboard-payload';
 import { formatBRL } from '@/lib/money';
-import { connectBackend } from '@/Utils/connectApi';
 import { BadgeDollarSign, PackageSearch, ShoppingCart, TrendingUp, WalletCards, XCircle } from 'lucide-react';
 import moment from 'moment';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, XAxis, YAxis } from 'recharts';
 
 function formatIsoDate(date: Date | string) {
@@ -344,97 +346,74 @@ export default function FinanceiroSales({
     dateRange?: DateRangeValue;
     customRange?: boolean;
 }) {
-    const [kpisSales, setKpisSales] = useState<SalesKpis | null>(null);
-    const [chartSalesFinancial, setChartSalesFinancial] = useState<SalesRevenuePoint[]>([]);
-
-    useEffect(() => {
-        const getSalesKpis = async () => {
-            try {
-                const query = new URLSearchParams();
-
-                if (customRange && dateRange?.from && dateRange?.to) {
-                    query.set('from', formatIsoDate(dateRange.from));
-                    query.set('to', formatIsoDate(dateRange.to));
-                }
-
-                const response = await connectBackend.get(`kpisFinancialSales/${timerange}${query.toString() ? `?${query.toString()}` : ''}`);
-                setKpisSales(response.data.kpis);
-            } catch (error) {
-                console.error('Erro ao carregar dados dos kpis de vendas', error);
-            }
-        };
-
-        getSalesKpis();
-    }, [timerange, customRange, dateRange]);
-
-    useEffect(() => {
-        const getSalesChart = async () => {
-            try {
-                const query = new URLSearchParams();
-                query.set('from', moment().startOf('month').format('YYYY-MM-DD'));
-                query.set('to', moment().endOf('month').format('YYYY-MM-DD'));
-
-                const response = await connectBackend.get(`financialSalesRevenueChart/30?${query.toString()}`);
-                setChartSalesFinancial(response.data);
-            } catch (error) {
-                console.error('Erro ao carregar gráfico financeiro de vendas', error);
-            }
-        };
-
-        getSalesChart();
-    }, []);
+    // Indicadores e gráfico validados (VETOR-STABILIZE-03): falha da API mostra erro, nunca R$ 0,00.
+    const rangeQuery =
+        customRange && dateRange?.from && dateRange?.to ? `?from=${formatIsoDate(dateRange.from)}&to=${formatIsoDate(dateRange.to)}` : '';
+    const monthQuery = `?from=${moment().startOf('month').format('YYYY-MM-DD')}&to=${moment().endOf('month').format('YYYY-MM-DD')}`;
+    const kpisResource = useDashboardResource(`kpisFinancialSales/${timerange}${rangeQuery}`, parseKpisPayload<SalesKpis>);
+    const chartResource = useDashboardResource(`financialSalesRevenueChart/30${monthQuery}`, parseSeriesPayload<SalesRevenuePoint>);
+    const kpisSales = kpisResource.data;
+    const kpisReady = kpisResource.load.status === 'ready';
+    const kpisFallback = (className: string) =>
+        kpisResource.load.status !== 'ready' && (
+            <ChartLoadState load={kpisResource.load} onRetry={kpisResource.retry} className={className} label="indicadores" />
+        );
 
     const rangeLabel =
         customRange && dateRange?.from && dateRange?.to ? `${formatBrDate(dateRange.from)} a ${formatBrDate(dateRange.to)}` : `${timerange} dias`;
 
     return (
         <div className="min-w-0">
-            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
-                <KpiCard
-                    title="Vendas - Projeção mensal"
-                    value={kpisSales?.month_projection_revenue}
-                    description="Projeção do faturamento de vendas concluídas no mês atual"
-                    count={kpisSales?.sales_month_count}
-                    countLabel={`${Number(kpisSales?.sales_month_count || 0)} ${Number(kpisSales?.sales_month_count || 0) === 1 ? 'venda do mês' : 'vendas do mês'}`}
-                    icon={<BadgeDollarSign size={18} />}
-                />
+            {!kpisReady ? (
+                kpisFallback('h-[132px]')
+            ) : (
+                <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
+                    <KpiCard
+                        title="Vendas - Projeção mensal"
+                        value={kpisSales?.month_projection_revenue}
+                        description="Projeção do faturamento de vendas concluídas no mês atual"
+                        count={kpisSales?.sales_month_count}
+                        countLabel={`${Number(kpisSales?.sales_month_count || 0)} ${Number(kpisSales?.sales_month_count || 0) === 1 ? 'venda do mês' : 'vendas do mês'}`}
+                        icon={<BadgeDollarSign size={18} />}
+                    />
 
-                <KpiCard
-                    title={`Lucro Líquido - Período ${rangeLabel}`}
-                    value={kpisSales?.range_profit}
-                    description="Receita de vendas menos despesas lançadas"
-                    count={kpisSales?.sales_count}
-                    comparison={kpisSales?.comparison?.range_profit}
-                    icon={<WalletCards size={18} />}
-                />
+                    <KpiCard
+                        title={`Lucro Líquido - Período ${rangeLabel}`}
+                        value={kpisSales?.range_profit}
+                        description="Receita de vendas menos despesas lançadas"
+                        count={kpisSales?.sales_count}
+                        comparison={kpisSales?.comparison?.range_profit}
+                        icon={<WalletCards size={18} />}
+                    />
 
-                <KpiCard
-                    title={`Despesas - Período ${rangeLabel}`}
-                    value={kpisSales?.range_expenses}
-                    description="Somatório de saídas de caixa e despesas lançadas"
-                    count={kpisSales?.sales_count}
-                    comparison={kpisSales?.comparison?.range_expenses}
-                    icon={<ShoppingCart size={18} />}
-                />
+                    <KpiCard
+                        title={`Despesas - Período ${rangeLabel}`}
+                        value={kpisSales?.range_expenses}
+                        description="Somatório de saídas de caixa e despesas lançadas"
+                        count={kpisSales?.sales_count}
+                        comparison={kpisSales?.comparison?.range_expenses}
+                        icon={<ShoppingCart size={18} />}
+                    />
 
-                <KpiCard
-                    title={`Média de Lucro - Período ${rangeLabel}`}
-                    value={kpisSales?.daily_profit_average}
-                    description="Média diária do lucro líquido no período"
-                    count={kpisSales?.sales_count}
-                    comparison={kpisSales?.comparison?.daily_profit_average}
-                    icon={<TrendingUp size={18} />}
-                />
+                    <KpiCard
+                        title={`Média de Lucro - Período ${rangeLabel}`}
+                        value={kpisSales?.daily_profit_average}
+                        description="Média diária do lucro líquido no período"
+                        count={kpisSales?.sales_count}
+                        comparison={kpisSales?.comparison?.daily_profit_average}
+                        icon={<TrendingUp size={18} />}
+                    />
 
-                <KpiCard
-                    title={`Ticket Médio - Período ${rangeLabel}`}
-                    value={kpisSales?.average_ticket}
-                    description="Média por venda concluída no período"
-                    count={kpisSales?.sales_count}
-                    comparison={kpisSales?.comparison?.average_ticket}
-                    icon={<BadgeDollarSign size={18} />}
-                />
-            </div>
+                    <KpiCard
+                        title={`Ticket Médio - Período ${rangeLabel}`}
+                        value={kpisSales?.average_ticket}
+                        description="Média por venda concluída no período"
+                        count={kpisSales?.sales_count}
+                        comparison={kpisSales?.comparison?.average_ticket}
+                        icon={<BadgeDollarSign size={18} />}
+                    />
+                </div>
+            )}
 
             <div className="mt-3 grid gap-4 xl:grid-cols-12">
                 <Card className="min-w-0 xl:col-span-4">
@@ -443,7 +422,7 @@ export default function FinanceiroSales({
                         <CardDescription>Distribuição das vendas por forma de pagamento no período selecionado</CardDescription>
                     </CardHeader>
                     <CardContent className="px-4 pb-4 sm:px-6">
-                        <SalesPaymentMethodsPie paymentMethods={kpisSales?.payment_methods} />
+                        {kpisReady ? <SalesPaymentMethodsPie paymentMethods={kpisSales?.payment_methods} /> : kpisFallback('h-[200px]')}
                     </CardContent>
                 </Card>
 
@@ -454,28 +433,34 @@ export default function FinanceiroSales({
                     </CardHeader>
 
                     <CardContent className="px-4 pb-4 sm:px-6">
-                        <SalesRevenueChart data={chartSalesFinancial} />
+                        {chartResource.load.status !== 'ready' ? (
+                            <ChartLoadState load={chartResource.load} onRetry={chartResource.retry} />
+                        ) : (
+                            <SalesRevenueChart data={chartResource.data ?? []} />
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <InsightCard
-                    title="Pendente em vendas"
-                    value={formatBRL(kpisSales?.pending_sales_amount)}
-                    description="Saldo ainda aberto em vendas parciais ou pendentes"
-                    icon={<BadgeDollarSign size={18} />}
-                    tone={Number(kpisSales?.pending_sales_amount || 0) > 0 ? 'warning' : 'default'}
-                />
-                <InsightCard
-                    title="Vendas canceladas"
-                    value={formatBRL(kpisSales?.cancelled_sales_amount)}
-                    description={`${Number(kpisSales?.cancelled_sales_count || 0)} ${Number(kpisSales?.cancelled_sales_count || 0) === 1 ? 'cancelamento' : 'cancelamentos'} no período`}
-                    icon={<XCircle size={18} />}
-                    tone={Number(kpisSales?.cancelled_sales_amount || 0) > 0 ? 'warning' : 'default'}
-                />
-                <TopProductsCard products={kpisSales?.top_products} />
-            </div>
+            {kpisReady && (
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <InsightCard
+                        title="Pendente em vendas"
+                        value={formatBRL(kpisSales?.pending_sales_amount)}
+                        description="Saldo ainda aberto em vendas parciais ou pendentes"
+                        icon={<BadgeDollarSign size={18} />}
+                        tone={Number(kpisSales?.pending_sales_amount || 0) > 0 ? 'warning' : 'default'}
+                    />
+                    <InsightCard
+                        title="Vendas canceladas"
+                        value={formatBRL(kpisSales?.cancelled_sales_amount)}
+                        description={`${Number(kpisSales?.cancelled_sales_count || 0)} ${Number(kpisSales?.cancelled_sales_count || 0) === 1 ? 'cancelamento' : 'cancelamentos'} no período`}
+                        icon={<XCircle size={18} />}
+                        tone={Number(kpisSales?.cancelled_sales_amount || 0) > 0 ? 'warning' : 'default'}
+                    />
+                    <TopProductsCard products={kpisSales?.top_products} />
+                </div>
+            )}
         </div>
     );
 }

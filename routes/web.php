@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\SupportSessionController;
 use App\Http\Controllers\App\SaasCheckoutController;
 use App\Http\Controllers\App\SubscriptionController;
 use App\Http\Controllers\OsController;
@@ -63,6 +64,10 @@ Route::get('/termos', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
+    // Modo Suporte (VETOR-STABILIZE-03): "Encerrar suporte" fica fora do painel admin, que é
+    // inacessível enquanto o suporte está ativo.
+    Route::post('/support/end', [SupportSessionController::class, 'destroy'])->name('support.end');
+
     // Minha assinatura (VETOR-SAAS-EFI-04): consulta e pagamento em qualquer estado da assinatura.
     Route::get('/subscription', [SubscriptionController::class, 'show'])
         ->name('subscription.show');

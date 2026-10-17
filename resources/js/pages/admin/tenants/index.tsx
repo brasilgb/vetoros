@@ -1,3 +1,4 @@
+import { SupportAccessDialog } from '@/components/admin/support-access-dialog';
 import type { PaginationData } from '@/components/app-pagination';
 import AppPagination from '@/components/app-pagination';
 import { Icon } from '@/components/icon';
@@ -20,7 +21,7 @@ import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
 import { maskCnpj, normalizeWhatsappPhone } from '@/Utils/mask';
 import { Head, Link, router } from '@inertiajs/react';
-import { Building, Eye, Loader2, MessageCircle, MoreHorizontal, Plus, Settings2, Trash2 } from 'lucide-react';
+import { Building, Eye, Loader2, LogIn, MessageCircle, MoreHorizontal, Plus, Settings2, Trash2 } from 'lucide-react';
 import moment from 'moment';
 import { useState } from 'react';
 
@@ -88,11 +89,23 @@ function Situation({ tenant }: { tenant: TenantRow }) {
 }
 
 /** Ações de cada empresa: Gerenciar em destaque; o restante no menu "…". */
-function Actions({ tenant, onDelete }: { tenant: TenantRow; onDelete: (tenant: TenantRow) => void }) {
+function Actions({
+    tenant,
+    onDelete,
+    onSupport,
+}: {
+    tenant: TenantRow;
+    onDelete: (tenant: TenantRow) => void;
+    onSupport: (tenant: TenantRow) => void;
+}) {
     const name = tenant.company || tenant.name;
 
     return (
         <div className="flex items-center justify-end gap-1">
+            <Button size="sm" variant="ghost" onClick={() => onSupport(tenant)} aria-label={`Acessar painel de ${name}`}>
+                <LogIn className="size-4" />
+                Acessar painel
+            </Button>
             <Button asChild size="sm" variant="outline">
                 <Link href={route('admin.tenants.edit', tenant.id)} aria-label={`Gerenciar ${name}`}>
                     <Settings2 className="size-4" />
@@ -137,11 +150,14 @@ function Actions({ tenant, onDelete }: { tenant: TenantRow; onDelete: (tenant: T
 export default function TenantsIndex({
     tenants,
     filters,
+    environment,
 }: {
     tenants: Paginated<TenantRow>;
     filters: { search?: string; subscription_filter?: string; result_count?: number };
+    environment: string;
 }) {
     const [deleting, setDeleting] = useState<TenantRow | null>(null);
+    const [supporting, setSupporting] = useState<TenantRow | null>(null);
     const [processing, setProcessing] = useState(false);
     const rows: TenantRow[] = tenants?.data ?? [];
 
@@ -160,6 +176,7 @@ export default function TenantsIndex({
     return (
         <AdminLayout breadcrumbs={breadcrumbs}>
             <Head title="Empresas" />
+            <SupportAccessDialog tenant={supporting} environment={environment} onClose={() => setSupporting(null)} />
             <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <Icon iconNode={Building} className="h-7 w-7" />
@@ -240,7 +257,7 @@ export default function TenantsIndex({
                                                 <Situation tenant={tenant} />
                                             </TableCell>
                                             <TableCell>
-                                                <Actions tenant={tenant} onDelete={setDeleting} />
+                                                <Actions tenant={tenant} onDelete={setDeleting} onSupport={setSupporting} />
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -260,7 +277,7 @@ export default function TenantsIndex({
                                         <Situation tenant={tenant} />
                                         <Modality tenant={tenant} />
                                     </div>
-                                    <Actions tenant={tenant} onDelete={setDeleting} />
+                                    <Actions tenant={tenant} onDelete={setDeleting} onSupport={setSupporting} />
                                 </li>
                             ))}
                         </ul>

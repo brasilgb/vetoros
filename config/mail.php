@@ -1,5 +1,33 @@
 <?php
 
+/*
+| SMTP institucional da plataforma (RootAdmin e avisos do SaaS) — VETOR-STABILIZE-03.
+| Lê ABRASIL_MAIL_* (padrão do infra-abrasil) e aceita MAIL_* como alternativa; valor vazio conta
+| como ausente. A senha vem só do ambiente (nunca do repositório). O SMTP de cada empresa não passa
+| por aqui: fica em `others` e é montado por App\Support\TenantMailConfig::tenantMailer().
+*/
+$institutionalMail = (function (): array {
+    $pick = function (string $name, string $fallback) {
+        $value = env($name);
+
+        return $value === null || $value === '' ? env($fallback) : $value;
+    };
+
+    $port = $pick('ABRASIL_MAIL_PORT', 'MAIL_PORT');
+    $encryption = $pick('ABRASIL_MAIL_ENCRYPTION', 'MAIL_ENCRYPTION');
+
+    return [
+        'host' => $pick('ABRASIL_MAIL_HOST', 'MAIL_HOST'),
+        'port' => $port,
+        'encryption' => $encryption,
+        // 465/SSL: TLS desde a conexão (smtps); 587: STARTTLS negociado pelo transporte smtp.
+        'scheme' => env('MAIL_SCHEME') ?: ((int) $port === 465 || in_array(strtolower((string) $encryption), ['ssl', 'smtps'], true) ? 'smtps' : null),
+        'username' => $pick('ABRASIL_MAIL_USERNAME', 'MAIL_USERNAME'),
+        'password' => $pick('ABRASIL_MAIL_PASSWORD', 'MAIL_PASSWORD'),
+        'from_address' => $pick('ABRASIL_MAIL_FROM_ADDRESS', 'MAIL_FROM_ADDRESS'),
+    ];
+})();
+
 return [
 
     /*
@@ -18,14 +46,14 @@ return [
 
     'system' => [
         'mailer' => env('MAIL_MAILER', 'log'),
-        'host' => env('MAIL_HOST'),
-        'port' => env('MAIL_PORT'),
-        'encryption' => env('MAIL_ENCRYPTION'),
-        'scheme' => env('MAIL_SCHEME'),
+        'host' => $institutionalMail['host'],
+        'port' => $institutionalMail['port'],
+        'encryption' => $institutionalMail['encryption'],
+        'scheme' => $institutionalMail['scheme'],
         'url' => env('MAIL_URL'),
-        'username' => env('MAIL_USERNAME'),
-        'password' => env('MAIL_PASSWORD'),
-        'from_address' => env('MAIL_FROM_ADDRESS'),
+        'username' => $institutionalMail['username'],
+        'password' => $institutionalMail['password'],
+        'from_address' => $institutionalMail['from_address'],
         'from_name' => env('MAIL_FROM_NAME'),
     ],
 
@@ -51,13 +79,14 @@ return [
     'mailers' => [
 
         'smtp' => [
+            // Mailer padrão (recuperação de senha, verificação de e-mail): o mesmo SMTP institucional.
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            'scheme' => $institutionalMail['scheme'],
             'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', '127.0.0.1'),
-            'port' => env('MAIL_PORT', 2525),
-            'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
+            'host' => $institutionalMail['host'] ?: '127.0.0.1',
+            'port' => $institutionalMail['port'] ?: 2525,
+            'username' => $institutionalMail['username'],
+            'password' => $institutionalMail['password'],
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
@@ -122,7 +151,7 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        'address' => $institutionalMail['from_address'] ?: 'hello@example.com',
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 

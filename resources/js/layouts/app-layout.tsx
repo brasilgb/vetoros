@@ -1,4 +1,5 @@
 import { FlashToastMessages } from '@/components/flash-toast-messages';
+import { SupportModeBanner } from '@/components/support-mode-banner';
 import { useAppearance } from '@/hooks/use-appearance';
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -15,6 +16,7 @@ export default ({ breadcrumbs = [], children }: AppLayoutProps) => {
 
     return (
         <AppLayoutTemplate breadcrumbs={breadcrumbs}>
+            <SupportModeBanner />
             {children}
             <FlashToastMessages />
             <Toaster theme={appearance} />

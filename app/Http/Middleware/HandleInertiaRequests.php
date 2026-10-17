@@ -325,6 +325,17 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
 
+            // Modo Suporte (VETOR-STABILIZE-03): faixa "Modo Suporte — Empresa: …" e "Encerrar suporte".
+            'support' => function () use ($request) {
+                $session = $request->attributes->get('support_session');
+                $tenant = $session ? $request->user()?->tenant : null;
+
+                return $session ? [
+                    'tenant' => $tenant ? ($tenant->company ?: $tenant->name) : null,
+                    'started_at' => $session->started_at?->toIso8601String(),
+                    'expires_at' => $session->expires_at?->toIso8601String(),
+                ] : null;
+            },
             'auth' => [
                 'user' => $user,
                 'role' => $user?->roleKey(),
