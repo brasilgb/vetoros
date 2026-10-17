@@ -137,6 +137,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Comandos destrutivos (VETOR-STABILIZE-01)
+    |--------------------------------------------------------------------------
+    |
+    | db:wipe e migrate:fresh/refresh/reset/rollback ficam bloqueados fora do
+    | banco de teste em memória (App\Support\DatabaseSafety). Para uma
+    | restauração consciente fora de produção, informe a liberação só na linha
+    | de comando: DB_ALLOW_DESTRUCTIVE_COMMANDS=true php artisan db:wipe
+    | Nunca deixe essa variável no .env. Em produção ela é ignorada.
+    |
+    */
+
+    'allow_destructive_commands' => (bool) env('DB_ALLOW_DESTRUCTIVE_COMMANDS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Redis Databases
     |--------------------------------------------------------------------------
     |

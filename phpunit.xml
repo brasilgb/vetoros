@@ -18,17 +18,51 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
+        <!-- VETOR-STABILIZE-01: ambiente e banco forçados (variáveis do shell não redirecionam
+             os testes) e caches apontados para caminhos próprios dos testes, que nunca existem:
+             um `php artisan optimize`/`config:cache` local não alcança a suíte. -->
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_CONFIG_CACHE" value="bootstrap/cache/testing/config.php" force="true"/>
+        <env name="APP_ROUTES_CACHE" value="bootstrap/cache/testing/routes.php" force="true"/>
+        <env name="APP_EVENTS_CACHE" value="bootstrap/cache/testing/events.php" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_CONNECTION" value="sqlite" force="true"/>
+        <env name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_FOREIGN_KEYS" value="true"/>
+        <env name="DB_ALLOW_DESTRUCTIVE_COMMANDS" value="false" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <!-- Credenciais operacionais sempre vazias nos testes, mesmo sem .env.testing: cada teste
+             configura o que precisa e usa Http::fake (VETOR-STABILIZE-01). -->
+        <env name="DB_HOST" value="" force="true"/>
+        <env name="DB_PORT" value="" force="true"/>
+        <env name="DB_USERNAME" value="" force="true"/>
+        <env name="DB_PASSWORD" value="" force="true"/>
+        <env name="SPEDY_OWNER_API_KEY" value="" force="true"/>
+        <env name="SPEDY_WEBHOOK_SECRET" value="" force="true"/>
+        <env name="WAHA_BASE_URL" value="" force="true"/>
+        <env name="WAHA_API_KEY" value="" force="true"/>
+        <env name="WAHA_WEBHOOK_SECRET" value="" force="true"/>
+        <env name="MP_ACCESS_TOKEN" value="" force="true"/>
+        <env name="MP_PUBLIC_KEY" value="" force="true"/>
+        <env name="MP_WEBHOOK_TOKEN" value="" force="true"/>
+        <env name="AWS_ACCESS_KEY_ID" value="" force="true"/>
+        <env name="AWS_SECRET_ACCESS_KEY" value="" force="true"/>
+        <env name="MAIL_PASSWORD" value="" force="true"/>
+        <env name="REDIS_PASSWORD" value="" force="true"/>
+        <env name="CRM_REGISTRATION_CHECK_TOKEN" value="" force="true"/>
+        <!-- O Laravel lê $_SERVER antes de $_ENV: as variáveis críticas são forçadas nos dois. -->
+        <server name="APP_ENV" value="testing" force="true"/>
+        <server name="APP_CONFIG_CACHE" value="bootstrap/cache/testing/config.php" force="true"/>
+        <server name="APP_ROUTES_CACHE" value="bootstrap/cache/testing/routes.php" force="true"/>
+        <server name="APP_EVENTS_CACHE" value="bootstrap/cache/testing/events.php" force="true"/>
+        <server name="DB_CONNECTION" value="sqlite" force="true"/>
+        <server name="DB_DATABASE" value=":memory:" force="true"/>
+        <server name="DB_ALLOW_DESTRUCTIVE_COMMANDS" value="false" force="true"/>
     </php>
 </phpunit>

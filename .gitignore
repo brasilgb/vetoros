@@ -49,3 +49,6 @@ vetor-tecnico
 vetor-imagem
 .DS_Store
 public_vetoros.zip
+
+# Configuração local dos testes, com APP_KEY só de teste; o modelo versionado é .env.testing.example (VETOR-STABILIZE-01).
+.env.testing

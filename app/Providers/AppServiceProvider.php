@@ -24,9 +24,11 @@ use App\Policies\SchedulePolicy;
 use App\Policies\UserPolicy;
 use App\Services\Payments\ManualOnlyPaymentChannel;
 use App\Services\Payments\ReceivablePaymentChannel;
+use App\Support\DatabaseSafety;
 use App\Support\RequestCache;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -50,6 +52,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Model::unguard();
+
+        // db:wipe, migrate:fresh/refresh/reset/rollback só no banco de teste em memória ou com
+        // liberação explícita fora de produção (VETOR-STABILIZE-01).
+        DB::prohibitDestructiveCommands(! DatabaseSafety::destructiveCommandsAllowed($this->app));
 
         // Com APP_URL em HTTPS, toda URL gerada (inclusive em filas, agendador e e-mails,
         // fora de uma requisição) sai em HTTPS, sem depender de APP_ENV nem de proxy.
