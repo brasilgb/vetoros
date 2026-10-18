@@ -28,6 +28,7 @@ Não foi necessária migration. Não houve alteração de rotas, isolamento por 
 - `npm run build` passou.
 - `git diff --check` passou.
 - A inspeção visual automatizada em Chromium/Firefox desktop/mobile foi tentada, mas os navegadores encerraram ao iniciar no sandbox. O teste Inertia confirmou que a chave chega à página; a confirmação visual em navegador permanece pendente.
+- CI do commit `09338818` passou, incluindo TypeScript, testes JavaScript, build, suíte PHP e secret guard: [workflow CI 39132342514](https://github.com/brasilgb/vetoros/actions/runs/39132342514).
 - Testes emitiram dois avisos PHPUnit preexistentes sobre metadata em doc-comments, sem falhas.
 
 ## Homologação e produção
@@ -40,4 +41,4 @@ Antes de publicar, verificar no ambiente o valor correto de `APP_KEY` e, caso el
 
 - Confirmar no ambiente afetado se houve rotação de `APP_KEY` e configurar a chave anterior, se disponível.
 - Fazer homologação visual em Chromium e Firefox, desktop e mobile, quando o navegador puder ser iniciado.
-- Confirmar o resultado do CI remoto e publicar somente pelo fluxo de release aprovado. Nenhuma ação de produção foi executada.
+- Fazer homologação visual em navegador quando Chromium/Firefox puderem ser iniciados no ambiente. Nenhuma ação de produção foi executada.
