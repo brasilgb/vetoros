@@ -20,6 +20,8 @@ use App\Support\Ean13;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -85,6 +87,15 @@ class OrderControllerTest extends TestCase
         $order = Order::query()->firstOrFail();
 
         $this->assertSame('Notebook Dell Inspiron', $order->model);
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{8}$/', $order->public_access_key);
+        $this->assertNotSame($order->public_access_key, DB::table('orders')->where('id', $order->id)->value('public_access_key'));
+        $this->assertTrue(Hash::check($order->public_access_key, $order->public_access_key_hash));
+
+        $this->get(route('app.orders.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('app/orders/edit-order')
+                ->where('publicAccessKey', $order->public_access_key));
 
         $this->assertDatabaseHas('order_status_history', [
             'order_id' => $order->id,

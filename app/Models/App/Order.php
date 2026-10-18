@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 class Order extends Model
@@ -69,6 +70,14 @@ class Order extends Model
                 try {
                     return Crypt::decryptString($value);
                 } catch (DecryptException) {
+                    $legacyHash = $this->getRawOriginal('public_access_key_hash');
+
+                    if (preg_match('/^[A-Z0-9]{8}$/', $value) === 1 && is_string($legacyHash) && Hash::check($value, $legacyHash)) {
+                        Log::notice('Chave de acesso público legada recuperada após validação do hash.', ['order_id' => $this->getKey()]);
+
+                        return $value;
+                    }
+
                     Log::warning('Chave de acesso público da OS ilegível com a APP_KEY atual.', ['order_id' => $this->getKey()]);
 
                     return null;

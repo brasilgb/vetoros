@@ -1,48 +1,43 @@
-# Execução — VETOR-CHAT-05
+# Execução — VETOR-CHAT-06
 
 Data: 18/10/2026  
-Escopo comparado: `correio.md` mudou da tarefa STABILIZE-03 para VETOR-CHAT-05. Esta execução substitui integralmente o relatório anterior.
+Comparação: `correio.md` mudou da tarefa VETOR-CHAT-05 para VETOR-CHAT-06. Este relatório substitui integralmente o anterior.
 
-## Resultado
+## Causa encontrada
 
-As correções locais de estabilização foram aplicadas nos repositórios VetorLeads e VetorOS e publicadas em `origin/main` (VetorOS `985e36bb`; VetorLeads `a0e013f`). Nenhuma migração ou publicação em produção foi executada.
+O histórico aponta a regressão para `9c69101a`: o cast criptográfico da chave foi trocado por um accessor tolerante. Quando a descriptografia falha, o accessor retorna `null`; a interface só mostra o botão da chave quando `publicAccessKey` tem valor. Assim, a chave e o botão somem da tela, embora o hash usado para validar o acesso público possa continuar funcionando.
 
-### VetorLeads
+A descriptografia pode falhar se uma chave cifrada foi gravada com uma `APP_KEY` anterior. O projeto já aceita rotação por `APP_PREVIOUS_KEYS` em `config/app.php`, mas essa variável não estava documentada no `.env.example`. Para valores legados em texto claro, agora há fallback restrito: a chave só é devolvida quando tem oito caracteres alfanuméricos maiúsculos e confere com o hash persistido.
 
-- Fixado o PHP da plataforma Composer em 8.3 para resolver o lockfile de acordo com `php:^8.3`. Dependências Symfony incompatíveis foram atualizadas para a linha 7.4; o lockfile continua compatível com o requisito declarado. Foram adicionados scripts de lint e análise estática que os workflows já invocavam.
-- ESLint agora ignora somente `public-old/build/**`, os artefatos antigos gerados. Regras não foram desativadas. Erros preexistentes encontrados nos fontes mantidos foram corrigidos.
-- Prettier foi alinhado a largura de 80 colunas e aplicado aos fontes.
-- PHPStan/Larastan: corrigidos 88 problemas preexistentes, incluindo tipos de requests, relações e datas; um argumento indevido na consulta de prospecção; e configuração do seeder. Resultado final: zero erros, sem baseline ou supressões.
-- Removido do `.env.example` um valor de senha SMTP que estava preenchido. A credencial já esteve no histórico Git e precisa ser rotacionada antes do uso operacional.
-- Inbox do chat ganhou navegação responsiva: em telas estreitas alterna entre lista e conversa e permite voltar à lista; o vínculo manual com lead e o acesso ao lead associado continuam disponíveis.
+Uma chave cifrada por uma `APP_KEY` desconhecida não pode ser reconstruída a partir do hash. Nesse caso, é necessário recuperar a chave de criptografia anterior e configurá-la em `APP_PREVIOUS_KEYS`; nenhuma chave de OS foi recriada ou substituída nesta execução.
 
-### VetorOS
+## Correções
 
-- Corrigido o alinhamento do botão do widget e o conflito visual mobile com os controles de consentimento de cookies. O painel aberto também respeita a altura disponível em telas pequenas.
+- `app/Models/App/Order.php`: recupera apenas chaves legadas em texto claro com formato válido e hash correspondente; preserva o comportamento seguro para valores cifrados por chave desconhecida.
+- `.env.example`: documenta `APP_PREVIOUS_KEYS` para rotação de `APP_KEY`.
+- `tests/Feature/App/OrderAccessKeyResilienceTest.php`: cobre chave legada confirmada pelo hash, chave com hash incompatível e cifra feita com outra chave.
+- `tests/Feature/App/OrderControllerTest.php`: valida criação, persistência cifrada, hash e envio da chave à página React/Inertia da OS.
 
-## Validações executadas
+Não foi necessária migration. Não houve alteração de rotas, isolamento por tenant ou widget de chat.
 
-- VetorLeads: `composer validate`, `composer install --no-scripts` e `composer check-platform-reqs` passaram. O hook `post-update-cmd` do Composer não executa neste ambiente porque o Boost do projeto não está configurado; a instalação sem scripts e as verificações de plataforma passaram.
-- VetorLeads: Pint (`composer lint:check`) passou; PHPStan (`composer types:check`) passou com zero erros; ESLint, Prettier (`format:check`), TypeScript (`types:check`) e build Vite passaram.
-- VetorLeads: suíte PHP passou com 1.185 testes e 12.535 assertions usando SQLite temporário e PHP 8.4.26.
-- VetorLeads: conferidos visualmente desktop e mobile em Chromium/Firefox. Login, lista/detalhe de conversas e vínculo manual de lead foram exercitados no ambiente isolado; as capturas mobile mostram a alternância entre lista e conversa. Uma tentativa adicional de automação/captura mobile falhou ao iniciar o navegador por erro de memória/sandbox, depois das capturas visuais anteriores.
-- VetorOS: checagem TypeScript e build de produção passaram. Widget inspecionado visualmente em Chromium e Firefox, desktop e mobile; estados fechado, aberto e API indisponível foram conferidos. O envio quando a API não está configurada apresenta o estado de falha esperado. Os servidores e bancos usados eram locais e temporários.
-- O PHP 8.3 não está instalado localmente; a resolução do lockfile foi feita com `platform.php=8.3.0` e verificada no ambiente PHP 8.4.26. A matriz CI real ainda precisa confirmar 8.3.
-- Não foi possível obter links ou status CI para esta execução: `gh run list` falhou por indisponibilidade de conexão com `api.github.com`. Os workflows locais cobrem a matriz PHP 8.3/8.4/8.5, lint, análise estática, testes e build; os resultados remotos ficam pendentes de conectividade.
+## Validações
 
-## Preparação para produção
+- Cinco testes focados passaram, com 48 assertions: criação e exibição da chave; leitura resiliente; rejeição de chave legada sem hash correspondente; e acesso público com chave correta/incorreta.
+- Pint nos arquivos PHP alterados passou.
+- `npm run types` passou.
+- `npm run build` passou.
+- `git diff --check` passou.
+- A inspeção visual automatizada em Chromium/Firefox desktop/mobile foi tentada, mas os navegadores encerraram ao iniciar no sandbox. O teste Inertia confirmou que a chave chega à página; a confirmação visual em navegador permanece pendente.
+- Testes emitiram dois avisos PHPUnit preexistentes sobre metadata em doc-comments, sem falhas.
 
-Não houve acesso ao banco, proxy ou ambiente de produção. O estado real das migrações não foi consultado. As migrações existentes devem ser revisadas e aplicadas apenas no procedimento de release aprovado: VetorLeads primeiro (schema e serviço de chat), VetorOS depois (configuração/widget). Antes disso:
+## Homologação e produção
 
-1. Confirmar e guardar backup verificável dos bancos dos dois sistemas.
-2. Configurar no gerenciador de segredos os nomes usados pelo serviço: `WEB_CHAT_SERVICE_TOKEN` e `WEB_CHAT_TENANT_ID` no VetorLeads; URL interna, token e tenant do Web Chat no VetorOS, conforme `config/services.php` e `.env.example`. Não copiar segredos para arquivos versionados.
-3. Confirmar resolução do endereço interno e encaminhamento do proxy entre VetorOS e VetorLeads, incluindo autenticação e limites de requisição.
-4. Aplicar migrations na ordem indicada, validar logs e executar smoke tests de abertura de sessão, envio/recebimento, identidade do tenant, inbox e vínculo de lead.
-5. Manter plano de rollback de código e banco baseado no backup; validar compatibilidade/rollback de cada migration antes de aplicá-la.
+Os testes usaram banco SQLite temporário. Não houve acesso a banco, `.env`, proxy ou usuários de produção, nem execução de migrations ou deploy.
+
+Antes de publicar, verificar no ambiente o valor correto de `APP_KEY` e, caso ela tenha sido rotacionada, adicionar a chave anterior a `APP_PREVIOUS_KEYS` pelo mecanismo protegido de configuração. Não versionar chaves. Reabrir uma OS existente com chave conhecida, validar a página pública e confirmar que outra empresa não acessa essa OS. Depois, conferir a criação de uma OS nova, a exibição da chave no desktop/mobile e as respostas para chave inválida ou revogada. Não regenerar chaves em lote.
 
 ## Pendências
 
-- Confirmar workflows CI remotos quando GitHub estiver acessível, incluindo execução na versão PHP 8.3.
-- Conferir migrations pendentes, variáveis, proxy e smoke tests no ambiente de homologação/produção com acesso autorizado.
-- Rotacionar a credencial SMTP removida do exemplo antes de qualquer uso.
-- Produção permanece sem migrations e sem deploy.
+- Confirmar no ambiente afetado se houve rotação de `APP_KEY` e configurar a chave anterior, se disponível.
+- Fazer homologação visual em Chromium e Firefox, desktop e mobile, quando o navegador puder ser iniciado.
+- Confirmar o resultado do CI remoto e publicar somente pelo fluxo de release aprovado. Nenhuma ação de produção foi executada.
