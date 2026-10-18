@@ -35,6 +35,17 @@ class OsControllerTest extends TestCase
         $this->post(route('os.access', $order->tracking_token), ['key' => 'INVALIDA'])
             ->assertSessionHasErrors('key');
 
+        $otherTenant = Tenant::factory()->create();
+        $otherOrder = Order::factory()->forTenant($otherTenant->id)->create([
+            'customer_id' => Customer::factory()->forTenant($otherTenant->id)->create()->id,
+            'equipment_id' => Equipment::factory()->forTenant($otherTenant->id)->create()->id,
+            'public_access_key' => 'FOREIGN1',
+            'public_access_key_hash' => Hash::make('FOREIGN1'),
+        ]);
+
+        $this->post(route('os.access', $order->tracking_token), ['key' => $otherOrder->public_access_key])
+            ->assertSessionHasErrors('key');
+
         $this->post(route('os.access', $order->tracking_token), ['key' => 'abcd1234'])
             ->assertRedirect(route('os.token', $order->tracking_token));
 

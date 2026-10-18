@@ -41,7 +41,11 @@ class OrderAccessKeyResilienceTest extends TestCase
         $this->withSession(['tenant_id' => $tenant->id])->actingAs($user);
 
         $this->get(route('app.orders.index'))->assertOk();
-        $this->get(route('app.orders.show', $order))->assertOk();
+        $this->get(route('app.orders.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('app/orders/edit-order')
+                ->where('publicAccessKey', null));
         $this->assertNull($order->fresh()->public_access_key);
     }
 

@@ -1,44 +1,34 @@
-# Execução — VETOR-CHAT-06
+# Execução — VETOR-CHAT-07
 
 Data: 18/10/2026  
-Comparação: `correio.md` mudou da tarefa VETOR-CHAT-05 para VETOR-CHAT-06. Este relatório substitui integralmente o anterior.
+Comparação: `correio.md` mudou de VETOR-CHAT-06 para VETOR-CHAT-07. Este relatório substitui o anterior.
 
-## Causa encontrada
+## Diagnóstico e verificações
 
-O histórico aponta a regressão para `9c69101a`: o cast criptográfico da chave foi trocado por um accessor tolerante. Quando a descriptografia falha, o accessor retorna `null`; a interface só mostra o botão da chave quando `publicAccessKey` tem valor. Assim, a chave e o botão somem da tela, embora o hash usado para validar o acesso público possa continuar funcionando.
+- O commit `09338818` está integrado à `main`; a referência local `origin/main` aponta para `32efab29` e descende desse commit.
+- A chave é enviada à página `app/orders/edit-order` somente quando o accessor a recupera. Chaves novas são criadas em `OrderController` e gravadas cifradas, com hash separado. Chaves legadas em texto claro são aceitas pelo accessor somente se o hash salvo confere.
+- Se a chave não puder ser recuperada, a OS continua abrindo e a interface agora mostra uma mensagem administrativa genérica, sem detalhes criptográficos.
+- O acesso público valida o hash associado à própria OS. Um teste confirma que a chave de outra empresa não libera essa OS.
+- Não foi encontrada opção administrativa de regeneração individual. Nenhuma chave foi regenerada; nenhuma opção de regeneração automática foi criada.
+- O `.env.example` documenta `APP_PREVIOUS_KEYS` para suportar a descriptografia após rotação. Nenhuma `APP_KEY` ou `APP_PREVIOUS_KEYS` real foi consultada ou exposta.
 
-A descriptografia pode falhar se uma chave cifrada foi gravada com uma `APP_KEY` anterior. O projeto já aceita rotação por `APP_PREVIOUS_KEYS` em `config/app.php`, mas essa variável não estava documentada no `.env.example`. Para valores legados em texto claro, agora há fallback restrito: a chave só é devolvida quando tem oito caracteres alfanuméricos maiúsculos e confere com o hash persistido.
+## Arquivos alterados
 
-Uma chave cifrada por uma `APP_KEY` desconhecida não pode ser reconstruída a partir do hash. Nesse caso, é necessário recuperar a chave de criptografia anterior e configurá-la em `APP_PREVIOUS_KEYS`; nenhuma chave de OS foi recriada ou substituída nesta execução.
+- `resources/js/pages/app/orders/edit-order.tsx`: mensagem quando a chave não pode ser recuperada.
+- `tests/Feature/App/OrderAccessKeyResilienceTest.php`: chave não recuperável mantém a tela funcional e entrega `null` ao componente.
+- `tests/Feature/OsControllerTest.php`: chave de outra empresa não autoriza acesso à OS.
+- `executed.md`: substituído por este relatório.
 
-## Correções
+## Testes
 
-- `app/Models/App/Order.php`: recupera apenas chaves legadas em texto claro com formato válido e hash correspondente; preserva o comportamento seguro para valores cifrados por chave desconhecida.
-- `.env.example`: documenta `APP_PREVIOUS_KEYS` para rotação de `APP_KEY`.
-- `tests/Feature/App/OrderAccessKeyResilienceTest.php`: cobre chave legada confirmada pelo hash, chave com hash incompatível e cifra feita com outra chave.
-- `tests/Feature/App/OrderControllerTest.php`: valida criação, persistência cifrada, hash e envio da chave à página React/Inertia da OS.
+- Cinco testes focados passaram, com 61 assertions: chaves novas, legadas, hash divergente, cifra incompatível com a chave atual, renderização da página e validação de acesso público entre empresas.
+- `npm run types`, `npm run build`, Prettier no componente alterado e Pint nos PHP alterados passaram.
+- O build emitiu o aviso já existente de chunks acima de 500 kB.
+- ESLint direto no componente encontrou 42 erros preexistentes espalhados pelo arquivo (principalmente `no-explicit-any` e variáveis não utilizadas). Não foram introduzidas regras de supressão nesta alteração.
+- A captura visual Chromium/Firefox desktop/mobile foi tentada, mas os processos do navegador encerraram ao iniciar no sandbox. Não declaro homologação visual concluída.
 
-Não foi necessária migration. Não houve alteração de rotas, isolamento por tenant ou widget de chat.
+## Produção e pendências
 
-## Validações
+Não houve acesso ao banco ou configuração de produção, alteração de `APP_KEY`, migration nem deploy. Se a chave de uma OS estiver cifrada por uma `APP_KEY` anterior, confirmar a chave antiga pelo procedimento protegido e configurá-la em `APP_PREVIOUS_KEYS`. Se ela não existir mais, o hash não permite reconstruir a chave: é necessária decisão administrativa para eventual regeneração individual, que não existe na interface hoje.
 
-- Cinco testes focados passaram, com 48 assertions: criação e exibição da chave; leitura resiliente; rejeição de chave legada sem hash correspondente; e acesso público com chave correta/incorreta.
-- Pint nos arquivos PHP alterados passou.
-- `npm run types` passou.
-- `npm run build` passou.
-- `git diff --check` passou.
-- A inspeção visual automatizada em Chromium/Firefox desktop/mobile foi tentada, mas os navegadores encerraram ao iniciar no sandbox. O teste Inertia confirmou que a chave chega à página; a confirmação visual em navegador permanece pendente.
-- CI do commit `09338818` passou, incluindo TypeScript, testes JavaScript, build, suíte PHP e secret guard: [workflow CI 39132342514](https://github.com/brasilgb/vetoros/actions/runs/39132342514).
-- Testes emitiram dois avisos PHPUnit preexistentes sobre metadata em doc-comments, sem falhas.
-
-## Homologação e produção
-
-Os testes usaram banco SQLite temporário. Não houve acesso a banco, `.env`, proxy ou usuários de produção, nem execução de migrations ou deploy.
-
-Antes de publicar, verificar no ambiente o valor correto de `APP_KEY` e, caso ela tenha sido rotacionada, adicionar a chave anterior a `APP_PREVIOUS_KEYS` pelo mecanismo protegido de configuração. Não versionar chaves. Reabrir uma OS existente com chave conhecida, validar a página pública e confirmar que outra empresa não acessa essa OS. Depois, conferir a criação de uma OS nova, a exibição da chave no desktop/mobile e as respostas para chave inválida ou revogada. Não regenerar chaves em lote.
-
-## Pendências
-
-- Confirmar no ambiente afetado se houve rotação de `APP_KEY` e configurar a chave anterior, se disponível.
-- Fazer homologação visual em Chromium e Firefox, desktop e mobile, quando o navegador puder ser iniciado.
-- Fazer homologação visual em navegador quando Chromium/Firefox puderem ser iniciados no ambiente. Nenhuma ação de produção foi executada.
+Pendências: validar visualmente em Chromium e Firefox quando o ambiente permitir; confirmar configuração de chaves anteriores e disponibilidade de chaves em OS afetadas no ambiente alvo; decidir se será necessária uma ação administrativa auditada para regeneração individual. Nenhuma ação de produção foi executada.

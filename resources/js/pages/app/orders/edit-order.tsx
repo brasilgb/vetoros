@@ -511,6 +511,11 @@ export default function EditOrder({
                                                         </Button>
                                                     )}
                                                 </div>
+                                                {!publicAccessKey && (
+                                                    <p role="status" className="text-muted-foreground text-xs">
+                                                        Chave de acesso público indisponível. Acione o suporte para avaliar a recuperação individual.
+                                                    </p>
+                                                )}
                                                 <InputError className="mt-2" message={errors.customer_id} />
                                                 {!canChangeCustomer && (
                                                     <p className="text-muted-foreground text-xs">
