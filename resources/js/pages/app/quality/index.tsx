@@ -1,5 +1,5 @@
-import { ChartQualityTrend } from '@/components/Charts/chart-quality-trend';
 import { toastError } from '@/components/app-toast-messages';
+import { ChartQualityTrend } from '@/components/Charts/chart-quality-trend';
 import { DatePicker } from '@/components/date-picker';
 import { Icon } from '@/components/icon';
 import { SlaTooltip } from '@/components/sla-tooltip';
@@ -18,8 +18,8 @@ import { Head, Link, router } from '@inertiajs/react';
 import { isAxiosError } from 'axios';
 import { AlertTriangle, ChevronLeft, ChevronRight, ExternalLink, ShieldAlert, ShieldCheck, ShieldEllipsis, Star } from 'lucide-react';
 import moment from 'moment';
-import type { DateRange } from 'react-day-picker';
 import { useEffect, useState } from 'react';
+import type { DateRange } from 'react-day-picker';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -380,7 +380,9 @@ function WarrantyReturnsTable({ page, onPageChange }: { page?: WarrantyReturnPag
                                             <div className="text-muted-foreground text-xs">{item.equipment}</div>
                                         </TableCell>
                                         <TableCell>{item.technician}</TableCell>
-                                        <TableCell><Badge variant="outline">{item.status}</Badge></TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">{item.status}</Badge>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <Button asChild size="sm" variant="outline">
                                                 <Link href={route('app.orders.edit', item.id)}>Abrir OS</Link>
@@ -393,10 +395,20 @@ function WarrantyReturnsTable({ page, onPageChange }: { page?: WarrantyReturnPag
                         <div className="mt-4 flex items-center justify-between text-sm">
                             <span className="text-muted-foreground">{page?.total ?? 0} retorno(s)</span>
                             <div className="flex gap-2">
-                                <Button size="sm" variant="outline" disabled={(page?.current_page ?? 1) <= 1} onClick={() => onPageChange((page?.current_page ?? 1) - 1)}>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={(page?.current_page ?? 1) <= 1}
+                                    onClick={() => onPageChange((page?.current_page ?? 1) - 1)}
+                                >
                                     <ChevronLeft className="h-4 w-4" /> Anterior
                                 </Button>
-                                <Button size="sm" variant="outline" disabled={(page?.current_page ?? 1) >= (page?.last_page ?? 1)} onClick={() => onPageChange((page?.current_page ?? 1) + 1)}>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={(page?.current_page ?? 1) >= (page?.last_page ?? 1)}
+                                    onClick={() => onPageChange((page?.current_page ?? 1) + 1)}
+                                >
                                     Próxima <ChevronRight className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -470,9 +482,7 @@ function CustomerFeedbackTable({
                                                         <Star
                                                             key={rating}
                                                             className={`h-3.5 w-3.5 ${
-                                                                rating <= item.rating
-                                                                    ? 'fill-amber-400 text-amber-400'
-                                                                    : 'text-muted-foreground/30'
+                                                                rating <= item.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'
                                                             }`}
                                                         />
                                                     ))}
@@ -608,7 +618,17 @@ export default function QualityIndicators({
         };
 
         void loadMetrics();
-    }, [timeRange, dateRange, hasCustomRange, timerangeForRequests, recoveryStatusFilter, assignedToFilter, feedbackPage, feedbackPerPage, warrantyPage]);
+    }, [
+        timeRange,
+        dateRange,
+        hasCustomRange,
+        timerangeForRequests,
+        recoveryStatusFilter,
+        assignedToFilter,
+        feedbackPage,
+        feedbackPerPage,
+        warrantyPage,
+    ]);
 
     const onTimeRangeChange = (value: string) => {
         if (!value) return;
@@ -837,10 +857,7 @@ export default function QualityIndicators({
                             />
                         </div>
 
-                        <WarrantyReturnsTable
-                            page={metrics?.warranty_orders}
-                            onPageChange={setWarrantyPage}
-                        />
+                        <WarrantyReturnsTable page={metrics?.warranty_orders} onPageChange={setWarrantyPage} />
 
                         <ChartQualityTrend trend={metrics?.trend} threshold={summary?.warranty_return_threshold} />
 

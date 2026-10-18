@@ -76,7 +76,12 @@ export default function Users({ users }: any) {
                                         <TableCell>{<StatusBadge category="userStatus" value={user.status} />}</TableCell>
                                         <TableCell>{moment(user.created_at).format('DD/MM/YYYY')}</TableCell>
                                         <TableCell className="flex justify-end gap-2">
-                                            <Button asChild size="icon" className="bg-orange-500 text-white hover:bg-orange-600" title="Editar usuário">
+                                            <Button
+                                                asChild
+                                                size="icon"
+                                                className="bg-orange-500 text-white hover:bg-orange-600"
+                                                title="Editar usuário"
+                                            >
                                                 <Link href={route('admin.users.edit', user.id)}>
                                                     <Pencil className="h-4 w-4" />
                                                 </Link>

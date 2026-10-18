@@ -31,15 +31,13 @@ export default function FiscalProof({ order, company, backUrl }: any) {
                     <div className="border-b border-slate-200 bg-slate-950 px-6 py-8 text-white">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div className="space-y-2">
-                                <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Comprovante fiscal</p>
+                                <p className="text-xs tracking-[0.24em] text-slate-300 uppercase">Comprovante fiscal</p>
                                 <h1 className="text-3xl font-semibold tracking-tight">Ordem de serviço #{order?.order_number}</h1>
-                                <p className="max-w-2xl text-sm text-slate-300">
-                                    Dados do documento fiscal registrado para este atendimento.
-                                </p>
+                                <p className="max-w-2xl text-sm text-slate-300">Dados do documento fiscal registrado para este atendimento.</p>
                             </div>
 
                             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                                <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Cliente</p>
+                                <p className="text-xs tracking-[0.18em] text-slate-300 uppercase">Cliente</p>
                                 <p className="mt-2 font-medium text-white">{order?.customer?.name || '-'}</p>
                             </div>
                         </div>

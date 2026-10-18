@@ -144,9 +144,7 @@ export default function FollowUpTasks({ filters, summary, dailyAgenda, technicia
                     <Icon iconNode={ClipboardList} className="h-8 w-8" />
                     <div>
                         <h2 className="text-xl font-semibold tracking-tight">Central de pendências</h2>
-                        <p className="text-muted-foreground text-sm">
-                            Fila ativa de contatos, cobranças e tratativas que precisam de ação agora.
-                        </p>
+                        <p className="text-muted-foreground text-sm">Fila ativa de contatos, cobranças e tratativas que precisam de ação agora.</p>
                     </div>
                 </div>
             </div>

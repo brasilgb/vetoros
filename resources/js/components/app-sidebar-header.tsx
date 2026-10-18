@@ -41,10 +41,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
 
             toast.message('Nova mensagem interna', {
                 id: 'vetoros:internal-messages:unread',
-                description:
-                    unreadMessages === 1
-                        ? 'Você tem 1 mensagem não lida.'
-                        : `Você tem ${unreadMessages} mensagens não lidas.`,
+                description: unreadMessages === 1 ? 'Você tem 1 mensagem não lida.' : `Você tem ${unreadMessages} mensagens não lidas.`,
                 duration: 9000,
                 action: {
                     label: 'Abrir',
@@ -88,7 +85,11 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
             <div className="flex min-w-0 shrink-0 items-center gap-2">
                 {auth.user.tenant_id !== null && <HelpSearch />}
 
-                {auth.user.tenant_id !== null && auth.role !== 'technician' && orderStatus.length > 0 ? <BudgetsApproved count={orderStatus.length} /> : ''}
+                {auth.user.tenant_id !== null && auth.role !== 'technician' && orderStatus.length > 0 ? (
+                    <BudgetsApproved count={orderStatus.length} />
+                ) : (
+                    ''
+                )}
 
                 {auth.user.tenant_id !== null && (
                     <Button variant="ghost" size="icon" asChild className="relative">
@@ -113,7 +114,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                             </Avatar>
                             <span
                                 aria-hidden="true"
-                                className="bg-popover invisible pointer-events-none absolute top-1/2 right-full z-50 mr-2 -translate-y-1/2 rounded-lg border p-2 opacity-0 shadow-lg transition-opacity group-hover/avatar:visible group-hover/avatar:opacity-100 group-focus-visible/avatar:visible group-focus-visible/avatar:opacity-100"
+                                className="bg-popover pointer-events-none invisible absolute top-1/2 right-full z-50 mr-2 -translate-y-1/2 rounded-lg border p-2 opacity-0 shadow-lg transition-opacity group-hover/avatar:visible group-hover/avatar:opacity-100 group-focus-visible/avatar:visible group-focus-visible/avatar:opacity-100"
                             >
                                 <Avatar className="size-24 overflow-hidden rounded-lg">
                                     <AvatarImage src={auth.user.avatar} alt="" className="object-cover" />

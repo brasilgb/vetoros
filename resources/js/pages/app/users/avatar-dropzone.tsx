@@ -105,9 +105,7 @@ export default function AvatarDropzone({ file, name, existingUrl, error, onChang
 
                 <div className="min-w-0 flex-1">
                     <UploadCloud className="text-muted-foreground mb-2 h-6 w-6" />
-                    <p className="text-sm font-medium">
-                        {isDragging ? 'Solte a imagem aqui' : 'Arraste a imagem aqui ou clique para selecionar'}
-                    </p>
+                    <p className="text-sm font-medium">{isDragging ? 'Solte a imagem aqui' : 'Arraste a imagem aqui ou clique para selecionar'}</p>
                     <p className="text-muted-foreground mt-1 text-xs">JPG, PNG ou WebP até 2 MB.</p>
                     {file && <p className="text-muted-foreground mt-2 truncate text-xs">{file.name}</p>}
                 </div>

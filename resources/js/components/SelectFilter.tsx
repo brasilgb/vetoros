@@ -25,8 +25,7 @@ export default function SelectFilter({ dataStatus, specialFilters = [], url, noO
     const selectedValue = filter ? `filter:${filter}` : status ? `status:${status}` : undefined;
     const specialFilterLabel = specialFilters.find((item) => `${item.param ?? 'filter'}:${item.value}` === selectedValue)?.label;
     const statusLabel = dataStatus.find((item) => `status:${String(item.value)}` === selectedValue)?.label;
-    const selectedLabel =
-        (!search && !filter && !status && 'Opções de filtro') || specialFilterLabel || statusLabel || 'Opções de filtro';
+    const selectedLabel = (!search && !filter && !status && 'Opções de filtro') || specialFilterLabel || statusLabel || 'Opções de filtro';
 
     function handleSubmit(value: string) {
         const [type, selected] = value.split(':');

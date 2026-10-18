@@ -110,8 +110,7 @@ export default function CashierPeriodReportPDF({ data, dateRange, company, repor
                         <View key={method} style={styles.tableRow}>
                             <Text style={styles.colName}>{paymentMethodLabels[method]}</Text>
                             <Text style={styles.colMoney}>
-                                {currencyFormatter(Number(salesByMethod[method] || 0))} (
-                                {asPercent(Number(salesByMethod[method] || 0), salesTotal)})
+                                {currencyFormatter(Number(salesByMethod[method] || 0))} ({asPercent(Number(salesByMethod[method] || 0), salesTotal)})
                             </Text>
                             <Text style={styles.colMoney}>
                                 {currencyFormatter(Number(orderPaymentsByMethod[method] || 0))} (

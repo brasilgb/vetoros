@@ -1,3 +1,4 @@
+import InputError from '@/components/input-error';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -9,7 +10,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from '@inertiajs/react';

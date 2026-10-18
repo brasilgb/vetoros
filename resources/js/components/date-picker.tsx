@@ -87,7 +87,7 @@ export function DatePicker({ date, setDate, mode = 'range' }: DatePickerProps) {
                 ? range.to
                     ? `${moment(range.from).format('DD/MM/YYYY')} - ${moment(range.to).format('DD/MM/YYYY')}`
                     : moment(range.from).format('DD/MM/YYYY')
-                : "Selecione o intervalo";
+                : 'Selecione o intervalo';
         }
         const single = parsedDate as Date | undefined;
         return single ? moment(single).format('DD/MM/YYYY') : 'Selecione a data';

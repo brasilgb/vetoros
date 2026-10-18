@@ -160,7 +160,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
 
             <div className="space-y-4 p-4">
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.75fr)]">
-                    <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+                    <div className="bg-card rounded-3xl border p-5 shadow-sm sm:p-6">
                         <div className="space-y-2">
                             <h3 className="text-lg font-semibold">Envie uma sugestão para o VetorOS</h3>
                             <p className="text-muted-foreground text-sm">
@@ -175,7 +175,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                     id="request_type"
                                     value={requestForm.data.request_type}
                                     onChange={(event) => requestForm.setData('request_type', event.target.value)}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                                 >
                                     <option value="improvement">Melhoria</option>
                                     <option value="adjustment">Ajuste</option>
@@ -190,7 +190,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                         id="title"
                                         value={requestForm.data.title}
                                         onChange={(event) => requestForm.setData('title', event.target.value)}
-                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                                         placeholder="Ex.: Melhorar o acompanhamento de ordens"
                                     />
                                     {requestForm.errors.title ? <p className="text-sm text-red-500">{requestForm.errors.title}</p> : null}
@@ -203,7 +203,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                         rows={5}
                                         value={requestForm.data.description}
                                         onChange={(event) => requestForm.setData('description', event.target.value)}
-                                        className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                                         placeholder="Descreva o que precisa ser ajustado ou a melhoria que faria diferença na sua rotina."
                                     />
                                     {requestForm.errors.description ? <p className="text-sm text-red-500">{requestForm.errors.description}</p> : null}
@@ -218,7 +218,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                         </form>
                     </div>
 
-                    <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+                    <div className="bg-card rounded-3xl border p-5 shadow-sm sm:p-6">
                         <div className="flex items-start gap-3">
                             <Icon iconNode={MessageSquareQuote} className="mt-0.5 h-5 w-5" />
                             <div className="space-y-2">
@@ -254,7 +254,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                     })}
                                 </div>
                                 {feedbackForm.data.rating > 0 ? (
-                                    <p className="mt-2 text-sm text-muted-foreground">{feedbackLabel(feedbackForm.data.rating)}</p>
+                                    <p className="text-muted-foreground mt-2 text-sm">{feedbackLabel(feedbackForm.data.rating)}</p>
                                 ) : null}
                                 {feedbackForm.errors.rating ? <p className="mt-2 text-sm text-red-500">{feedbackForm.errors.rating}</p> : null}
                             </div>
@@ -266,21 +266,21 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                     rows={4}
                                     value={feedbackForm.data.comment}
                                     onChange={(event) => feedbackForm.setData('comment', event.target.value)}
-                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                                     placeholder="Conte como está sua experiência com a plataforma."
                                 />
-                                <p className="text-right text-xs text-muted-foreground">{feedbackForm.data.comment.length}/500</p>
+                                <p className="text-muted-foreground text-right text-xs">{feedbackForm.data.comment.length}/500</p>
                                 {feedbackForm.errors.comment ? <p className="text-sm text-red-500">{feedbackForm.errors.comment}</p> : null}
                             </div>
 
                             {feedbackForm.data.rating >= 4 ? (
-                                <div className="rounded-2xl border bg-muted/25 p-4">
+                                <div className="bg-muted/25 rounded-2xl border p-4">
                                     <label className="flex items-start gap-3 text-sm leading-relaxed">
                                         <input
                                             type="checkbox"
                                             checked={feedbackForm.data.allow_testimonial}
                                             onChange={(event) => feedbackForm.setData('allow_testimonial', event.target.checked)}
-                                            className="mt-1 h-4 w-4 rounded border-input"
+                                            className="border-input mt-1 h-4 w-4 rounded"
                                         />
                                         <span>Autorizo que minha avaliação seja analisada para possível uso como testemunho público do VetorOS.</span>
                                     </label>
@@ -293,7 +293,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                                     id="testimonial_public_name"
                                                     value={feedbackForm.data.testimonial_public_name}
                                                     onChange={(event) => feedbackForm.setData('testimonial_public_name', event.target.value)}
-                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                    className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                                                     placeholder="Ex.: Anderson"
                                                 />
                                             </div>
@@ -304,7 +304,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                                     id="testimonial_public_role"
                                                     value={feedbackForm.data.testimonial_public_role}
                                                     onChange={(event) => feedbackForm.setData('testimonial_public_role', event.target.value)}
-                                                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                    className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                                                     placeholder="Ex.: Proprietário"
                                                 />
                                             </div>
@@ -322,7 +322,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                     </div>
                 </div>
 
-                <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+                <div className="bg-card rounded-3xl border p-5 shadow-sm sm:p-6">
                     <div className="space-y-2">
                         <h3 className="text-lg font-semibold">Avaliações recentes</h3>
                         <p className="text-muted-foreground text-sm">Veja os últimos registros enviados pela sua empresa.</p>
@@ -331,7 +331,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                     <div className="mt-6 grid gap-3 lg:grid-cols-2">
                         {feedbacks?.length ? (
                             feedbacks.map((feedback: any) => (
-                                <div key={feedback.id} className="rounded-2xl border bg-background/60 p-4">
+                                <div key={feedback.id} className="bg-background/60 rounded-2xl border p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <div className="flex items-center gap-1 text-amber-600">
                                             {[1, 2, 3, 4, 5].map((rating) => (
@@ -340,23 +340,25 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                                     className={`h-4 w-4 ${rating <= feedback.feedback_rating ? 'fill-current' : 'text-muted-foreground/35'}`}
                                                 />
                                             ))}
-                                            <span className="ml-2 text-sm font-medium text-foreground">
+                                            <span className="text-foreground ml-2 text-sm font-medium">
                                                 {feedbackLabel(Number(feedback.feedback_rating ?? 0))}
                                             </span>
                                         </div>
-                                        <span className="text-xs text-muted-foreground">{formatDateTime(feedback.feedback_submitted_at)}</span>
+                                        <span className="text-muted-foreground text-xs">{formatDateTime(feedback.feedback_submitted_at)}</span>
                                     </div>
 
                                     {feedback.feedback_comment ? (
-                                        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{feedback.feedback_comment}</p>
+                                        <p className="text-muted-foreground mt-3 text-sm leading-relaxed">{feedback.feedback_comment}</p>
                                     ) : (
-                                        <p className="mt-3 text-sm text-muted-foreground">Avaliação enviada sem comentário.</p>
+                                        <p className="text-muted-foreground mt-3 text-sm">Avaliação enviada sem comentário.</p>
                                     )}
 
                                     {feedback.testimonial_consent_at ? (
-                                        <div className="mt-3 rounded-xl border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
+                                        <div className="bg-muted/25 text-muted-foreground mt-3 rounded-xl border px-3 py-2 text-xs">
                                             Testemunho autorizado
-                                            {testimonialStatusLabel(feedback.testimonial_status) ? `: ${testimonialStatusLabel(feedback.testimonial_status)}` : ''}
+                                            {testimonialStatusLabel(feedback.testimonial_status)
+                                                ? `: ${testimonialStatusLabel(feedback.testimonial_status)}`
+                                                : ''}
                                         </div>
                                     ) : null}
                                 </div>
@@ -367,7 +369,7 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                     </div>
                 </div>
 
-                <div className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+                <div className="bg-card rounded-3xl border p-5 shadow-sm sm:p-6">
                     <div className="space-y-2">
                         <h3 className="text-lg font-semibold">Solicitações enviadas</h3>
                         <p className="text-muted-foreground text-sm">Acompanhe as solicitações recentes registradas pela sua empresa.</p>
@@ -379,42 +381,49 @@ export default function TenantImprovementRequestsIndex({ requests, feedbacks, re
                                 const sla = slaInfo(request);
 
                                 return (
-                                <div key={request.id} className="rounded-3xl border bg-background/60 p-5">
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                            <div className="flex flex-wrap gap-2 pb-2">
-                                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClass(request.request_type)}`}>
-                                                    {typeLabel(request.request_type)}
-                                                </span>
-                                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(request.status)}`}>
-                                                    {statusLabel(request.status)}
-                                                </span>
-                                                {sla ? (
-                                                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${sla.className}`}>
-                                                        <SlaTooltip>{sla.label}</SlaTooltip>
+                                    <div key={request.id} className="bg-background/60 rounded-3xl border p-5">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <div className="flex flex-wrap gap-2 pb-2">
+                                                    <span
+                                                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClass(request.request_type)}`}
+                                                    >
+                                                        {typeLabel(request.request_type)}
                                                     </span>
-                                                ) : null}
+                                                    <span
+                                                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(request.status)}`}
+                                                    >
+                                                        {statusLabel(request.status)}
+                                                    </span>
+                                                    {sla ? (
+                                                        <span
+                                                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${sla.className}`}
+                                                        >
+                                                            <SlaTooltip>{sla.label}</SlaTooltip>
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                <p className="font-medium">{request.title}</p>
                                             </div>
-                                            <p className="font-medium">{request.title}</p>
+                                            <span className="text-muted-foreground rounded-full border px-2.5 py-1 text-xs">
+                                                {new Date(request.created_at).toLocaleDateString('pt-BR')}
+                                            </span>
                                         </div>
-                                        <span className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground">
-                                            {new Date(request.created_at).toLocaleDateString('pt-BR')}
-                                        </span>
-                                    </div>
-                                    <p className="mt-4 text-sm leading-relaxed">{request.description}</p>
-                                    <div className="mt-4 grid gap-2 rounded-2xl border bg-muted/25 p-3 text-xs text-muted-foreground sm:grid-cols-3">
-                                        <span>Enviada em: {formatDateTime(request.created_at)}</span>
-                                        <span>Última atualização: {formatDateTime(request.updated_at)}</span>
-                                        {request.reviewed_at ? <span>Respondida em: {formatDateTime(request.reviewed_at)}</span> : null}
-                                    </div>
-                                    {request.admin_notes ? (
-                                        <div className="mt-4 rounded-2xl border bg-muted/40 p-4 text-sm">
-                                            <strong className="block">Resposta da equipe</strong>
-                                            <span className="mt-1 block leading-relaxed">{request.admin_notes}</span>
+                                        <p className="mt-4 text-sm leading-relaxed">{request.description}</p>
+                                        <div className="bg-muted/25 text-muted-foreground mt-4 grid gap-2 rounded-2xl border p-3 text-xs sm:grid-cols-3">
+                                            <span>Enviada em: {formatDateTime(request.created_at)}</span>
+                                            <span>Última atualização: {formatDateTime(request.updated_at)}</span>
+                                            {request.reviewed_at ? <span>Respondida em: {formatDateTime(request.reviewed_at)}</span> : null}
                                         </div>
-                                    ) : null}
-                                </div>
-                            )})
+                                        {request.admin_notes ? (
+                                            <div className="bg-muted/40 mt-4 rounded-2xl border p-4 text-sm">
+                                                <strong className="block">Resposta da equipe</strong>
+                                                <span className="mt-1 block leading-relaxed">{request.admin_notes}</span>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                );
+                            })
                         ) : (
                             <p className="text-muted-foreground text-sm">Nenhuma solicitação registrada até o momento.</p>
                         )}

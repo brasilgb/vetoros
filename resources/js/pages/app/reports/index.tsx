@@ -5,8 +5,8 @@ import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, usePage, useRemember } from '@inertiajs/react';
 import { FileTextIcon } from 'lucide-react';
-import CustomersReport from './customers-report';
 import CashierReport from './cashier-report';
+import CustomersReport from './customers-report';
 import ExpensesReport from './expenses-report';
 import FiscalReport from './fiscal-report';
 import OrdersStatistics from './order-statistics';
@@ -31,10 +31,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Reports() {
     const { company, auth, othersetting, fiscalSetting } = usePage().props as any;
-    const [dateRange, setDateRange] = useRemember<any>({
-        from: new Date(),
-        to: new Date(),
-    }, 'reports-date-range');
+    const [dateRange, setDateRange] = useRemember<any>(
+        {
+            from: new Date(),
+            to: new Date(),
+        },
+        'reports-date-range',
+    );
     const permissions = auth?.permissions ?? [];
     const canViewOrders = permissions.includes('orders');
     const canViewCustomers = permissions.includes('customers');
@@ -51,7 +54,8 @@ export default function Reports() {
     const hasFinancialReports = canViewExpenses || canViewCashier;
     const hasFiscalReports = canViewFiscal;
     const hasManagementReports = canViewQuality;
-    const hasAnyReport = hasOperationalReports || hasStockReports || hasCommercialReports || hasFinancialReports || hasFiscalReports || hasManagementReports;
+    const hasAnyReport =
+        hasOperationalReports || hasStockReports || hasCommercialReports || hasFinancialReports || hasFiscalReports || hasManagementReports;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

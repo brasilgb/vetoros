@@ -1,41 +1,48 @@
-# Relatório de execução — VETOR-PUBLISH-01
+# Execução — VETOR-CHAT-05
 
-## Comparação
+Data: 18/10/2026  
+Escopo comparado: `correio.md` mudou da tarefa STABILIZE-03 para VETOR-CHAT-05. Esta execução substitui integralmente o relatório anterior.
 
-O `correio.md` atual difere da versão anterior, `VETOR-STABILIZE-03`. A nova ordem consolida entregas de VetorOS e VetorLeads, solicita testes e publicação no GitHub, atualização do procedimento de implantação e confirmação do CI. Proíbe acesso à VPS, deploy, migrations em produção, reinício de containers e mudanças de infraestrutura.
+## Resultado
 
-## Entregas consolidadas
+As correções locais de estabilização foram aplicadas nos repositórios VetorLeads e VetorOS. Nenhuma migração ou publicação em produção foi executada.
 
-- **VetorOS — dashboards:** validação de payloads, estados de carregamento/erro/sem dados, opção de nova tentativa e preservação dos cálculos existentes.
-- **VetorOS — SMTP institucional:** configuração Laravel por `ABRASIL_MAIL_*`, separada do SMTP de cada tenant. A inspeção do `docker-compose.yml` do infra-abrasil confirmou que os valores vêm do ambiente protegido da VPS; `.env.example` documenta as chaves e mantém a senha vazia. Nenhuma credencial foi lida ou versionada.
-- **VetorOS — Modo Suporte:** RootAdmin reautenticado, motivo obrigatório, sessão vinculada ao tenant no banco, expiração, isolamento, encerramento e trilha de ações. Escritas permitidas ficam em allowlist; operações críticas são bloqueadas.
-- **VetorOS — contato e landing:** WhatsApp oficial configurável, CTAs conectados ao canal, cópia de fallback removida do frontend e hero com imagem de manutenção de celulares, PCs, notebooks e eletrônicos.
-- **VetorLeads — WAHA:** número e sessão configurados individualmente por empresa, reaproveitados nos envios e na conexão; o contato institucional do site permanece separado do remetente dos tenants. Os fluxos existentes de conversa foram preservados, sem expandir o escopo para um chat novo.
-- **VetorLeads — landing:** hero atualizado com imagem profissional de equipe de software, otimizada para WebP (87 KB). O telefone dos dados estruturados agora usa o contato configurado.
-- **Procedimento de publicação:** `README.md` lista as migrations relacionadas ao suporte e ao canal comercial. `docs/production-checklist.md` agora exige conferência das migrations e configuração de SMTP no ambiente protegido.
+### VetorLeads
 
-## Validação local
+- Fixado o PHP da plataforma Composer em 8.3 para resolver o lockfile de acordo com `php:^8.3`. Dependências Symfony incompatíveis foram atualizadas para a linha 7.4; o lockfile continua compatível com o requisito declarado. Foram adicionados scripts de lint e análise estática que os workflows já invocavam.
+- ESLint agora ignora somente `public-old/build/**`, os artefatos antigos gerados. Regras não foram desativadas. Erros preexistentes encontrados nos fontes mantidos foram corrigidos.
+- Prettier foi alinhado a largura de 80 colunas e aplicado aos fontes.
+- PHPStan/Larastan: corrigidos 88 problemas preexistentes, incluindo tipos de requests, relações e datas; um argumento indevido na consulta de prospecção; e configuração do seeder. Resultado final: zero erros, sem baseline ou supressões.
+- Removido do `.env.example` um valor de senha SMTP que estava preenchido. A credencial já esteve no histórico Git e precisa ser rotacionada antes do uso operacional.
+- Inbox do chat ganhou navegação responsiva: em telas estreitas alterna entre lista e conversa e permite voltar à lista; o vínculo manual com lead e o acesso ao lead associado continuam disponíveis.
 
-- **VetorOS:** suíte PHP completa — 803 testes e 5.601 asserções aprovados; 4 testes JS; TypeScript; ESLint e Prettier na superfície alterada; Pint; build Vite; `secret-guard` em 1.216 arquivos versionados, sem achados.
-- **VetorLeads:** suíte PHP completa — 1.180 testes e 12.507 asserções aprovados; TypeScript; ESLint direcionado às telas WAHA, contatos e páginas públicas; build Vite. O build final inclui a nova imagem WebP.
-- `git diff --check` passou para as alterações desta execução. Os artefatos temporários de `public/build` foram removidos depois das validações.
-- O lint global do VetorOS aponta 485 erros e 14 avisos em arquivos fora da superfície alterada. O lint global do VetorLeads termina com 223 erros em outras áreas; sem excluir bundles antigos, a execução encerrou por falta de memória. Os arquivos diretamente relacionados a esta entrega passaram na checagem direcionada.
-- O VetorOS tem uma migration para sessões de suporte e outra para o canal comercial: `2026_10_17_200000_create_support_sessions_table` e `2026_10_17_210000_add_commercial_whatsapp_settings`. Elas foram testadas localmente e devem ser aplicadas somente em uma futura publicação autorizada, após backup.
-- A configuração SMTP foi validada pelos testes de configuração e isolamento. Não foi feito envio para destinatários reais.
+### VetorOS
 
-## Limitações de validação
+- Corrigido o alinhamento do botão do widget e o conflito visual mobile com os controles de consentimento de cookies. O painel aberto também respeita a altura disponível em telas pequenas.
 
-- Chromium não está instalado. Firefox está instalado, mas o servidor local não conseguiu abrir a porta de loopback neste ambiente; por isso não foi possível completar uma inspeção visual automatizada nos navegadores nem confirmar screenshots desktop/mobile.
-- Há workflow de CI nos dois projetos, mas o estado remoto não pôde ser consultado: `gh auth status` reporta token inválido e a sessão não resolveu `github.com`. Os resultados abaixo confirmam os pushes, não o estado do CI.
-- O VetorLeads não contém o script `scripts/security/secret-guard.php`; os testes de segurança da suíte passaram, e esta execução não introduziu credenciais.
+## Validações executadas
 
-## Commits, branches e publicação
+- VetorLeads: `composer validate`, `composer install --no-scripts` e `composer check-platform-reqs` passaram. O hook `post-update-cmd` do Composer não executa neste ambiente porque o Boost do projeto não está configurado; a instalação sem scripts e as verificações de plataforma passaram.
+- VetorLeads: Pint (`composer lint:check`) passou; PHPStan (`composer types:check`) passou com zero erros; ESLint, Prettier (`format:check`), TypeScript (`types:check`) e build Vite passaram.
+- VetorLeads: suíte PHP passou com 1.185 testes e 12.535 assertions usando SQLite temporário e PHP 8.4.26.
+- VetorLeads: conferidos visualmente desktop e mobile em Chromium/Firefox. Login, lista/detalhe de conversas e vínculo manual de lead foram exercitados no ambiente isolado; as capturas mobile mostram a alternância entre lista e conversa. Uma tentativa adicional de automação/captura mobile falhou ao iniciar o navegador por erro de memória/sandbox, depois das capturas visuais anteriores.
+- VetorOS: checagem TypeScript e build de produção passaram. Widget inspecionado visualmente em Chromium e Firefox, desktop e mobile; estados fechado, aberto e API indisponível foram conferidos. O envio quando a API não está configurada apresenta o estado de falha esperado. Os servidores e bancos usados eram locais e temporários.
+- O PHP 8.3 não está instalado localmente; a resolução do lockfile foi feita com `platform.php=8.3.0` e verificada no ambiente PHP 8.4.26. A matriz CI real ainda precisa confirmar 8.3.
+- Não foi possível obter links ou status CI para esta execução: `gh run list` falhou por indisponibilidade de conexão com `api.github.com`. Os workflows locais cobrem a matriz PHP 8.3/8.4/8.5, lint, análise estática, testes e build; os resultados remotos ficam pendentes de conectividade.
 
-- **VetorOS — `main`:** suporte/SMTP/dashboards `1bd11b0c`; WhatsApp e landing VetorOS `03591fb8`. Ambos já estão incluídos no histórico publicado da branch.
-- **VetorLeads — `main`:** configuração WAHA por tenant `8190eb2`; contato comercial `d7c3892`; ajustes desta execução e hero WebP `da7cd21` — push confirmado.
-- **VetorOS — documentação e relatório:** commit `3fc9bab6` na branch `main`; push confirmado.
-- Nenhum deploy, acesso à VPS, migration em produção, reinício de container ou alteração de infraestrutura foi realizado.
+## Preparação para produção
 
-## Preservação de alterações preexistentes
+Não houve acesso ao banco, proxy ou ambiente de produção. O estado real das migrações não foi consultado. As migrações existentes devem ser revisadas e aplicadas apenas no procedimento de release aprovado: VetorLeads primeiro (schema e serviço de chat), VetorOS depois (configuração/widget). Antes disso:
 
-As alterações preexistentes em `correio.md` foram mantidas fora dos commits. O `composer.lock` modificado no VetorLeads também foi preservado sem inclusão. Nenhum ponteiro de submódulo ou arquivo de outro projeto foi alterado.
+1. Confirmar e guardar backup verificável dos bancos dos dois sistemas.
+2. Configurar no gerenciador de segredos os nomes usados pelo serviço: `WEB_CHAT_SERVICE_TOKEN` e `WEB_CHAT_TENANT_ID` no VetorLeads; URL interna, token e tenant do Web Chat no VetorOS, conforme `config/services.php` e `.env.example`. Não copiar segredos para arquivos versionados.
+3. Confirmar resolução do endereço interno e encaminhamento do proxy entre VetorOS e VetorLeads, incluindo autenticação e limites de requisição.
+4. Aplicar migrations na ordem indicada, validar logs e executar smoke tests de abertura de sessão, envio/recebimento, identidade do tenant, inbox e vínculo de lead.
+5. Manter plano de rollback de código e banco baseado no backup; validar compatibilidade/rollback de cada migration antes de aplicá-la.
+
+## Pendências
+
+- Confirmar workflows CI remotos quando GitHub estiver acessível, incluindo execução na versão PHP 8.3.
+- Conferir migrations pendentes, variáveis, proxy e smoke tests no ambiente de homologação/produção com acesso autorizado.
+- Rotacionar a credencial SMTP removida do exemplo antes de qualquer uso.
+- Produção permanece sem migrations e sem deploy.

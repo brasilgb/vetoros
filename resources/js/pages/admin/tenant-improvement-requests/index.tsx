@@ -8,7 +8,7 @@ import AdminLayout from '@/layouts/admin/admin-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ChevronRight, Lightbulb } from 'lucide-react';
-import { Fragment, useEffect, type FormEvent, useState } from 'react';
+import { Fragment, useEffect, useState, type FormEvent } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -109,11 +109,11 @@ function RequestForm({ request, statuses }: any) {
     };
 
     return (
-        <form onSubmit={submit} className="space-y-3 rounded-2xl border bg-muted/20 p-4">
+        <form onSubmit={submit} className="bg-muted/20 space-y-3 rounded-2xl border p-4">
             <select
                 value={form.data.status}
                 onChange={(event) => form.setData('status', event.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
             >
                 {statuses.map((status: string) => (
                     <option key={status} value={status}>
@@ -126,7 +126,7 @@ function RequestForm({ request, statuses }: any) {
                 rows={4}
                 value={form.data.admin_notes}
                 onChange={(event) => form.setData('admin_notes', event.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
                 placeholder="Resposta enviada ao cliente"
             />
 
@@ -194,37 +194,37 @@ export default function TenantImprovementRequestsIndex({ requests, filters, summ
 
             <div className="space-y-4 p-4">
                 <div className="grid gap-4 md:grid-cols-4">
-                    <div className="rounded-2xl border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Total</p>
+                    <div className="bg-card rounded-2xl border p-4">
+                        <p className="text-muted-foreground text-sm">Total</p>
                         <p className="mt-2 text-2xl font-semibold">{summary?.total ?? 0}</p>
                     </div>
-                    <div className="rounded-2xl border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Novas</p>
+                    <div className="bg-card rounded-2xl border p-4">
+                        <p className="text-muted-foreground text-sm">Novas</p>
                         <p className="mt-2 text-2xl font-semibold">{summary?.new ?? 0}</p>
                     </div>
-                    <div className="rounded-2xl border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Em análise</p>
+                    <div className="bg-card rounded-2xl border p-4">
+                        <p className="text-muted-foreground text-sm">Em análise</p>
                         <p className="mt-2 text-2xl font-semibold">{summary?.reviewing ?? 0}</p>
                     </div>
-                    <div className="rounded-2xl border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Ajustando</p>
+                    <div className="bg-card rounded-2xl border p-4">
+                        <p className="text-muted-foreground text-sm">Ajustando</p>
                         <p className="mt-2 text-2xl font-semibold">{summary?.adjusting ?? 0}</p>
                     </div>
                 </div>
 
-                <div className="rounded-2xl border bg-card p-4">
+                <div className="bg-card rounded-2xl border p-4">
                     <form onSubmit={submitFilters} className="grid gap-3 lg:grid-cols-4">
                         <input
                             type="text"
                             value={filterForm.data.search}
                             onChange={(event) => filterForm.setData('search', event.target.value)}
                             placeholder="Buscar empresa ou título"
-                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                         />
                         <select
                             value={filterForm.data.status}
                             onChange={(event) => filterForm.setData('status', event.target.value)}
-                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                         >
                             <option value="">Todos os status</option>
                             <option value="new">Novo</option>
@@ -235,7 +235,7 @@ export default function TenantImprovementRequestsIndex({ requests, filters, summ
                         <select
                             value={filterForm.data.type}
                             onChange={(event) => filterForm.setData('type', event.target.value)}
-                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            className="border-input bg-background rounded-md border px-3 py-2 text-sm"
                         >
                             <option value="">Todos os tipos</option>
                             <option value="improvement">Melhoria</option>
@@ -247,11 +247,11 @@ export default function TenantImprovementRequestsIndex({ requests, filters, summ
                     </form>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border bg-card">
+                <div className="bg-card overflow-hidden rounded-2xl border">
                     {requests?.data?.length ? (
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
-                                <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                                <thead className="bg-muted/40 text-muted-foreground text-left text-xs tracking-wide uppercase">
                                     <tr>
                                         <th className="w-12 px-4 py-3 font-medium"></th>
                                         <th className="px-4 py-3 font-medium">Solicitação</th>
@@ -272,66 +272,82 @@ export default function TenantImprovementRequestsIndex({ requests, filters, summ
                                         return (
                                             <Fragment key={request.id}>
                                                 <tr
-                                                    className={`cursor-pointer border-t transition-colors hover:bg-muted/30 ${isSelected ? 'bg-muted/20' : ''}`}
+                                                    className={`hover:bg-muted/30 cursor-pointer border-t transition-colors ${isSelected ? 'bg-muted/20' : ''}`}
                                                     onClick={() => setSelectedRequestId((current) => (current === request.id ? null : request.id))}
                                                 >
                                                     <td className="px-4 py-3">
-                                                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border bg-background text-muted-foreground">
-                                                            <ChevronRight className={`h-4 w-4 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                                                        <span className="bg-background text-muted-foreground inline-flex h-8 w-8 items-center justify-center rounded-full border">
+                                                            <ChevronRight
+                                                                className={`h-4 w-4 transition-transform ${isSelected ? 'rotate-90' : ''}`}
+                                                            />
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="space-y-1">
                                                             <p className="font-medium">{request.title}</p>
-                                                            <p className="line-clamp-1 text-xs text-muted-foreground">{request.description}</p>
+                                                            <p className="text-muted-foreground line-clamp-1 text-xs">{request.description}</p>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">{request.tenant?.company || request.tenant?.name}</td>
+                                                    <td className="text-muted-foreground px-4 py-3">
+                                                        {request.tenant?.company || request.tenant?.name}
+                                                    </td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClass(request.request_type)}`}>
+                                                        <span
+                                                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClass(request.request_type)}`}
+                                                        >
                                                             {typeLabel(request.request_type)}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(request.status)}`}>
+                                                        <span
+                                                            className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(request.status)}`}
+                                                        >
                                                             {statusLabel(request.status)}
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         {sla ? (
-                                                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${sla.className}`}>
+                                                            <span
+                                                                className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${sla.className}`}
+                                                            >
                                                                 <SlaTooltip>{sla.label}</SlaTooltip>
                                                             </span>
                                                         ) : (
-                                                            <span className="text-xs text-muted-foreground">
+                                                            <span className="text-muted-foreground text-xs">
                                                                 <SlaTooltip>Sem SLA</SlaTooltip>
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">
+                                                    <td className="text-muted-foreground px-4 py-3">
                                                         {new Date(request.created_at).toLocaleDateString('pt-BR')}
                                                     </td>
                                                 </tr>
 
                                                 {isSelected ? (
-                                                    <tr className="border-t bg-background/70">
+                                                    <tr className="bg-background/70 border-t">
                                                         <td colSpan={7} className="px-4 py-4">
                                                             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_360px]">
                                                                 <div className="space-y-4">
-                                                                    <div className="rounded-2xl border bg-muted/20 p-4">
+                                                                    <div className="bg-muted/20 rounded-2xl border p-4">
                                                                         <p className="text-sm leading-relaxed">{request.description}</p>
                                                                     </div>
 
-                                                                    <div className="grid gap-3 rounded-2xl border bg-muted/20 p-4 text-xs text-muted-foreground md:grid-cols-3">
+                                                                    <div className="bg-muted/20 text-muted-foreground grid gap-3 rounded-2xl border p-4 text-xs md:grid-cols-3">
                                                                         <span>Enviada em: {formatDateTime(request.created_at)}</span>
                                                                         <span>Última atualização: {formatDateTime(request.updated_at)}</span>
-                                                                        <span>Respondida em: {request.reviewed_at ? formatDateTime(request.reviewed_at) : '-'}</span>
+                                                                        <span>
+                                                                            Respondida em:{' '}
+                                                                            {request.reviewed_at ? formatDateTime(request.reviewed_at) : '-'}
+                                                                        </span>
                                                                     </div>
 
-                                                                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                                                    <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
                                                                         <span>Solicitante: {request.user?.name || 'Usuário não identificado'}</span>
                                                                         <a
-                                                                            href={route('admin.tenant-improvement-requests.preview-admin-email', request.id)}
+                                                                            href={route(
+                                                                                'admin.tenant-improvement-requests.preview-admin-email',
+                                                                                request.id,
+                                                                            )}
                                                                             target="_blank"
                                                                             rel="noreferrer"
                                                                             className="font-medium text-sky-700 underline underline-offset-4"
@@ -339,7 +355,10 @@ export default function TenantImprovementRequestsIndex({ requests, filters, summ
                                                                             Preview e-mail admin
                                                                         </a>
                                                                         <a
-                                                                            href={route('admin.tenant-improvement-requests.preview-customer-email', request.id)}
+                                                                            href={route(
+                                                                                'admin.tenant-improvement-requests.preview-customer-email',
+                                                                                request.id,
+                                                                            )}
                                                                             target="_blank"
                                                                             rel="noreferrer"
                                                                             className="font-medium text-sky-700 underline underline-offset-4"
@@ -363,9 +382,7 @@ export default function TenantImprovementRequestsIndex({ requests, filters, summ
                             </table>
                         </div>
                     ) : (
-                        <div className="p-5 text-sm text-muted-foreground">
-                            Nenhuma solicitação de melhoria ou ajuste encontrada.
-                        </div>
+                        <div className="text-muted-foreground p-5 text-sm">Nenhuma solicitação de melhoria ou ajuste encontrada.</div>
                     )}
                 </div>
 

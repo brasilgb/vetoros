@@ -123,7 +123,7 @@ export function WebChat() {
     if (webChatSettings?.web_chat_enabled === false) return null;
 
     return (
-        <div className="fixed right-5 bottom-5 z-50 sm:right-8 sm:bottom-8">
+        <div data-web-chat data-open={open} className="fixed right-5 bottom-5 z-50 sm:right-8 sm:bottom-8">
             {open && (
                 <section
                     aria-label="Chat comercial VetorOS"
@@ -247,22 +247,24 @@ export function WebChat() {
                     </footer>
                 </section>
             )}
-            <button
-                type="button"
-                onClick={() => {
-                    setOpen(!open);
-                    setUnread(0);
-                }}
-                aria-label={open ? 'Fechar atendimento' : 'Abrir atendimento comercial'}
-                className="relative flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-white shadow-xl transition hover:bg-blue-800"
-            >
-                <MessageCircle size={25} />
-                {unread > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs">
-                        {unread}
-                    </span>
-                )}
-            </button>
+            <div className="flex justify-end">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setOpen(!open);
+                        setUnread(0);
+                    }}
+                    aria-label={open ? 'Fechar atendimento' : 'Abrir atendimento comercial'}
+                    className="relative flex h-14 w-14 items-center justify-center rounded-full bg-blue-700 text-white shadow-xl transition hover:bg-blue-800"
+                >
+                    <MessageCircle size={25} />
+                    {unread > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs">
+                            {unread}
+                        </span>
+                    )}
+                </button>
+            </div>
         </div>
     );
 }

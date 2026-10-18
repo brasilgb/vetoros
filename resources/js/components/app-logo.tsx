@@ -8,7 +8,7 @@ type AppLogoPageProps = {
         shortname?: string | null;
     };
 };
- 
+
 export default function AppLogo() {
     const { company } = usePage<AppLogoPageProps>().props;
     const logoSrc = company?.logo ? `/storage/logos/${company.logo}` : DEFAULT_LOGO;

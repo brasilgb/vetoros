@@ -146,11 +146,15 @@ export default function CashierDailyReportPDF({ session, company }: any) {
                         <Text style={styles.sectionTitle}>Sangrias</Text>
                         <View style={styles.table}>
                             {activeWithdrawals.map((withdrawal: any, index: number) => (
-                                <View key={withdrawal.id || index} style={[styles.row, ...(index === activeWithdrawals.length - 1 ? [transparentRowStyle] : [])]}>
+                                <View
+                                    key={withdrawal.id || index}
+                                    style={[styles.row, ...(index === activeWithdrawals.length - 1 ? [transparentRowStyle] : [])]}
+                                >
                                     <View style={styles.label}>
                                         <Text>{withdrawal.description || 'Sangria'}</Text>
                                         <Text style={styles.helper}>
-                                            {withdrawal.created_at ? moment(withdrawal.created_at).format('DD/MM/YYYY HH:mm') : '-'} | {withdrawal.user?.name || '-'}
+                                            {withdrawal.created_at ? moment(withdrawal.created_at).format('DD/MM/YYYY HH:mm') : '-'} |{' '}
+                                            {withdrawal.user?.name || '-'}
                                         </Text>
                                     </View>
                                     <Text style={styles.value}>{currencyFormatter(withdrawal.amount || 0)}</Text>
@@ -165,11 +169,15 @@ export default function CashierDailyReportPDF({ session, company }: any) {
                     <View style={styles.table}>
                         {paymentMethodsWithMovement.length ? (
                             paymentMethodsWithMovement.map((method, index) => (
-                                <View key={method} style={[styles.row, ...(index === paymentMethodsWithMovement.length - 1 ? [transparentRowStyle] : [])]}>
+                                <View
+                                    key={method}
+                                    style={[styles.row, ...(index === paymentMethodsWithMovement.length - 1 ? [transparentRowStyle] : [])]}
+                                >
                                     <View style={styles.label}>
                                         <Text>{paymentMethodLabels[method]}</Text>
                                         <Text style={styles.helper}>
-                                            Vendas {currencyFormatter(salesTotalsByMethod[method] || 0)} | OS {currencyFormatter(orderPaymentTotalsByMethod[method] || 0)}
+                                            Vendas {currencyFormatter(salesTotalsByMethod[method] || 0)} | OS{' '}
+                                            {currencyFormatter(orderPaymentTotalsByMethod[method] || 0)}
                                         </Text>
                                     </View>
                                     <Text style={styles.value}>

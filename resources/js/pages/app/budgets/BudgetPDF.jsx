@@ -127,7 +127,8 @@ const styles = StyleSheet.create({
 
 export const BudgetPDF = ({ company, budget }) => {
     const { companyname, cnpj, city, number, street, district, telephone, logo } = company ?? {};
-    const { service, description, estimated_time, part_value, labor_value, total_value, warranty, validity, created_at, obs, equipment, model } = budget ?? {};
+    const { service, description, estimated_time, part_value, labor_value, total_value, warranty, validity, created_at, obs, equipment, model } =
+        budget ?? {};
 
     const obsText = obs || 'Nenhuma observação informada.';
 
@@ -139,10 +140,8 @@ export const BudgetPDF = ({ company, budget }) => {
                         <Text style={styles.companyName}>{companyname}</Text>
                         {cnpj ? <Text style={styles.companyDetails}>CNPJ: {cnpj}</Text> : null}
                         {telephone ? <Text style={styles.companyDetails}>Tel: {telephone}</Text> : null}
-                        {(street || number || district || city) ? (
-                            <Text style={styles.companyDetails}>
-                                {[street, number, district, city].filter(Boolean).join(', ')}
-                            </Text>
+                        {street || number || district || city ? (
+                            <Text style={styles.companyDetails}>{[street, number, district, city].filter(Boolean).join(', ')}</Text>
                         ) : null}
                     </View>
 
@@ -213,7 +212,7 @@ export const BudgetPDF = ({ company, budget }) => {
                 <View style={styles.sectionContainer}>
                     <Text style={styles.sectionTitle}>Observações</Text>
                     <View style={styles.obsBox}>
-                    <Text>{obsText}</Text>
+                        <Text>{obsText}</Text>
                     </View>
                 </View>
 

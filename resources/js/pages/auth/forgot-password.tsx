@@ -46,7 +46,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     </div>
 
                     <div className="my-6 flex min-w-0 items-center justify-start">
-                        <Button className="h-auto min-h-10 w-full whitespace-normal px-4 py-2 text-center leading-snug" disabled={processing}>
+                        <Button className="h-auto min-h-10 w-full px-4 py-2 text-center leading-snug whitespace-normal" disabled={processing}>
                             {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                             Enviar link de redefinição de senha
                         </Button>

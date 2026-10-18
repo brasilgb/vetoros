@@ -134,11 +134,12 @@ export default function OrderStatisticsPDF({ data, reportMeta, dateRange, compan
         entregues: data.filter((o: any) => o.service_status === ORDER_STATUS.DELIVERED).length,
         retornosGarantia: data.filter((o: any) => Boolean(o.is_warranty_return)).length,
     };
-    const warrantyReturnRate = Number(reportMeta?.warranty_return_rate ?? (stats.total > 0 ? ((stats.retornosGarantia / stats.total) * 100).toFixed(1) : '0.0'));
+    const warrantyReturnRate = Number(
+        reportMeta?.warranty_return_rate ?? (stats.total > 0 ? ((stats.retornosGarantia / stats.total) * 100).toFixed(1) : '0.0'),
+    );
     const warrantyThreshold = Number(reportMeta?.warranty_return_threshold ?? 10);
     const warrantyAlert = Boolean(reportMeta?.warranty_return_alert ?? false);
-    const warrantySeverity =
-        warrantyReturnRate <= 5 ? 'Saudável' : warrantyReturnRate <= warrantyThreshold ? 'Atenção' : 'Crítico';
+    const warrantySeverity = warrantyReturnRate <= 5 ? 'Saudável' : warrantyReturnRate <= warrantyThreshold ? 'Atenção' : 'Crítico';
     const severityColors =
         warrantySeverity === 'Crítico'
             ? { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', color: '#92400E' }
@@ -191,7 +192,12 @@ export default function OrderStatisticsPDF({ data, reportMeta, dateRange, compan
                     Severidade: {warrantySeverity} | Taxa de retorno em garantia: {warrantyReturnRate}% | Limite: {warrantyThreshold}%
                 </Text>
 
-                <View style={[styles.severityBox, { backgroundColor: severityColors.backgroundColor, border: `1px solid ${severityColors.borderColor}` }]}>
+                <View
+                    style={[
+                        styles.severityBox,
+                        { backgroundColor: severityColors.backgroundColor, border: `1px solid ${severityColors.borderColor}` },
+                    ]}
+                >
                     <Text style={[styles.severityTitle, { color: severityColors.color }]}>Indicador de Garantia</Text>
                     <Text style={[styles.severityText, { color: severityColors.color }]}>
                         {warrantySeverity} | Taxa atual {warrantyReturnRate}% | Limite configurado {warrantyThreshold}%

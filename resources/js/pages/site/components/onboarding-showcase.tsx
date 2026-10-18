@@ -16,7 +16,8 @@ const onboardingSteps = [
     {
         icon: LifeBuoy,
         title: 'Operação orientada',
-        description: 'Mensagens amigáveis ajudam a equipe a entender falhas de rede, sessão expirada, permissão e erros temporários sem telas técnicas.',
+        description:
+            'Mensagens amigáveis ajudam a equipe a entender falhas de rede, sessão expirada, permissão e erros temporários sem telas técnicas.',
     },
 ];
 

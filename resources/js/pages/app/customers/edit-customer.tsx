@@ -71,11 +71,7 @@ export default function EditCustomer({
                         </div>
                     </TabsContent>
                     <TabsContent value="equipments">
-                        <CustomerEquipmentsTab
-                            customerId={customer.id}
-                            equipments={equipments ?? []}
-                            equipmentTypes={equipmentTypes}
-                        />
+                        <CustomerEquipmentsTab customerId={customer.id} equipments={equipments ?? []} equipmentTypes={equipmentTypes} />
                     </TabsContent>
                 </Tabs>
             </div>

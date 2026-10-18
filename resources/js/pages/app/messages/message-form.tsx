@@ -66,54 +66,54 @@ export default function MessageForm({ users, initialData }: MessageFormProps) {
             <Card>
                 <CardTitle className="border-b px-6 pb-4">Destinatário e título</CardTitle>
                 <CardContent className="space-y-4 pt-6">
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                    <Label htmlFor="send_id">Remetente</Label>
-                    <Input value={auth.user.name} readOnly type="text" id="sender" />
-                </div>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="send_id">Remetente</Label>
+                            <Input value={auth.user.name} readOnly type="text" id="sender" />
+                        </div>
 
-                <div className="grid gap-2">
-                    <Label htmlFor="recipient_id">Para</Label>
-                    <Select
-                        isDisabled={!canEdit}
-                        menuPosition="fixed"
-                        defaultValue={defaultUser}
-                        options={optionsUser}
-                        onChange={changeMessageRecept}
-                        placeholder="Selecione o recebedor"
-                        className="min-w-0"
-                        styles={selectStyles}
-                    />
-                    <InputError className="mt-2" message={errors.recipient_id} />
-                </div>
-            </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="recipient_id">Para</Label>
+                            <Select
+                                isDisabled={!canEdit}
+                                menuPosition="fixed"
+                                defaultValue={defaultUser}
+                                options={optionsUser}
+                                onChange={changeMessageRecept}
+                                placeholder="Selecione o recebedor"
+                                className="min-w-0"
+                                styles={selectStyles}
+                            />
+                            <InputError className="mt-2" message={errors.recipient_id} />
+                        </div>
+                    </div>
 
-            <div className="grid gap-2">
-                <Label htmlFor="service">Título</Label>
-                <Input readOnly={!canEdit} id="title" type="text" value={data.title} onChange={(e) => setData('title', e.target.value)} />
-                {errors.title && <div className="text-sm text-red-500">{errors.title}</div>}
-            </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="service">Título</Label>
+                        <Input readOnly={!canEdit} id="title" type="text" value={data.title} onChange={(e) => setData('title', e.target.value)} />
+                        {errors.title && <div className="text-sm text-red-500">{errors.title}</div>}
+                    </div>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardTitle className="border-b px-6 pb-4">Mensagem</CardTitle>
                 <CardContent className="space-y-4 pt-6">
-            <div className="grid gap-2">
-                <Label htmlFor="message">Mensagem</Label>
-                <Textarea readOnly={!canEdit} id="message" value={data.message} onChange={(e) => setData('message', e.target.value)} />
-                {errors.message && <div className="text-sm text-red-500">{errors.message}</div>}
-            </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="message">Mensagem</Label>
+                        <Textarea readOnly={!canEdit} id="message" value={data.message} onChange={(e) => setData('message', e.target.value)} />
+                        {errors.message && <div className="text-sm text-red-500">{errors.message}</div>}
+                    </div>
 
-            <div className="grid gap-2">
-                <Label htmlFor="status">Status da mensagem</Label>
+                    <div className="grid gap-2">
+                        <Label htmlFor="status">Status da mensagem</Label>
 
-                <div className="flex items-center gap-3">
-                    <Switch id="status" checked={data.status} onCheckedChange={(checked) => setData('status', checked)} />
+                        <div className="flex items-center gap-3">
+                            <Switch id="status" checked={data.status} onCheckedChange={(checked) => setData('status', checked)} />
 
-                    <span className="text-muted-foreground text-sm">{data.status ? 'Lida' : 'Não lida'}</span>
-                </div>
-            </div>
+                            <span className="text-muted-foreground text-sm">{data.status ? 'Lida' : 'Não lida'}</span>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 

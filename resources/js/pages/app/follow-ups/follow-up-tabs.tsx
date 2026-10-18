@@ -26,7 +26,7 @@ export default function FollowUpTabs() {
                         className={cn(
                             'inline-flex h-[calc(100%-1px)] items-center justify-center rounded-md border border-transparent px-3 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow]',
                             isActive
-                                ? 'bg-background text-foreground shadow-sm dark:border-input dark:bg-input/30'
+                                ? 'bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm'
                                 : 'text-foreground hover:text-foreground dark:text-muted-foreground',
                         )}
                     >

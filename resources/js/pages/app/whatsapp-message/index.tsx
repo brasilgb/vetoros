@@ -162,9 +162,9 @@ export default function WhatsappMessage({
                                         Para usar as mensagens padrão, basta clicar em salvar. Se precisar, altere os textos conforme a necessidade.
                                         Os templates inserem automaticamente informações do cliente e da O.S. pelos placeholders:{' '}
                                         <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>, <code>{'{{ link_os }}'}</code>,{' '}
-                                        <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code> e <code>{'{{ dias_pendentes }}'}</code>. O
-                                        aviso de agendamento ao técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>
-                                        , <code>{'{{ servico }}'}</code>, <code>{'{{ materiais }}'}</code> e <code>{'{{ endereco }}'}</code>.
+                                        <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code> e <code>{'{{ dias_pendentes }}'}</code>. O aviso
+                                        de agendamento ao técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
+                                        <code>{'{{ servico }}'}</code>, <code>{'{{ materiais }}'}</code> e <code>{'{{ endereco }}'}</code>.
                                     </div>
 
                                     <div className="grid gap-2 md:col-span-2">

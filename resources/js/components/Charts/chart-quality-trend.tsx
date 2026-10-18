@@ -21,8 +21,7 @@ export function ChartQualityTrend({
     threshold?: number;
 }) {
     const data = trend?.data ?? [];
-    const granularityLabel =
-        trend?.granularity === 'monthly' ? 'mensal' : trend?.granularity === 'weekly' ? 'semanal' : 'diaria';
+    const granularityLabel = trend?.granularity === 'monthly' ? 'mensal' : trend?.granularity === 'weekly' ? 'semanal' : 'diaria';
 
     return (
         <Card>
@@ -63,14 +62,7 @@ export function ChartQualityTrend({
                             }
                         />
                         <ReferenceLine y={threshold ?? 0} stroke="var(--color-threshold)" strokeDasharray="4 4" />
-                        <Line
-                            type="monotone"
-                            dataKey="rate"
-                            stroke="var(--color-rate)"
-                            strokeWidth={2.5}
-                            dot={{ r: 3 }}
-                            activeDot={{ r: 5 }}
-                        />
+                        <Line type="monotone" dataKey="rate" stroke="var(--color-rate)" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                     </LineChart>
                 </ChartContainer>
             </CardContent>

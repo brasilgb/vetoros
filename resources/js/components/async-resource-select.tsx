@@ -1,8 +1,8 @@
-import selectStyles from '@/Utils/selectStyles';
 import { apios } from '@/Utils/connectApi';
+import selectStyles from '@/Utils/selectStyles';
 import type { OptionType } from '@/types';
-import AsyncSelect from 'react-select/async';
 import { type GroupBase, type OptionsOrGroups, type SingleValue } from 'react-select';
+import AsyncSelect from 'react-select/async';
 
 interface AsyncResourceSelectProps<TOption extends OptionType = OptionType> {
     /** URL do endpoint de busca (ex: route('app.customers.search')). Recebe `?q=`. */

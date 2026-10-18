@@ -30,7 +30,7 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent className="gap-0">
-                <SidebarGroup className="gap-0 p-2 [&_[data-slot=sidebar-menu]]:gap-0 [&_[data-slot=sidebar-menu-item]]:my-0.5 [&_[data-slot=sidebar-menu-sub]]:gap-0 [&_[data-slot=sidebar-menu-sub]]:py-0 [&_[data-slot=sidebar-menu-sub-item]]:my-0.5">
+                <SidebarGroup className="gap-0 p-2 [&_[data-slot=sidebar-menu-item]]:my-0.5 [&_[data-slot=sidebar-menu-sub-item]]:my-0.5 [&_[data-slot=sidebar-menu-sub]]:gap-0 [&_[data-slot=sidebar-menu-sub]]:py-0 [&_[data-slot=sidebar-menu]]:gap-0">
                     {mainNavGroups.map((group) => (
                         <div key={group.title}>
                             <NavMain

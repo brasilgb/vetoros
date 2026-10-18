@@ -37,7 +37,7 @@ export default function CustomerEquipmentsTab({
                                     <TableCell className="font-medium">
                                         {[equipment.brand, equipment.model].filter(Boolean).join(' ') || '—'}
                                     </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
+                                    <TableCell className="text-muted-foreground text-sm">
                                         {[equipment.serial_number, equipment.imei].filter(Boolean).join(' · ') || '—'}
                                     </TableCell>
                                     <TableCell>
@@ -48,11 +48,7 @@ export default function CustomerEquipmentsTab({
                                     <TableCell className="min-w-[120px]">
                                         <div className="flex flex-wrap justify-end gap-2">
                                             <CustomerEquipmentForm customerId={customerId} equipmentTypes={equipmentTypes} equipment={equipment} />
-                                            <ActionDelete
-                                                title="este equipamento"
-                                                url="app.customer-equipments.destroy"
-                                                param={equipment.id}
-                                            />
+                                            <ActionDelete title="este equipamento" url="app.customer-equipments.destroy" param={equipment.id} />
                                         </div>
                                     </TableCell>
                                 </TableRow>

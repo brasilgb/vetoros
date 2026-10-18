@@ -138,7 +138,10 @@ export default function QualityReportPDF({ reportMeta, dateRange, company }: any
                             <Text style={styles.colTotal}>Total</Text>
                         </View>
                         {rankingItems.map((item, index) => (
-                            <View key={`${item.prefix}-${item.label}`} style={[styles.tableRow, ...(index === rankingItems.length - 1 ? [transparentRowStyle] : [])]}>
+                            <View
+                                key={`${item.prefix}-${item.label}`}
+                                style={[styles.tableRow, ...(index === rankingItems.length - 1 ? [transparentRowStyle] : [])]}
+                            >
                                 <Text style={styles.colLabel}>
                                     {item.prefix}: {item.label}
                                 </Text>
@@ -160,7 +163,10 @@ export default function QualityReportPDF({ reportMeta, dateRange, company }: any
                         </View>
                         {lowFeedbackOrders.length ? (
                             lowFeedbackOrders.map((item, index) => (
-                                <View key={item.id} style={[styles.tableRow, ...(index === lowFeedbackOrders.length - 1 ? [transparentRowStyle] : [])]}>
+                                <View
+                                    key={item.id}
+                                    style={[styles.tableRow, ...(index === lowFeedbackOrders.length - 1 ? [transparentRowStyle] : [])]}
+                                >
                                     <Text style={styles.colOrder}>#{item.order_number}</Text>
                                     <View style={styles.colCustomer}>
                                         <Text>{item.customer}</Text>

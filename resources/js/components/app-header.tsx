@@ -97,7 +97,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                 const visibleItems = group.items.filter(
                                                     (item) =>
                                                         (item.visibilitySetting
-                                                            ? othersetting?.[item.visibilitySetting as keyof NonNullable<typeof othersetting>] ?? false
+                                                            ? (othersetting?.[item.visibilitySetting as keyof NonNullable<typeof othersetting>] ??
+                                                              false)
                                                             : true) &&
                                                         item.enabled !== disableParts &&
                                                         item.enabled !== disableSales &&
@@ -112,9 +113,15 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
 
                                                 return (
                                                     <div key={group.title} className="flex flex-col space-y-3">
-                                                        <span className="text-muted-foreground px-1 text-xs font-medium uppercase">{group.title}</span>
+                                                        <span className="text-muted-foreground px-1 text-xs font-medium uppercase">
+                                                            {group.title}
+                                                        </span>
                                                         {visibleItems.map((item) => (
-                                                            <Link key={item.title} href={item.href} className="flex items-center space-x-2 font-medium">
+                                                            <Link
+                                                                key={item.title}
+                                                                href={item.href}
+                                                                className="flex items-center space-x-2 font-medium"
+                                                            >
                                                                 {item.icon && <Icon iconNode={item.icon} className="h-5 w-5" />}
                                                                 <span>{item.title}</span>
                                                             </Link>
@@ -131,7 +138,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
 
                                                 return (
                                                     <div key={group.title} className="flex flex-col space-y-3">
-                                                        <span className="text-muted-foreground px-1 text-xs font-medium uppercase">{group.title}</span>
+                                                        <span className="text-muted-foreground px-1 text-xs font-medium uppercase">
+                                                            {group.title}
+                                                        </span>
                                                         {visibleItems.map((item) => (
                                                             <div key={item.title}>
                                                                 <Link href={item.url} className="flex items-center space-x-2 font-medium">
@@ -187,7 +196,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                 {mainNavItems.map(
                                     (item, index) =>
                                         (item.visibilitySetting
-                                            ? othersetting?.[item.visibilitySetting as keyof NonNullable<typeof othersetting>] ?? false
+                                            ? (othersetting?.[item.visibilitySetting as keyof NonNullable<typeof othersetting>] ?? false)
                                             : true) &&
                                         item.enabled !== disableParts &&
                                         item.enabled !== disableSales &&
@@ -324,7 +333,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     </Avatar>
                                     <span
                                         aria-hidden="true"
-                                        className="bg-popover invisible pointer-events-none absolute top-1/2 right-full z-50 mr-2 -translate-y-1/2 rounded-lg border p-2 opacity-0 shadow-lg transition-opacity group-hover/avatar:visible group-hover/avatar:opacity-100 group-focus-visible/avatar:visible group-focus-visible/avatar:opacity-100"
+                                        className="bg-popover pointer-events-none invisible absolute top-1/2 right-full z-50 mr-2 -translate-y-1/2 rounded-lg border p-2 opacity-0 shadow-lg transition-opacity group-hover/avatar:visible group-hover/avatar:opacity-100 group-focus-visible/avatar:visible group-focus-visible/avatar:opacity-100"
                                     >
                                         <Avatar className="size-24 overflow-hidden rounded-lg">
                                             <AvatarImage src={auth.user.avatar} alt="" className="object-cover" />

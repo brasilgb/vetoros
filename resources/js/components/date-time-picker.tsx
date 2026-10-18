@@ -97,13 +97,7 @@ export function DateTimePicker({ id, value, onChange, placeholder = 'Selecione d
             </PopoverTrigger>
 
             <PopoverContent className="w-auto space-y-3 p-3" align="start" sideOffset={8}>
-                <Calendar
-                    locale={ptBR}
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={handleDateSelect}
-                    className="rounded-lg border shadow-sm"
-                />
+                <Calendar locale={ptBR} mode="single" selected={selectedDate} onSelect={handleDateSelect} className="rounded-lg border shadow-sm" />
 
                 <div className="grid gap-2">
                     <Input type="time" value={time} onChange={handleTimeChange} />

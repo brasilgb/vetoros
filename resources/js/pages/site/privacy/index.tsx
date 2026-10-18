@@ -1,6 +1,6 @@
 import LegalLayout from '@/layouts/site/LegalLayout';
-import { Head } from '@inertiajs/react';
 import { useActiveSection } from '@/Utils/use-active-section';
+import { Head } from '@inertiajs/react';
 import { useState } from 'react';
 
 const sections = [
@@ -158,7 +158,6 @@ export default function Privacy() {
                         <li>Cumprimento de obrigações legais</li>
                         <li>Determinação judicial ou autoridade competente</li>
                     </ul>
-
 
                     {/* SEGURANÇA */}
 

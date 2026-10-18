@@ -72,7 +72,12 @@ export default function BranchesIndex({ branches }: any) {
                                         <TableCell>{maskPhone(branche.contact_phone)}</TableCell>
                                         <TableCell>{moment(branche.created_at).format('DD/MM/YYYY')}</TableCell>
                                         <TableCell className="flex justify-end gap-2">
-                                            <Button asChild size="icon" className="bg-orange-500 text-white hover:bg-orange-600" title="Editar filial">
+                                            <Button
+                                                asChild
+                                                size="icon"
+                                                className="bg-orange-500 text-white hover:bg-orange-600"
+                                                title="Editar filial"
+                                            >
                                                 <Link href={route('admin.branches.edit', branche.id)}>
                                                     <Edit />
                                                 </Link>

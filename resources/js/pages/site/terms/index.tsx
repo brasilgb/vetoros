@@ -1,6 +1,6 @@
 import LegalLayout from '@/layouts/site/LegalLayout';
-import { Head } from '@inertiajs/react';
 import { useActiveSection } from '@/Utils/use-active-section';
+import { Head } from '@inertiajs/react';
 import { useState } from 'react';
 
 const sections = [
@@ -143,8 +143,8 @@ export default function Terms() {
                         O VetorOS permite emitir NF-e, NFC-e e NFS-e por meio de integração com provedor fiscal parceiro, mediante liberação da
                         funcionalidade para a conta e envio do certificado digital A1 da empresa, e também registrar manualmente informações de
                         documentos emitidos em sistemas externos. O usuário é responsável pelos dados informados, pelas configurações tributárias,
-                        pela guarda do certificado e de sua senha e pela conferência dos documentos autorizados ou rejeitados pela SEFAZ,
-                        prefeitura ou ambiente nacional competente.
+                        pela guarda do certificado e de sua senha e pela conferência dos documentos autorizados ou rejeitados pela SEFAZ, prefeitura
+                        ou ambiente nacional competente.
                     </p>
 
                     <p>
@@ -205,9 +205,9 @@ export default function Terms() {
                     </h2>
 
                     <p>
-                        O acesso a determinadas funcionalidades pode depender do plano contratado, do pagamento da assinatura e da vigência do
-                        período de teste ou contratação. O cancelamento não elimina valores já devidos nem obrigações legais de guarda de documentos
-                        e informações.
+                        O acesso a determinadas funcionalidades pode depender do plano contratado, do pagamento da assinatura e da vigência do período
+                        de teste ou contratação. O cancelamento não elimina valores já devidos nem obrigações legais de guarda de documentos e
+                        informações.
                     </p>
 
                     <p>Reservamo-nos o direito de suspender ou cancelar contas que:</p>
@@ -231,8 +231,13 @@ export default function Terms() {
                         <li>Perda de dados causada por uso indevido da plataforma</li>
                         <li>Danos indiretos ou lucros cessantes decorrentes do uso do sistema</li>
                         <li>Falhas em serviços ou integrações de terceiros</li>
-                        <li>Rejeição, atraso, duplicidade ou indisponibilidade de documentos fiscais decorrente de dados incorretos ou de sistemas externos</li>
-                        <li>Multas, autuações ou prejuízos decorrentes de classificação fiscal, tributação ou cumprimento de obrigações do usuário</li>
+                        <li>
+                            Rejeição, atraso, duplicidade ou indisponibilidade de documentos fiscais decorrente de dados incorretos ou de sistemas
+                            externos
+                        </li>
+                        <li>
+                            Multas, autuações ou prejuízos decorrentes de classificação fiscal, tributação ou cumprimento de obrigações do usuário
+                        </li>
                     </ul>
 
                     {/* ALTERAÇÕES */}

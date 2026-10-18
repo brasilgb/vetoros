@@ -128,8 +128,7 @@ export default function TechnicianProductivityPDF({ data, reportMeta, company, d
     const warrantyReturnRate = Number(reportMeta?.warranty_return_rate ?? 0);
     const warrantyThreshold = Number(reportMeta?.warranty_return_threshold ?? 10);
     const warrantyAlert = Boolean(reportMeta?.warranty_return_alert ?? false);
-    const warrantySeverity =
-        warrantyReturnRate <= 5 ? 'Saudável' : warrantyReturnRate <= warrantyThreshold ? 'Atenção' : 'Crítico';
+    const warrantySeverity = warrantyReturnRate <= 5 ? 'Saudável' : warrantyReturnRate <= warrantyThreshold ? 'Atenção' : 'Crítico';
     const severityColors =
         warrantySeverity === 'Crítico'
             ? { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', color: '#92400E' }
@@ -211,7 +210,12 @@ export default function TechnicianProductivityPDF({ data, reportMeta, company, d
                 <Text style={[styles.headerInfo, { color: warrantyAlert ? '#b45309' : '#166534' }]}>
                     Severidade: {warrantySeverity} | Taxa de retorno em garantia: {warrantyReturnRate}% | Limite: {warrantyThreshold}%
                 </Text>
-                <View style={[styles.severityBox, { backgroundColor: severityColors.backgroundColor, border: `1px solid ${severityColors.borderColor}` }]}>
+                <View
+                    style={[
+                        styles.severityBox,
+                        { backgroundColor: severityColors.backgroundColor, border: `1px solid ${severityColors.borderColor}` },
+                    ]}
+                >
                     <Text style={[styles.severityTitle, { color: severityColors.color }]}>Indicador de Garantia</Text>
                     <Text style={[styles.severityText, { color: severityColors.color }]}>
                         {warrantySeverity} | Taxa atual {warrantyReturnRate}% | Limite configurado {warrantyThreshold}%

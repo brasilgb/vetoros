@@ -300,3 +300,13 @@ html {
     font-size: 10px;
     line-height: 1;
 }
+
+@media (max-width: 639px) {
+    body:has([data-cookie-consent-banner]) [data-web-chat] {
+        bottom: 9rem;
+    }
+
+    body:has([data-cookie-consent-banner]) [data-web-chat][data-open='true'] > section {
+        height: min(60vh, 34rem);
+    }
+}

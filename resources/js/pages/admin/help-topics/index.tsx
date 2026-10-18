@@ -79,8 +79,7 @@ export default function HelpTopicsIndex({ topics }: HelpTopicsIndexProps) {
                 </div>
                 <p className="text-muted-foreground text-sm">
                     Tópicos exibidos na busca de ajuda do app. Após atualizar o manual HTML, rode{' '}
-                    <code className="bg-muted rounded px-1 py-0.5 text-xs">php artisan vetoros:export-manual</code> e clique em Importar
-                    manual.
+                    <code className="bg-muted rounded px-1 py-0.5 text-xs">php artisan vetoros:export-manual</code> e clique em Importar manual.
                 </p>
             </div>
             <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">

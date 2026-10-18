@@ -33,6 +33,7 @@ export function CookieConsent() {
     return (
         <div
             role="dialog"
+            data-cookie-consent-banner
             aria-live="polite"
             aria-label="Aviso de cookies"
             className="fixed bottom-5 left-5 z-40 w-[calc(100%-2.5rem)] max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(0,0,0,0.15)] sm:bottom-8 sm:left-8"

@@ -240,8 +240,8 @@ export default function Receipts({ receipt, equipments, checklists, activeTab = 
                                             <div>
                                                 <h3 className="text-base font-semibold">Modelo de contrato de manutenção</h3>
                                                 <p className="text-muted-foreground mt-1 text-sm">
-                                                    Texto usado ao gerar o contrato para impressão a partir de um contrato de manutenção
-                                                    recorrente cadastrado.
+                                                    Texto usado ao gerar o contrato para impressão a partir de um contrato de manutenção recorrente
+                                                    cadastrado.
                                                 </p>
                                             </div>
                                         </div>

@@ -121,9 +121,9 @@ export default function Dashboard({ metrics }: { metrics: DashboardMetrics }) {
                     <div className="flex items-center justify-between border-b px-4 py-3">
                         <div>
                             <h2 className="text-base font-semibold">Empresas Com Atenção</h2>
-                            <p className="text-sm text-muted-foreground">Vencimentos próximos, carência, bloqueio ou cadastro incompleto.</p>
+                            <p className="text-muted-foreground text-sm">Vencimentos próximos, carência, bloqueio ou cadastro incompleto.</p>
                         </div>
-                        <Link href={route('admin.tenants.index')} className="text-sm text-primary hover:underline">
+                        <Link href={route('admin.tenants.index')} className="text-primary text-sm hover:underline">
                             Ver empresas
                         </Link>
                     </div>
@@ -159,7 +159,7 @@ export default function Dashboard({ metrics }: { metrics: DashboardMetrics }) {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-16 text-center text-muted-foreground">
+                                    <TableCell colSpan={5} className="text-muted-foreground h-16 text-center">
                                         Nenhuma empresa exige atenção no momento.
                                     </TableCell>
                                 </TableRow>
