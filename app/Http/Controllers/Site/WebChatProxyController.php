@@ -61,11 +61,15 @@ class WebChatProxyController extends Controller
 
     public function identify(Request $request, string $conversation): JsonResponse
     {
+        // Identificação progressiva (VETOR-CHAT-11): o VetorLeads valida o WhatsApp, decide o vínculo
+        // com lead e resolve a empresa pela configuração do servidor, nunca pelo navegador.
         $data = $request->validate([
-            'name' => ['nullable', 'string', 'max:120'],
-            'whatsapp' => ['nullable', 'string', 'max:24'],
+            'name' => ['required', 'string', 'min:2', 'max:120'],
+            'whatsapp' => ['required', 'string', 'max:24'],
+            'subject' => ['required', 'string', 'in:comercial,suporte,financeiro,outro'],
             'email' => ['nullable', 'email', 'max:190'],
             'company_name' => ['nullable', 'string', 'max:190'],
+            'whatsapp_consent' => ['sometimes', 'boolean'],
         ]);
 
         return $this->forward('patch', "/api/web-chat/conversations/{$conversation}/contact", $data, $this->visitorToken($request, $conversation));

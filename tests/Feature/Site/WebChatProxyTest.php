@@ -43,3 +43,34 @@ test('web chat proxy reports an api outage', function () {
         'client_message_id' => 'outage-message',
     ])->assertStatus(503)->assertJsonPath('message', 'unavailable');
 });
+
+test('web chat proxy forwards the visitor identification with the session token only', function () {
+    config([
+        'services.web_chat.url' => 'https://leads.example.test',
+        'services.web_chat.token' => 'service-secret',
+    ]);
+    $conversation = 'e5bb3a70-f718-46c8-a100-8c9d85a6f69d';
+    Http::fake([
+        "https://leads.example.test/api/web-chat/conversations/{$conversation}/contact" => Http::response(['ok' => true, 'identified' => true, 'lead_action' => 'contact_only']),
+    ]);
+    $cookie = Illuminate\Support\Facades\Crypt::encryptString(json_encode(['id' => $conversation, 'token' => 'visitor-secret']));
+
+    $this->withCredentials()->withCookie('web_chat_session', $cookie)->patchJson("/chat/conversations/{$conversation}/contact", [
+        'name' => 'Ana', 'whatsapp' => '(51) 99517-9173', 'subject' => 'suporte', 'whatsapp_consent' => true, 'tenant_id' => 99,
+    ])->assertOk()->assertJsonPath('identified', true);
+
+    Http::assertSent(fn (Request $request) => $request->hasHeader('X-Visitor-Token', 'visitor-secret')
+        && $request['subject'] === 'suporte' && $request['whatsapp_consent'] === true && ! isset($request['tenant_id']));
+});
+
+test('web chat proxy requires name, WhatsApp and a known subject before forwarding', function () {
+    config([
+        'services.web_chat.url' => 'https://leads.example.test',
+        'services.web_chat.token' => 'service-secret',
+    ]);
+    Http::fake();
+
+    $this->patchJson('/chat/conversations/e5bb3a70-f718-46c8-a100-8c9d85a6f69d/contact', ['name' => 'Ana', 'subject' => 'vendas'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['whatsapp', 'subject']);
+    Http::assertNothingSent();
+});
