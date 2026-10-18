@@ -5,7 +5,7 @@ Escopo comparado: `correio.md` mudou da tarefa STABILIZE-03 para VETOR-CHAT-05. 
 
 ## Resultado
 
-As correções locais de estabilização foram aplicadas nos repositórios VetorLeads e VetorOS. Nenhuma migração ou publicação em produção foi executada.
+As correções locais de estabilização foram aplicadas nos repositórios VetorLeads e VetorOS e publicadas em `origin/main` (VetorOS `985e36bb`; VetorLeads `a0e013f`). Nenhuma migração ou publicação em produção foi executada.
 
 ### VetorLeads
 
