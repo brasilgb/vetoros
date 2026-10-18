@@ -907,6 +907,7 @@ class OrderController extends Controller
             ],
             'warrantySourceOrders' => $this->warrantySourceOptions($order->warranty_source_order_id, $order->id),
             'publicAccessKey' => $order->public_access_key,
+            'publicAccessKeyConfigured' => filled($order->getRawOriginal('public_access_key')),
             'budgets' => $order->budgets()->with('items')->get()->reverse()->values(),
             'messages' => $order->messages()->limit(50)->get([
                 'id', 'order_budget_id', 'channel', 'recipient', 'template', 'status',

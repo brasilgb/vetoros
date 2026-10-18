@@ -1,207 +1,111 @@
-# VETOR-STABILIZE-03 — Estabilidade, SMTP e acesso administrativo aos tenants
+# VETOR-CHAT-10.1 — Central omnichannel VetorLeads
 
-**Projeto:** VetorOS  
-**Situação:** Autorizada implementação local, testes, commit e push.  
-**Produção:** Sem deploy e sem migrations em produção nesta etapa.
+**Objetivo:** consolidar o atendimento WebChat e WhatsApp em uma única interface operacional, utilizando os recursos existentes e preparando a integração com n8n e OpenAI.
 
-## 1. Estabilidade dos dashboards
+## 1. Central unificada
 
-Auditar as abas Financeiro, Compras e Agendamentos, aplicando as melhorias da STABILIZE-02.
+Implementar no VetorLeads uma central acessível pelo menu "Atendimento", contendo:
 
-- Validar respostas das APIs antes de processar os dados.
-- Tratar corretamente respostas vazias, incompletas e inválidas.
-- Exibir estados de carregamento, ausência de dados e erro.
-- Disponibilizar botão "Tentar novamente".
-- Não apresentar informações financeiras fictícias.
-- Impedir erros fatais de JavaScript.
+- Caixa de entrada unificada para WhatsApp e WebChat.
+- Filtros por canal, situação, responsável e mensagens não lidas.
+- Lista de contatos com nome, origem e última mensagem.
+- Histórico cronológico por conversa e identificação do canal.
+- Área de resposta humana.
+- Associação a leads e oportunidades.
+- Atribuição de responsável pelo atendimento.
+- Alteração de situação: pendente, em andamento e encerrada.
+- Atualização de novas mensagens sem recarregar a página.
 
-Preservar os gráficos, indicadores e regras existentes.
+Priorizar interface responsiva com três áreas no desktop: conversas, mensagens e informações do contato. No mobile, usar navegação adaptada.
 
-## 2. Configuração SMTP da plataforma
+## 2. Reutilização
 
-Revisar a configuração global de envio de e-mails no ecossistema `infra-abrasil`.
+Reaproveitar APIs, models, serviços e estruturas de WebChat e WhatsApp existentes.
 
-Configuração institucional:
+Evitar duplicar histórico, mensagens, contatos ou regras de negócio.
 
-- E-mail: `contato@abrasilsistemas.com.br`
-- Servidor: `smtp.hostinger.com`
-- Porta: `465`
-- Segurança: SSL/TLS
-- Senha: variável de ambiente protegida, nunca versionada.
+Se for necessário criar uma camada unificada, utilizar serviços e DTOs que normalizem os canais sem perder a identificação original das mensagens.
 
-Garantir que o Laravel utilize as variáveis corretas e que o Docker Compose não dependa de `.env.example` como fonte de credenciais de produção.
+Manter `/web-chat` e as funcionalidades atuais compatíveis durante a transição.
 
-**Separação obrigatória:**
+## 3. WhatsApp
 
-- RootAdmin e notificações da plataforma utilizam o SMTP institucional.
-- Cada tenant continua utilizando sua própria configuração SMTP.
-- Não substituir configurações particulares das empresas.
+- Manter isolamento de sessão WAHA por tenant.
+- Receber novas mensagens na central.
+- Responder diretamente pela central usando a sessão autorizada.
+- Exibir mensagens enviadas, recebidas e seus estados.
+- Preservar deduplicação e validação HMAC existentes.
+- Tratar desconexões sem perder mensagens.
+- Impedir atribuição incorreta de mensagens quando contatos forem ambíguos.
 
-Validar avisos de cobrança, vencimentos, assinatura e documentos fiscais.
+## 4. WebChat do VetorOS
 
-## 3. NOVO — Acesso administrativo ao painel dos tenants
+- Mostrar conversas do widget público na central.
+- Permitir que o atendente responda diretamente.
+- Entregar a resposta ao visitante pelo mecanismo existente.
+- Preservar identificação do tenant de atendimento.
+- Respeitar horários, disponibilidade e configurações já existentes.
 
-### Objetivo
+Não converter automaticamente WebChat em WhatsApp. Cada canal deverá funcionar independentemente.
 
-Permitir que o RootAdmin entre diretamente no painel de qualquer empresa cadastrada para realizar suporte, configurações, correções e verificações operacionais, sem utilizar a senha do cliente.
+## 5. Integração n8n
 
-### 3.1. Acesso pela administração
+Auditar os workflows existentes antes de criar novos.
 
-Na página:
+Preparar eventos internos para:
 
-**RootAdmin → Empresas**
+- Nova conversa.
+- Nova mensagem recebida.
+- Lead identificado.
+- Atendimento atribuído.
+- Atendimento encerrado.
+- Follow-up agendado.
 
-Adicionar à tabela de empresas a ação:
+Entregar eventos ao n8n com autenticação, identificadores de tenant e conversa, idempotência e política de repetição.
 
-**"Acessar painel"**
+A operação humana básica deve continuar funcionando se o n8n estiver indisponível.
 
-A ação deverá estar disponível exclusivamente para usuários RootAdmin autorizados.
+Não enviar segredos, tokens de visitante ou dados desnecessários aos workflows.
 
-Ao clicar, abrir um modal com:
+## 6. Preparação para IA
 
-- Nome da empresa.
-- CNPJ, quando disponível.
-- Situação da assinatura.
-- Identificação do ambiente.
-- Motivo obrigatório do acesso.
-- Botão "Entrar no painel".
+Criar apenas a base de integração futura com OpenAI, sem consumo real nesta etapa:
 
-### 3.2. Modo Suporte
+- Configuração administrativa para habilitar IA por tenant.
+- Estrutura para limites de consumo.
+- Identificação de mensagens humanas e automatizadas.
+- Mecanismo para transferência ao atendente humano.
+- Pontos de integração com workflows n8n.
 
-Implementar autenticação administrativa temporária, utilizando a arquitetura existente de sessões e permissões do Laravel.
+Não inventar respostas automáticas nem ativar agentes nesta fase.
 
-Requisitos:
+## 7. Testes
 
-- Não solicitar nem modificar a senha do tenant.
-- Não alterar o usuário administrador original da empresa.
-- Manter a identidade real do RootAdmin responsável pelo acesso.
-- Limitar rigorosamente a sessão à empresa selecionada.
-- Impedir acesso cruzado entre tenants.
-- Não permitir que parâmetros de URL sejam utilizados para trocar a empresa.
-- Impedir sessões de suporte encadeadas.
-- Exigir reautenticação recente antes de iniciar o acesso.
-- Estabelecer expiração e encerramento seguros.
+Comprovar:
 
-### 3.3. Painel operacional
+1. Recebimento WebChat na central.
+2. Resposta do atendente chegando ao widget.
+3. Recebimento WhatsApp na central.
+4. Resposta enviada pela sessão WAHA correspondente.
+5. Isolamento entre tenants.
+6. Mensagens duplicadas não gerando registros repetidos.
+7. Conversas encerradas e atribuições.
+8. Falha do n8n sem impedir atendimento humano.
+9. Segurança e autorização dos endpoints.
 
-Ao entrar, o RootAdmin deverá visualizar o painel da empresa e acessar as funcionalidades administrativas permitidas ao suporte.
+Executar testes automatizados e homologação visual quando possível.
 
-O objetivo é permitir, por exemplo:
+## 8. Entrega
 
-- Revisar configurações da empresa.
-- Verificar módulos e funcionalidades.
-- Conferir cadastros e parâmetros operacionais.
-- Investigar problemas em ordens de serviço.
-- Verificar configurações fiscais e o estado das integrações.
-- Conferir configurações de notificações.
-- Identificar erros relatados pelos clientes.
-- Realizar correções administrativas autorizadas.
+Não encerrar a tarefa somente com auditoria.
 
-Não conceder automaticamente permissão para executar operações financeiras, fiscais, destrutivas ou alterações sensíveis de segurança.
+Implementar os módulos necessários e registrar em `executed.md`:
 
-Essas operações deverão permanecer bloqueadas por padrão no Modo Suporte, salvo se existir autorização específica, segura e auditada.
+- Arquivos alterados.
+- Funcionalidades implementadas.
+- Testes aprovados.
+- Fluxos E2E efetivamente executados.
+- Limitações de infraestrutura.
+- Pendências específicas.
 
-### 3.4. Identificação visual
-
-Durante o acesso, exibir uma faixa discreta e permanente no topo:
-
-**Modo Suporte — Empresa: [Nome da empresa]**
-
-Incluir:
-
-- Identificação da empresa.
-- Indicação de acesso administrativo.
-- Botão "Encerrar suporte".
-
-O botão deverá invalidar a sessão temporária e retornar ao RootAdmin, preferencialmente à listagem de empresas.
-
-A identidade visual deve seguir o tema atual do VetorOS, inclusive no modo escuro.
-
-### 3.5. Registro e auditoria
-
-Registrar:
-
-- RootAdmin responsável.
-- Empresa acessada.
-- Motivo informado.
-- Data e horário de início.
-- Data e horário do encerramento.
-- IP de origem.
-- Ações administrativas executadas.
-- Alterações realizadas, identificando o administrador real.
-
-Os registros devem respeitar as políticas de retenção e segurança, sem gravar senhas, tokens ou outros segredos.
-
-### 3.6. Segurança e isolamento
-
-Antes da implementação, auditar:
-
-- Autenticação atual do Laravel.
-- Middlewares.
-- Policies e roles.
-- Sessões.
-- Resolução de tenant.
-- Permissões administrativas.
-- Rotas financeiras e fiscais.
-
-Reutilizar os mecanismos existentes, sem criar autenticação paralela desnecessária.
-
-Não permitir que o RootAdmin fique identificado nos registros como se fosse um funcionário comum da empresa.
-
-## 4. Testes obrigatórios
-
-### Dashboards
-
-Validar as respostas das APIs e os componentes no Chromium e Firefox.
-
-### SMTP
-
-Validar envio institucional e preservação do SMTP individual dos tenants.
-
-### Modo Suporte
-
-Cobrir:
-
-1. RootAdmin entra no tenant autorizado.
-2. Usuário comum não consegue utilizar a funcionalidade.
-3. A sessão permanece limitada ao tenant escolhido.
-4. A tentativa de acessar outro tenant é recusada.
-5. Encerramento retorna ao RootAdmin.
-6. Sessão expirada perde acesso.
-7. Logs identificam corretamente o administrador.
-8. Operações críticas ficam protegidas.
-9. Logout encerra o acesso temporário.
-10. Fluxos Efí, Spedy e assinatura não sofrem regressões.
-
-Executar testes PHP, JavaScript, TypeScript, build e verificações de segurança.
-
-## 5. Publicação e infraestrutura
-
-Após a implementação:
-
-- Revisar `git status`.
-- Conferir alterações de outras frentes.
-- Executar verificações de segredos.
-- Realizar commit e push na `main`, após testes aprovados.
-- Confirmar CI verde.
-- Registrar o resultado no `executed.md`.
-- Atualizar o procedimento de deploy da VPS.
-
-Considerar todas as migrations acumuladas, inclusive as eventualmente necessárias para registrar sessões e auditoria de suporte.
-
-Não executar migrations em produção, reiniciar containers ou realizar deploy sem autorização.
-
-## 6. Entrega esperada
-
-A VETOR-STABILIZE-03 deverá entregar:
-
-- Dashboards resistentes a respostas inválidas.
-- SMTP institucional preparado.
-- SMTP individual dos tenants preservado.
-- Acesso direto e seguro do RootAdmin aos painéis das empresas.
-- Modo Suporte identificado visualmente.
-- Auditoria e encerramento seguro da sessão.
-- Testes aprovados e código publicado.
-- Plano de implantação atualizado.
-
-**Prioridade:** segurança, simplicidade operacional e preservação das regras existentes do VetorOS.
+Não executar deploy em produção sem autorização.
