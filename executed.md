@@ -1,35 +1,39 @@
-# Execução — VETOR-CHAT-07
+# Execução — VETOR-CHAT-08
 
 Data: 18/10/2026  
-Comparação: `correio.md` mudou de VETOR-CHAT-06 para VETOR-CHAT-07. Este relatório substitui o anterior.
+Comparação: `correio.md` mudou do pedido VETOR-STABILIZE-03 para VETOR-CHAT-08. Este relatório substitui o anterior.
 
-## Diagnóstico e verificações
+## Implementação
 
-- O commit `09338818` está integrado à `main`; a referência local `origin/main` aponta para `32efab29` e descende desse commit.
-- A chave é enviada à página `app/orders/edit-order` somente quando o accessor a recupera. Chaves novas são criadas em `OrderController` e gravadas cifradas, com hash separado. Chaves legadas em texto claro são aceitas pelo accessor somente se o hash salvo confere.
-- Se a chave não puder ser recuperada, a OS continua abrindo e a interface agora mostra uma mensagem administrativa genérica, sem detalhes criptográficos.
-- O acesso público valida o hash associado à própria OS. Um teste confirma que a chave de outra empresa não libera essa OS.
-- Não foi encontrada opção administrativa de regeneração individual. Nenhuma chave foi regenerada; nenhuma opção de regeneração automática foi criada.
-- O `.env.example` documenta `APP_PREVIOUS_KEYS` para suportar a descriptografia após rotação. Nenhuma `APP_KEY` ou `APP_PREVIOUS_KEYS` real foi consultada ou exposta.
+- Adicionada ação individual de regeneração da chave pública na edição da OS, restrita a administradores com permissão de OS e acompanhada de confirmação e motivo obrigatório.
+- Backend autoriza a operação e aplica isolamento por tenant. A regeneração usa transação com bloqueio da linha e revalida a chave após adquirir o lock, evitando substituições simultâneas ou repetidas.
+- A nova chave tem 8 caracteres alfanuméricos em maiúsculas; o valor é cifrado pelo accessor e seu hash é atualizado na mesma transação. A chave anterior deixa de validar.
+- OS cuja chave ainda pode ser recuperada não pode ser regenerada. Nenhuma chave foi regenerada automaticamente ou em lote.
+- Auditoria registra usuário, tenant/empresa, OS, data, motivo sanitizado e revogação anterior; nenhum valor da chave é guardado em log ou auditoria.
+- A leitura de chave cifrada agora também exige correspondência do hash armazenado.
+- Corrigidos os 42 erros ESLint de `edit-order.tsx`, com tipos explícitos e dependências dos hooks; ajustados tipos do equipamento vinculado e do modal fiscal.
 
-## Arquivos alterados
+## Arquivos
 
-- `resources/js/pages/app/orders/edit-order.tsx`: mensagem quando a chave não pode ser recuperada.
-- `tests/Feature/App/OrderAccessKeyResilienceTest.php`: chave não recuperável mantém a tela funcional e entrega `null` ao componente.
-- `tests/Feature/OsControllerTest.php`: chave de outra empresa não autoriza acesso à OS.
-- `executed.md`: substituído por este relatório.
+- `app/Http/Controllers/App/OrderController.php`, `app/Models/App/Order.php`, `routes/app.php`: endpoint, autorização, transação, auditoria e validação da chave.
+- `resources/js/pages/app/orders/edit-order.tsx`: ação, modal de confirmação e correções ESLint/tipagem.
+- `resources/js/pages/app/orders/customer-equipment-field.tsx`, `resources/js/components/Modals/InvoiceModal.tsx`: tipos compartilhados e compatibilidade de valores nulos.
+- `tests/Feature/App/OrderPublicAccessKeyRegenerationTest.php`, `tests/Feature/App/OrderAccessKeyResilienceTest.php`: autorização, isolamento, regeneração, revogação, auditoria, concorrência e integridade da chave.
+- `correio.md` foi mantido fora dos commits.
 
-## Testes
+## Verificações
 
-- Cinco testes focados passaram, com 61 assertions: chaves novas, legadas, hash divergente, cifra incompatível com a chave atual, renderização da página e validação de acesso público entre empresas.
-- `npm run types`, `npm run build`, Prettier no componente alterado e Pint nos PHP alterados passaram.
-- O build emitiu o aviso já existente de chunks acima de 500 kB.
-- ESLint direto no componente encontrou 42 erros preexistentes espalhados pelo arquivo (principalmente `no-explicit-any` e variáveis não utilizadas). Não foram introduzidas regras de supressão nesta alteração.
-- A captura visual Chromium/Firefox desktop/mobile foi tentada, mas os processos do navegador encerraram ao iniciar no sandbox. Não declaro homologação visual concluída.
-- CI do commit `487b79c3` passou (build, TypeScript, suíte PHP e secret guard): [workflow CI 39132781588](https://github.com/brasilgb/vetoros/actions/runs/39132781588).
+- `npm run types`: passou.
+- ESLint em `edit-order.tsx` e `InvoiceModal.tsx`: passou sem erros.
+- Pint nos arquivos PHP alterados: passou.
+- Testes focados de chave e acesso público: 19 testes e 139 assertions passaram.
+- Suíte PHP completa (`php artisan test`): 812 testes e 5.691 assertions passaram.
+- `npm run build`: passou. O Vite reportou o aviso existente de chunk PDF acima de 500 kB.
+- CI passou para `d7ccb3b94c5f7bd48b86dafd8e0e6de95b0707b7`: [workflow 39133812502](https://github.com/brasilgb/vetoros/actions/runs/39133812502).
+- Validação visual em navegador não concluída; Chromium/Firefox já haviam falhado ao iniciar neste sandbox.
 
-## Produção e pendências
+## Publicação e restrições
 
-Não houve acesso ao banco ou configuração de produção, alteração de `APP_KEY`, migration nem deploy. Se a chave de uma OS estiver cifrada por uma `APP_KEY` anterior, confirmar a chave antiga pelo procedimento protegido e configurá-la em `APP_PREVIOUS_KEYS`. Se ela não existir mais, o hash não permite reconstruir a chave: é necessária decisão administrativa para eventual regeneração individual, que não existe na interface hoje.
-
-Pendências: validar visualmente em Chromium e Firefox quando o ambiente permitir; confirmar configuração de chaves anteriores e disponibilidade de chaves em OS afetadas no ambiente alvo; decidir se será necessária uma ação administrativa auditada para regeneração individual. Nenhuma ação de produção foi executada.
+- Commit de implementação: `d7ccb3b9` — `Add audited OS public key regeneration` (enviado à `main`).
+- Nenhuma `APP_KEY` foi alterada ou consultada, não houve migration, acesso ao banco/configuração de produção nem deploy.
+- O relatório foi registrado em commit local separado. O push desse commit não foi concluído: a revisão automática bloqueou a publicação por exigir autorização explícita para atualizar novamente a branch remota `main`.
