@@ -919,6 +919,41 @@ class OrderController extends Controller
         ]);
     }
 
+    public function regeneratePublicAccessKey(Request $request, Order $order): RedirectResponse
+    {
+        $this->authorize('update', $order);
+        $user = $request->user();
+        abort_unless($user instanceof User && $user->isAdministrator() && $user->hasPermission('orders'), 403);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:500'],
+        ]);
+
+        DB::transaction(function () use ($order, $user, $validated): void {
+            $lockedOrder = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('update', $lockedOrder);
+            abort_if($lockedOrder->public_access_key !== null, 409, 'A chave atual ainda pode ser recuperada.');
+
+            $key = Str::upper(Str::random(8));
+            $lockedOrder->public_access_key = $key;
+            $lockedOrder->public_access_key_hash = Hash::make($key);
+            $lockedOrder->save();
+
+            $reason = trim($validated['reason']);
+            $reason = preg_replace('/(?<![A-Z0-9])[A-Z0-9]{8}(?![A-Z0-9])/', '[redigido]', $reason) ?? $reason;
+
+            $this->operationalAuditService->record(
+                'public_access_key_regenerated',
+                'order',
+                $lockedOrder,
+                (int) $user->id,
+                ['reason' => $reason, 'previous_key_revoked' => true],
+            );
+        }, 3);
+
+        return back()->with('success', 'Nova chave de acesso público criada. A chave anterior foi invalidada.');
+    }
+
     /**
      * Show the form for editing the specified resource.
      */

@@ -68,7 +68,16 @@ class Order extends Model
                 }
 
                 try {
-                    return Crypt::decryptString($value);
+                    $plainKey = Crypt::decryptString($value);
+                    $storedHash = $this->getRawOriginal('public_access_key_hash');
+
+                    if (is_string($storedHash) && Hash::check($plainKey, $storedHash)) {
+                        return $plainKey;
+                    }
+
+                    Log::warning('Chave de acesso público da OS não confere com o hash armazenado.', ['order_id' => $this->getKey()]);
+
+                    return null;
                 } catch (DecryptException) {
                     $legacyHash = $this->getRawOriginal('public_access_key_hash');
 

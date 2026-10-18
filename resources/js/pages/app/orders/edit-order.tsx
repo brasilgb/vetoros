@@ -17,21 +17,167 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { formatBRL, fromCents, multiplyMoney, normalizeMoney, sumMoney, toCents } from '@/lib/money';
-import { BreadcrumbItem, OptionType } from '@/types';
+import { BreadcrumbItem, OptionType, type Order, type PageProps, type User } from '@/types';
 import { statusServico } from '@/Utils/dataSelect';
 import { ORDER_STATUS, ORDER_STATUSES_READY_FOR_INVOICE, orderStatusChangeRequirement } from '@/Utils/order-status';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, FileTextIcon, KeyRound, Mail, MessageSquareText, Printer, Save, Wrench, X } from 'lucide-react';
 import moment from 'moment';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
 import Select from 'react-select';
 import AddPartsModal from './add-parts';
-import CustomerEquipmentField, { customerEquipmentLabel } from './customer-equipment-field';
+import CustomerEquipmentField, { customerEquipmentLabel, type CustomerEquipmentOption } from './customer-equipment-field';
 import OrderBudgetHistory, { type OrderBudgetVersion } from './order-budget-history';
 import OrderMessages, { type OrderMessageEntry } from './order-messages';
 import OrderPaymentsModal from './order-payments-modal';
 import OrderPreBudgetFields from './order-pre-budget-fields';
+
+type MoneyValue = number | string | null;
+
+type PartRow = {
+    id: number;
+    name: string;
+    sale_price: number | string;
+    quantity?: number;
+    pivot?: { quantity: number };
+};
+
+type OrderPartRow = PartRow & { pivot: { quantity: number } };
+
+type OrderEditRecord = Order & {
+    accessories?: string | null;
+    budget_description?: string | null;
+    budget_link?: string | null;
+    budget_value?: MoneyValue;
+    can_send_budget_follow_up?: boolean;
+    created_at: string;
+    customer_equipment?: CustomerEquipmentOption | null;
+    customer_equipment_id?: number | null;
+    delivery_forecast?: string | null;
+    defect?: string | null;
+    discount_amount?: MoneyValue;
+    fiscal_document_number?: string | null;
+    fiscal_document_url?: string | null;
+    fiscal_issued_at?: string | null;
+    fiscal_notes?: string | null;
+    is_warranty_return?: boolean;
+    last_communication?: { action: string; created_at: string; channel?: string | null; trigger?: string | null; is_overdue?: boolean } | null;
+    manual_parts_cost?: MoneyValue;
+    manual_parts_value?: MoneyValue;
+    order_items?: Array<{ source_type: string; source_id: number; unit_price: string }>;
+    order_number: number;
+    observations?: string | null;
+    orderparts?: OrderPartRow[];
+    parts_value: MoneyValue;
+    password?: string | null;
+    service_cost: MoneyValue;
+    service_value: MoneyValue;
+    services_performed?: string | null;
+    state_conservation?: string | null;
+    surcharge_amount?: MoneyValue;
+    user_id?: number | null;
+    warranty_days?: number | null;
+    warranty_source_order_id?: number | null;
+};
+
+type EquipmentHistory = {
+    total_previous_orders: number;
+    has_recurrence: boolean;
+    same_defect_count: number;
+    is_warranty_return: boolean;
+    active_warranty: { order_number: number; warranty_expires_at: string } | null;
+    warranty_source_order: { order_number: number; warranty_expires_at: string | null } | null;
+    history: Array<{
+        id: number;
+        order_number: number;
+        defect: string;
+        delivery_date: string;
+        service_cost: MoneyValue;
+        warranty_expires_at: string | null;
+    }>;
+};
+
+type WarrantySourceOrder = {
+    id: number;
+    customer_id: number;
+    equipment_id: number;
+    order_number: number;
+    model?: string | null;
+    warranty_expires_at: string | null;
+};
+
+type EditOrderProps = {
+    order: OrderEditRecord;
+    technicals: Pick<User, 'id' | 'name'>[];
+    equipments: Array<{ id: number; equipment: string }>;
+    parts: PartRow[];
+    orderparts: OrderPartRow[];
+    orderPayments: Array<Record<string, unknown>>;
+    paymentSummary: {
+        service_value?: MoneyValue;
+        parts_value?: MoneyValue;
+        total_order?: MoneyValue;
+        total_paid?: MoneyValue;
+        remaining?: MoneyValue;
+    };
+    equipmentHistory: EquipmentHistory;
+    warrantySourceOrders: WarrantySourceOrder[];
+    publicAccessKey: string | null;
+    budgets: OrderBudgetVersion[];
+    messages: OrderMessageEntry[];
+    page?: number;
+    search?: string | null;
+    status?: number | string | null;
+    filter?: string | null;
+};
+
+type EditOrderPageProps = PageProps & {
+    auth: PageProps['auth'] & { role?: string; permissions?: string[] };
+    othersetting?: { enable_finance?: boolean; print_label_button_after_order_create?: boolean };
+    fiscalSetting?: { enabled?: boolean; nfse_enabled?: boolean };
+};
+
+type Communication = NonNullable<OrderEditRecord['last_communication']>;
+
+type OrderFormData = {
+    order_type: string;
+    customer_id: number | string;
+    equipment_id: number | string;
+    customer_equipment_id: string;
+    user_id: number | string | null;
+    model: string | null;
+    password: string;
+    defect: string;
+    service_type: string;
+    service_details: string;
+    materials_used: string;
+    state_conservation: string;
+    accessories: string;
+    budget_description: string;
+    budget_value: string | number;
+    budget_link: string;
+    budget_valid_until: string;
+    services_performed: string;
+    parts_value: MoneyValue;
+    service_value: MoneyValue;
+    service_cost: MoneyValue;
+    stock_parts_value: MoneyValue;
+    manual_parts_value: MoneyValue;
+    manual_parts_cost: MoneyValue;
+    discount_amount: MoneyValue;
+    surcharge_amount: MoneyValue;
+    delivery_date: string;
+    warranty_days: number | string;
+    is_warranty_return: boolean;
+    warranty_source_order_id: string;
+    service_status: number | string;
+    status_reason: string;
+    status_change_kind: string;
+    delivery_forecast: string;
+    observations: string;
+    allparts: Array<{ part_id: number; quantity: number }> | string;
+};
 
 function formatRelativeTimePtBr(value?: string | Date | null) {
     if (!value) return '-';
@@ -92,10 +238,12 @@ export default function EditOrder({
     search,
     status,
     filter,
-}: any) {
+}: EditOrderProps) {
     const budgetFollowUpForm = useForm({});
     const [customerUpdateOpen, setCustomerUpdateOpen] = useState(false);
     const customerUpdateForm = useForm({ note: '' });
+    const publicKeyRegenerationForm = useForm({ reason: '' });
+    const [publicKeyRegenerationOpen, setPublicKeyRegenerationOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<OptionType | null>(
         order?.customer ? { value: order.customer.id, label: order.customer.name } : null,
     );
@@ -111,7 +259,18 @@ export default function EditOrder({
         });
     };
 
-    const communicationLabel = (communication: any) => {
+    const handleRegeneratePublicAccessKey = (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        publicKeyRegenerationForm.post(route('app.orders.public-access-key.regenerate', order.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setPublicKeyRegenerationOpen(false);
+                publicKeyRegenerationForm.reset();
+            },
+        });
+    };
+
+    const communicationLabel = (communication: Communication | null | undefined) => {
         if (!communication) return '';
 
         if (communication.action === 'budget_follow_up_sent') {
@@ -121,8 +280,9 @@ export default function EditOrder({
         return 'Cobrança';
     };
 
-    const { othersetting, auth, fiscalSetting } = usePage().props as any;
+    const { othersetting, auth, fiscalSetting } = usePage<EditOrderPageProps>().props;
     const canManageOrders = auth?.role !== 'technician' && auth?.permissions?.includes('orders');
+    const canRegeneratePublicAccessKey = auth?.role === 'administrator' && canManageOrders;
     // Trocar cliente/equipamento exige a permissão de clientes (o servidor também confere);
     // sem ela, os campos ficam somente leitura e as buscas (que dariam 403) não são feitas.
     const canChangeCustomer = Boolean(auth?.permissions?.includes('customers'));
@@ -131,31 +291,36 @@ export default function EditOrder({
     const canManagePayments =
         canManageOrders && canAccessSalesModules && Boolean(othersetting?.enable_finance) && Boolean(auth?.permissions?.includes('finance'));
     const canIssueServiceInvoice = canManageOrders && Boolean(fiscalSetting?.enabled) && Boolean(fiscalSetting?.nfse_enabled);
-    const [partsData, setPartsData] = useState<any>([]);
+    const [partsData, setPartsData] = useState<PartRow[]>([]);
     // Preço praticado congelado no item da OS; o sale_price atual só vale para peça nova.
-    const frozenPartPrices = new Map<number, string>(
-        (order?.order_items ?? [])
-            .filter((item: { source_type: string }) => item.source_type === 'part')
-            .map((item: { source_id: number; unit_price: string }) => [Number(item.source_id), item.unit_price]),
+    const frozenPartPrices = useMemo(
+        () =>
+            new Map<number, string>(
+                (order?.order_items ?? []).filter((item) => item.source_type === 'part').map((item) => [Number(item.source_id), item.unit_price]),
+            ),
+        [order?.order_items],
     );
-    const partUnitPrice = (part: { id: number; sale_price: string | number }) => frozenPartPrices.get(Number(part.id)) ?? part.sale_price;
+    const partUnitPrice = useCallback(
+        (part: Pick<PartRow, 'id' | 'sale_price'>) => frozenPartPrices.get(Number(part.id)) ?? part.sale_price,
+        [frozenPartPrices],
+    );
 
-    const optionsTechnical = technicals.map((technical: any) => ({
+    const optionsTechnical = technicals.map((technical) => ({
         value: technical.id,
         label: technical.name,
     }));
 
-    const optionsEquipment = equipments.map((equipment: any) => ({
+    const optionsEquipment = equipments.map((equipment) => ({
         value: equipment.id,
         label: equipment.equipment,
     }));
 
-    const { data, post, setData, patch, progress, processing, reset, errors } = useForm({
+    const { data, post, setData, patch, processing, errors } = useForm<OrderFormData>({
         order_type: 'equipment',
         customer_id: order?.customer_id,
         equipment_id: order?.equipment_id, // equipamento
         customer_equipment_id: order?.customer_equipment_id ? String(order.customer_equipment_id) : '',
-        user_id: order?.user_id,
+        user_id: order?.user_id ?? null,
         model: order?.model,
         password: order?.password ?? '',
         defect: order?.defect ?? '',
@@ -164,8 +329,8 @@ export default function EditOrder({
         materials_used: '',
         state_conservation: order?.state_conservation ?? '', //estado de conservação
         accessories: order?.accessories ?? '',
-        budget_description: order?.budget_description, // descrição do orçamento
-        budget_value: order?.budget_value, // valor do orçamento
+        budget_description: order?.budget_description ?? '', // descrição do orçamento
+        budget_value: order?.budget_value ?? '', // valor do orçamento
         budget_link: order?.budget_link ?? '',
         budget_valid_until: (budgets as OrderBudgetVersion[] | undefined)?.[0]?.valid_until ?? '',
         services_performed: order.services_performed ?? '', // servicos executados
@@ -178,35 +343,35 @@ export default function EditOrder({
         manual_parts_cost: order.manual_parts_cost ?? '',
         discount_amount: order.discount_amount ?? '0',
         surcharge_amount: order.surcharge_amount ?? '0',
-        delivery_date: order.delivery_date,
+        delivery_date: order.delivery_date ?? '',
         warranty_days: order?.warranty_days ?? '',
         is_warranty_return: Boolean(order?.is_warranty_return),
         warranty_source_order_id: order?.warranty_source_order_id ? String(order.warranty_source_order_id) : '',
         service_status: order?.service_status,
         status_reason: '',
         status_change_kind: '',
-        delivery_forecast: order?.delivery_forecast, // previsao de entrega
+        delivery_forecast: order?.delivery_forecast ?? '', // previsao de entrega
         observations: order?.observations ?? '',
         allparts: '',
     });
 
     const [openInvoiceModal, setOpenInvoiceModal] = useState(false);
     const [publicKeyModalOpen, setPublicKeyModalOpen] = useState(false);
-    const eligibleWarrantyOrders = (warrantySourceOrders ?? []).filter(
-        (item: any) => String(item.customer_id) === String(data.customer_id) && String(item.equipment_id) === String(data.equipment_id),
+    const eligibleWarrantyOrders = warrantySourceOrders.filter(
+        (item) => String(item.customer_id) === String(data.customer_id) && String(item.equipment_id) === String(data.equipment_id),
     );
 
-    const handleModalSubmit = (modalParts: any) => {
-        setPartsData((currentLocalParts: any) => {
-            const partsMap = new Map(currentLocalParts.map((p: any) => [p.id, p]));
-            modalParts.forEach((part: any) => {
+    const handleModalSubmit = (modalParts: PartRow[]) => {
+        setPartsData((currentLocalParts) => {
+            const partsMap = new Map(currentLocalParts.map((part) => [part.id, part]));
+            modalParts.forEach((part) => {
                 partsMap.set(part.id, part); // Adiciona ou atualiza a peça
             });
             return Array.from(partsMap.values());
         });
     };
 
-    const handleSubmit = async (e: any) => {
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         patch(route('app.orders.update', { order: order.id, page, search, status, filter }), {
@@ -217,9 +382,9 @@ export default function EditOrder({
     };
 
     useEffect(() => {
-        const finalPartsMap = new Map();
-        (orderparts || []).forEach((p: any) => finalPartsMap.set(p.id, { id: p.id, sale_price: partUnitPrice(p), quantity: p.pivot.quantity }));
-        (partsData || []).forEach((p: any) => finalPartsMap.set(p.id, { id: p.id, sale_price: partUnitPrice(p), quantity: p.quantity }));
+        const finalPartsMap = new Map<number, { id: number; sale_price: number | string; quantity: number }>();
+        orderparts.forEach((part) => finalPartsMap.set(part.id, { id: part.id, sale_price: partUnitPrice(part), quantity: part.pivot.quantity }));
+        partsData.forEach((part) => finalPartsMap.set(part.id, { id: part.id, sale_price: partUnitPrice(part), quantity: part.quantity ?? 1 }));
 
         const finalListWithDetails = Array.from(finalPartsMap.values());
         const allpartsPayload = finalListWithDetails.map((p) => ({ part_id: p.id, quantity: p.quantity }));
@@ -227,7 +392,7 @@ export default function EditOrder({
         // Calcula o total. Se não houver peças, o total é 0.
         const totalValue = sumMoney(finalListWithDetails.map((p) => multiplyMoney(p.sale_price, p.quantity)));
 
-        setData((currentData: any) => ({
+        setData((currentData) => ({
             ...currentData,
             allparts: allpartsPayload,
             // Se o total for 0 e não houver peças, fixa 0.
@@ -235,7 +400,7 @@ export default function EditOrder({
             // que causava a insistência no valor antigo do banco.
             stock_parts_value: totalValue,
         }));
-    }, [partsData, orderparts]);
+    }, [partsData, orderparts, partUnitPrice, setData]);
 
     useEffect(() => {
         // Prévia para exibição; o servidor recalcula os totais ao salvar (OrderTotalsService).
@@ -245,26 +410,26 @@ export default function EditOrder({
             toCents(data?.service_value) + toCents(partsValue) + toCents(data?.surcharge_amount) - toCents(data?.discount_amount),
         );
 
-        setData((prev: any) => ({
+        setData((prev) => ({
             ...prev,
             parts_value: partsValue,
             service_cost: total,
         }));
-    }, [data.stock_parts_value, data.manual_parts_value, data.service_value, data.surcharge_amount, data.discount_amount]);
+    }, [data.stock_parts_value, data.manual_parts_value, data.service_value, data.surcharge_amount, data.discount_amount, setData]);
 
     useEffect(() => {
         const status = Number(data.service_status);
 
         if (status === ORDER_STATUS.DELIVERED && !data.delivery_date) {
-            setData((currentData: any) => ({ ...currentData, delivery_date: moment().format('YYYY-MM-DD') }));
+            setData((currentData) => ({ ...currentData, delivery_date: moment().format('YYYY-MM-DD') }));
         }
 
         if (status !== ORDER_STATUS.DELIVERED && data.delivery_date) {
-            setData((currentData: any) => ({ ...currentData, delivery_date: '' }));
+            setData((currentData) => ({ ...currentData, delivery_date: '' }));
         }
-    }, [data.service_status]);
+    }, [data.service_status, data.delivery_date, setData]);
 
-    const changeCustomer = (selected: any) => {
+    const changeCustomer = (selected: OptionType | null) => {
         setData((current) => ({
             ...current,
             customer_id: selected?.value || '',
@@ -275,8 +440,8 @@ export default function EditOrder({
         setSelectedCustomer(selected ?? null);
     };
 
-    const changeServiceStatus = (selected: any) => {
-        setData((current) => ({ ...current, service_status: selected?.value, status_reason: '', status_change_kind: '' }));
+    const changeServiceStatus = (selected: OptionType | null) => {
+        setData((current) => ({ ...current, service_status: selected?.value ?? '', status_reason: '', status_change_kind: '' }));
     };
 
     // Motivo e tipo só aparecem quando a matriz de transições exige (cancelamento, não execução, regressão, reabertura).
@@ -302,51 +467,51 @@ export default function EditOrder({
         toastSuccess('Copiado', 'Link do orçamento copiado para a área de transferência');
     };
 
-    const changeResponsibleTechnician = (selected: any) => {
-        setData('user_id', selected?.value);
+    const changeResponsibleTechnician = (selected: OptionType | null) => {
+        setData('user_id', selected?.value ?? null);
     };
 
-    const selectedEquipment = optionsEquipment?.find((o: any) => String(o.value) === String(data.equipment_id)) ?? null;
+    const selectedEquipment = optionsEquipment.find((option) => String(option.value) === String(data.equipment_id)) ?? null;
     const statusDefault = statusServico
-        ?.filter((o: any) => o.value == order?.service_status)
-        .map((opt: any) => ({ value: opt.value, label: opt.label }));
+        ?.filter((option) => String(option.value) === String(order?.service_status))
+        .map((option) => ({ value: option.value, label: option.label }));
     const defaultTechnical = optionsTechnical
-        ?.filter((o: any) => o.value == order?.user_id)
-        .map((opt: any) => ({ value: opt.value, label: opt.label }));
+        ?.filter((option) => String(option.value) === String(order?.user_id))
+        .map((option) => ({ value: option.value, label: option.label }));
 
-    const handleRemovePartsOrder = (e: any, id: number) => {
+    const handleRemovePartsOrder = (e: MouseEvent<HTMLButtonElement>, id: number) => {
         e.preventDefault();
         post(route('app.orders.removePart', { order_id: order.id, part_id: id }));
         // const calcTotal =
-        setData((data: any) => ({ ...data, parts_value: '0' }));
-        setData((data: any) => ({ ...data, service_value: '0' }));
-        setData((data: any) => ({ ...data, service_cost: '0' }));
-        setData((data: any) => ({ ...data, allparts: [] }));
+        setData((currentData) => ({ ...currentData, parts_value: '0' }));
+        setData((currentData) => ({ ...currentData, service_value: '0' }));
+        setData((currentData) => ({ ...currentData, service_cost: '0' }));
+        setData((currentData) => ({ ...currentData, allparts: [] }));
         setPartsData([]);
     };
 
-    const handleRemovePart = (partId: any) => {
-        setPartsData((currentLocalParts: any) => currentLocalParts.filter((part: any) => part.id !== partId));
+    const handleRemovePart = (partId: number) => {
+        setPartsData((currentLocalParts) => currentLocalParts.filter((part) => part.id !== partId));
     };
 
     const combinedParts = [
-        ...(orderparts || []).map((part: any) => ({
+        ...orderparts.map((part) => ({
             id: part.id,
             name: part.name, // 🔥 essencial
             sale_price: partUnitPrice(part),
             quantity: part.pivot.quantity,
             source: 'database',
         })),
-        ...(partsData || []).map((part: any) => ({
+        ...partsData.map((part) => ({
             id: part.id,
             name: part.name,
             sale_price: partUnitPrice(part),
-            quantity: part.quantity,
+            quantity: part.quantity ?? 1,
             source: 'local',
         })),
     ];
 
-    const currentStatusLabel = statusServico.find((item: any) => Number(item.value) === Number(data.service_status))?.label ?? 'Status';
+    const currentStatusLabel = statusServico.find((item) => Number(item.value) === Number(data.service_status))?.label ?? 'Status';
     const isDeliveryStatus = Number(data.service_status) === ORDER_STATUS.DELIVERED;
     const canIssueInvoiceWithValue = Number(order.service_cost ?? 0) > 0;
     return (
@@ -512,9 +677,21 @@ export default function EditOrder({
                                                     )}
                                                 </div>
                                                 {!publicAccessKey && (
-                                                    <p role="status" className="text-muted-foreground text-xs">
-                                                        Chave de acesso público indisponível. Acione o suporte para avaliar a recuperação individual.
-                                                    </p>
+                                                    <div className="space-y-2">
+                                                        <p role="status" className="text-muted-foreground text-xs">
+                                                            Chave de acesso público indisponível.
+                                                        </p>
+                                                        {canRegeneratePublicAccessKey && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => setPublicKeyRegenerationOpen(true)}
+                                                            >
+                                                                Gerar nova chave
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 <InputError className="mt-2" message={errors.customer_id} />
                                                 {!canChangeCustomer && (
@@ -686,7 +863,7 @@ export default function EditOrder({
                                                     </AccordionTrigger>
                                                     <AccordionContent className="px-0 pb-0">
                                                         <div className="divide-y border-t">
-                                                            {combinedParts.map((part: any, index: number) => {
+                                                            {combinedParts.map((part, index) => {
                                                                 const unitPrice = normalizeMoney(part.sale_price);
                                                                 const total = multiplyMoney(unitPrice, part.quantity);
 
@@ -984,7 +1161,7 @@ export default function EditOrder({
                                                         className="border-input bg-background h-10 rounded-md border px-3 text-sm"
                                                     >
                                                         <option value="">Selecione a OS de origem</option>
-                                                        {eligibleWarrantyOrders.map((item: any) => (
+                                                        {eligibleWarrantyOrders.map((item) => (
                                                             <option key={item.id} value={item.id}>
                                                                 OS #{item.order_number}
                                                                 {item.model ? ` • ${item.model}` : ''} • garantia até{' '}
@@ -1077,7 +1254,7 @@ export default function EditOrder({
 
                                             {equipmentHistory?.history?.length ? (
                                                 <div className="space-y-2">
-                                                    {equipmentHistory.history.map((item: any) => (
+                                                    {equipmentHistory.history.map((item) => (
                                                         <div key={item.id} className="rounded-lg border p-3 text-sm">
                                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                                 <span className="font-medium">OS #{item.order_number}</span>
@@ -1139,6 +1316,39 @@ export default function EditOrder({
                         <Copy className="h-4 w-4" />
                         Copiar chave
                     </Button>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={publicKeyRegenerationOpen} onOpenChange={setPublicKeyRegenerationOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogTitle>Gerar nova chave pública?</DialogTitle>
+                    <p className="text-muted-foreground text-sm">
+                        Esta ação invalida a chave anterior. Informe o motivo e confirme para criar uma chave individual para esta OS.
+                    </p>
+                    <form onSubmit={handleRegeneratePublicAccessKey} className="space-y-3">
+                        <Label htmlFor="public-access-key-regeneration-reason">Motivo</Label>
+                        <Textarea
+                            id="public-access-key-regeneration-reason"
+                            value={publicKeyRegenerationForm.data.reason}
+                            onChange={(event) => publicKeyRegenerationForm.setData('reason', event.target.value)}
+                            placeholder="Explique por que a chave atual não pôde ser recuperada."
+                            rows={4}
+                            minLength={10}
+                            maxLength={500}
+                            required
+                        />
+                        {publicKeyRegenerationForm.errors.reason && <p className="text-sm text-red-500">{publicKeyRegenerationForm.errors.reason}</p>}
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setPublicKeyRegenerationOpen(false)}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={publicKeyRegenerationForm.processing || publicKeyRegenerationForm.data.reason.trim().length < 10}
+                            >
+                                {publicKeyRegenerationForm.processing ? 'Gerando...' : 'Confirmar e substituir'}
+                            </Button>
+                        </div>
+                    </form>
                 </DialogContent>
             </Dialog>
             <Dialog open={customerUpdateOpen} onOpenChange={setCustomerUpdateOpen}>

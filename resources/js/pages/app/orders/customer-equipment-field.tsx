@@ -17,7 +17,7 @@ type EquipmentTypeOption = {
     kind?: string | null;
 };
 
-type CustomerEquipmentOption = {
+export type CustomerEquipmentOption = {
     id: number;
     customer_equipment_number: number;
     equipment_id: number | null;

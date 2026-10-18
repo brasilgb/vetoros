@@ -19,25 +19,25 @@ interface InvoiceModalProps {
             name?: string;
             cpfcnpj?: string;
         };
-        services_performed?: string;
-        service_cost?: string | number;
-        service_value?: string | number;
-        parts_value?: string | number;
+        services_performed?: string | null;
+        service_cost?: string | number | null;
+        service_value?: string | number | null;
+        parts_value?: string | number | null;
         order_number?: string | number;
-        fiscal_document_number?: string;
-        fiscal_document_url?: string;
-        fiscal_issued_at?: string;
-        fiscal_notes?: string;
+        fiscal_document_number?: string | null;
+        fiscal_document_url?: string | null;
+        fiscal_issued_at?: string | null;
+        fiscal_notes?: string | null;
     };
     summary?: {
-        service_value?: string | number;
-        parts_value?: string | number;
-        total_order?: string | number;
+        service_value?: string | number | null;
+        parts_value?: string | number | null;
+        total_order?: string | number | null;
     } | null;
 }
 
 export default function InvoiceModal({ open, onClose, order, summary = null }: InvoiceModalProps) {
-    const { fiscalSetting } = usePage().props as any;
+    const { fiscalSetting } = usePage<{ fiscalSetting?: { native?: { nfse?: boolean }; service_list_item?: string; service_city_code?: string } }>().props;
     const orderId = order?.id;
     const partsValue = Number(summary?.parts_value ?? order.parts_value ?? 0);
     const serviceValue = Number(summary?.service_value ?? order.service_value ?? 0);

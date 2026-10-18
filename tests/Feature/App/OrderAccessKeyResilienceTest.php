@@ -52,7 +52,10 @@ class OrderAccessKeyResilienceTest extends TestCase
     public function test_access_key_written_now_is_encrypted_and_readable(): void
     {
         $tenant = Tenant::factory()->create();
-        $order = Order::factory()->forTenant($tenant->id)->create(['public_access_key' => 'ZXCV9876']);
+        $order = Order::factory()->forTenant($tenant->id)->create([
+            'public_access_key' => 'ZXCV9876',
+            'public_access_key_hash' => Hash::make('ZXCV9876'),
+        ]);
 
         $this->assertNotSame('ZXCV9876', DB::table('orders')->where('id', $order->id)->value('public_access_key'));
         $this->assertSame('ZXCV9876', $order->fresh()->public_access_key);
