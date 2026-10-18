@@ -26,6 +26,7 @@ Comparação: `correio.md` mudou de VETOR-CHAT-06 para VETOR-CHAT-07. Este relat
 - O build emitiu o aviso já existente de chunks acima de 500 kB.
 - ESLint direto no componente encontrou 42 erros preexistentes espalhados pelo arquivo (principalmente `no-explicit-any` e variáveis não utilizadas). Não foram introduzidas regras de supressão nesta alteração.
 - A captura visual Chromium/Firefox desktop/mobile foi tentada, mas os processos do navegador encerraram ao iniciar no sandbox. Não declaro homologação visual concluída.
+- CI do commit `487b79c3` passou (build, TypeScript, suíte PHP e secret guard): [workflow CI 39132781588](https://github.com/brasilgb/vetoros/actions/runs/39132781588).
 
 ## Produção e pendências
 
