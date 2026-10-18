@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'web_chat' => [
+        'url' => env('VETORLEADS_WEB_CHAT_URL'),
+        'token' => env('VETORLEADS_WEB_CHAT_TOKEN'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

@@ -10,4 +10,9 @@ class Setting extends Model
     use HasFactory;
 
     protected $guarded = ['_method'];
+
+    protected function casts(): array
+    {
+        return ['web_chat_enabled' => 'boolean'];
+    }
 }

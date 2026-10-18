@@ -8,12 +8,20 @@ use App\Http\Controllers\SharedFiscalDocumentController;
 use App\Http\Controllers\SharedSaasFiscalDocumentController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\PlanController;
+use App\Http\Controllers\Site\WebChatProxyController;
 use App\Http\Controllers\TenantFeedbackController;
 use App\Support\SiteMeta;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::prefix('chat')->middleware('throttle:30,1')->name('chat.')->group(function (): void {
+    Route::post('conversations', [WebChatProxyController::class, 'start'])->name('start');
+    Route::get('conversations/{conversation}', [WebChatProxyController::class, 'show'])->whereUuid('conversation')->name('show');
+    Route::post('conversations/{conversation}/messages', [WebChatProxyController::class, 'send'])->whereUuid('conversation')->name('messages.store');
+    Route::patch('conversations/{conversation}/contact', [WebChatProxyController::class, 'identify'])->whereUuid('conversation')->name('contact.update');
+    Route::post('conversations/{conversation}/close', [WebChatProxyController::class, 'close'])->whereUuid('conversation')->name('close');
+});
 Route::get('/planos', [PlanController::class, 'index'])->name('plans.index');
 Route::get('/os/{token}', [OsController::class, 'index'])->name('os.token');
 Route::post('/os/{token}/access', [OsController::class, 'authorizeAccess'])

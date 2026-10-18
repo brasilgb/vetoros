@@ -68,8 +68,16 @@ class SettingController extends Controller
             'commercial_whatsapp_message' => ['nullable', 'string', 'max:500'],
             'commercial_whatsapp_public' => ['required', 'boolean'],
             'commercial_whatsapp_internal' => ['required', 'boolean'],
+            'web_chat_enabled' => ['sometimes', 'boolean'],
+            'web_chat_welcome_message' => ['nullable', 'string', 'max:500'],
+            'web_chat_business_hours' => ['nullable', 'regex:/^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/'],
+            'web_chat_offline_message' => ['nullable', 'string', 'max:500'],
             'logo' => ['nullable', 'image', 'max:2048'],
         ]);
+
+        if ($request->has('web_chat_enabled')) {
+            $validated['web_chat_enabled'] = $request->boolean('web_chat_enabled');
+        }
 
         $phone = trim((string) ($validated['commercial_whatsapp'] ?? ''));
         $normalizedPhone = WhatsAppPhone::normalize($phone);

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import { formatWhatsappNumber } from '@/pages/site/components/site-contact';
 import type { BreadcrumbItem } from '@/types';
@@ -21,6 +22,10 @@ interface Settings {
     commercial_whatsapp_message?: string | null;
     commercial_whatsapp_public?: boolean;
     commercial_whatsapp_internal?: boolean;
+    web_chat_enabled?: boolean;
+    web_chat_welcome_message?: string | null;
+    web_chat_business_hours?: string | null;
+    web_chat_offline_message?: string | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -43,6 +48,10 @@ export default function SettingsIndex({ settings }: { settings: Settings }) {
         commercial_whatsapp_message: settings?.commercial_whatsapp_message ?? '',
         commercial_whatsapp_public: settings?.commercial_whatsapp_public ?? true,
         commercial_whatsapp_internal: settings?.commercial_whatsapp_internal ?? true,
+        web_chat_enabled: settings?.web_chat_enabled ?? true,
+        web_chat_welcome_message: settings?.web_chat_welcome_message ?? '',
+        web_chat_business_hours: settings?.web_chat_business_hours ?? '',
+        web_chat_offline_message: settings?.web_chat_offline_message ?? '',
     });
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -59,6 +68,10 @@ export default function SettingsIndex({ settings }: { settings: Settings }) {
                 commercial_whatsapp_message: data.commercial_whatsapp_message,
                 commercial_whatsapp_public: data.commercial_whatsapp_public,
                 commercial_whatsapp_internal: data.commercial_whatsapp_internal,
+                web_chat_enabled: data.web_chat_enabled,
+                web_chat_welcome_message: data.web_chat_welcome_message,
+                web_chat_business_hours: data.web_chat_business_hours,
+                web_chat_offline_message: data.web_chat_offline_message,
             },
             {
                 onSuccess: () => {
@@ -171,6 +184,52 @@ export default function SettingsIndex({ settings }: { settings: Settings }) {
                                         <span className="text-muted-foreground">Deixa o canal acessível às futuras ações internas compatíveis.</span>
                                     </span>
                                 </label>
+                            </div>
+                        </section>
+
+                        <section className="space-y-5 rounded-xl border p-5">
+                            <HeadingSmall title="Chat do site" description="Configure o atendimento comercial da landing do VetorOS." />
+                            <label className="flex items-start gap-3 text-sm">
+                                <Checkbox
+                                    checked={data.web_chat_enabled}
+                                    onCheckedChange={(checked) => setData('web_chat_enabled', checked === true)}
+                                />
+                                <span>
+                                    <strong className="block">Habilitar chat</strong>
+                                    <span className="text-muted-foreground">Exibe o chat flutuante nas páginas públicas.</span>
+                                </span>
+                            </label>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="web_chat_welcome_message">Mensagem inicial</Label>
+                                    <Textarea
+                                        id="web_chat_welcome_message"
+                                        maxLength={500}
+                                        value={data.web_chat_welcome_message}
+                                        onChange={(event) => setData('web_chat_welcome_message', event.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="web_chat_offline_message">Mensagem fora do horário</Label>
+                                    <Textarea
+                                        id="web_chat_offline_message"
+                                        maxLength={500}
+                                        value={data.web_chat_offline_message}
+                                        onChange={(event) => setData('web_chat_offline_message', event.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="web_chat_business_hours">Horário de atendimento (dias úteis)</Label>
+                                    <Input
+                                        id="web_chat_business_hours"
+                                        placeholder="09:00-18:00"
+                                        value={data.web_chat_business_hours}
+                                        onChange={(event) => setData('web_chat_business_hours', event.target.value)}
+                                    />
+                                    {errors.web_chat_business_hours && (
+                                        <p className="text-sm text-red-500">Use o formato HH:MM-HH:MM, no fuso de Brasília.</p>
+                                    )}
+                                </div>
                             </div>
                         </section>
 
