@@ -25,7 +25,7 @@ export function Hero() {
                     <h1 className="max-w-3xl text-[clamp(3.5rem,7vw,6.6rem)] leading-[0.88] font-black tracking-[-0.075em] text-balance">
                         <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/25 bg-sky-300/10 px-4 py-2 text-xs leading-normal font-extrabold tracking-[0.12em] text-sky-200 uppercase">
                             <Sparkles className="size-3.5 shrink-0" aria-hidden="true" />
-                            Sistema de ordem de serviço para assistência técnica
+                            Sistema de gestão para assistências técnicas
                         </span>
                         <span className="mt-7 block">Sua operação</span>
                         <span className="mt-2 block text-sky-300">sob controle.</span>
