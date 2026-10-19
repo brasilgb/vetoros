@@ -11,7 +11,7 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader --no-scripts
 COPY . .
-RUN composer dump-autoload --no-dev --optimize --no-interaction && mkdir -p /opt/public-build && chown -R www-data:www-data storage bootstrap/cache
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && composer dump-autoload --no-dev --optimize --no-interaction && mkdir -p /opt/public-build && chown -R www-data:www-data storage bootstrap/cache
 COPY --from=frontend /app/public/build /opt/public-build
 COPY deploy/php/conf.d/zz-vetoros-performance.ini /usr/local/etc/php/conf.d/zz-vetoros-performance.ini
 COPY deploy/php/php-fpm.d/zz-vetoros-pool.conf /usr/local/etc/php-fpm.d/zz-vetoros-pool.conf
