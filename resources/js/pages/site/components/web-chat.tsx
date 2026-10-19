@@ -7,6 +7,7 @@ import { contactLink, formatWhatsappNumber, useContactChannel } from './site-con
 
 type Message = { id: number | string; sender: string; body: string; created_at?: string };
 type Session = { id: string; expires: number; identified?: boolean; dismissed?: boolean };
+type SandboxSession = { id: string; token: string; expires_at: string };
 type ContactForm = { name: string; whatsapp: string; subject: string; email: string; company_name: string; whatsapp_consent: boolean };
 
 // Assuntos aceitos pelo VetorLeads (VETOR-CHAT-11). Só "comercial" pode virar oportunidade.
@@ -35,6 +36,7 @@ type ChatSettings = {
     chat_open?: boolean;
 };
 const STORAGE_KEY = 'vetoros-web-chat-v1';
+const SANDBOX_MODE_KEY = 'vetoros-web-chat-sandbox-mode';
 
 export function WebChat() {
     const { webChatSettings } = usePage<{ webChatSettings?: ChatSettings }>().props;
@@ -42,6 +44,9 @@ export function WebChat() {
     const [text, setText] = useState('');
     const [messages, setMessages] = useState<Message[]>([]);
     const [session, setSession] = useState<Session | null>(null);
+    const [sandboxSession, setSandboxSession] = useState<SandboxSession | null>(null);
+    const [sandboxLocked, setSandboxLocked] = useState(false);
+    const [sandboxCode, setSandboxCode] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [unread, setUnread] = useState(0);
@@ -57,6 +62,10 @@ export function WebChat() {
         if (webChatSettings?.web_chat_enabled === false) return;
 
         try {
+            if (sessionStorage.getItem(SANDBOX_MODE_KEY) === '1') {
+                setSandboxLocked(true);
+                return;
+            }
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved) as Session;
@@ -69,7 +78,7 @@ export function WebChat() {
     }, [webChatSettings?.web_chat_enabled]);
 
     useEffect(() => {
-        if (!session || webChatSettings?.web_chat_enabled === false) return;
+        if (!session || sandboxLocked || webChatSettings?.web_chat_enabled === false) return;
         let active = true;
         const poll = async () => {
             try {
@@ -79,7 +88,7 @@ export function WebChat() {
                 if (response.data.identified === true && !session.identified) saveSession({ ...session, identified: true });
                 setMessages((current) => {
                     const known = new Set(current.map((item) => String(item.id)));
-                    const fresh = incoming.filter((item) => !known.has(String(item.id)) && item.sender === 'attendant');
+                    const fresh = incoming.filter((item) => !known.has(String(item.id)) && item.sender !== 'visitor');
                     if (!open && fresh.length) setUnread((count) => count + fresh.length);
                     return incoming;
                 });
@@ -100,7 +109,30 @@ export function WebChat() {
             active = false;
             window.clearInterval(timer);
         };
-    }, [session, open, webChatSettings?.web_chat_enabled]);
+    }, [session, sandboxLocked, open, webChatSettings?.web_chat_enabled]);
+
+    useEffect(() => {
+        if (!sandboxSession || !sandboxLocked) return;
+        let active = true;
+        const poll = async () => {
+            try {
+                const response = await axios.get(`/chat/sandbox/${sandboxSession.id}`, { headers: { 'X-Sandbox-Session': sandboxSession.token } });
+                if (active) {
+                    setMessages(response.data.conversation.messages as Message[]);
+                    setError('');
+                }
+            } catch (reason) {
+                if (!active) return;
+                if (axios.isAxiosError(reason) && [401, 403, 404].includes(reason.response?.status ?? 0)) {
+                    setSandboxSession(null);
+                    setError('A sessão de homologação expirou ou foi revogada. Informe um novo código para continuar.');
+                } else setError('Não foi possível atualizar a sessão de homologação.');
+            }
+        };
+        void poll();
+        const timer = window.setInterval(poll, 3000);
+        return () => { active = false; window.clearInterval(timer); };
+    }, [sandboxSession, sandboxLocked]);
 
     useEffect(() => {
         bottom.current?.scrollIntoView({ behavior: 'smooth' });
@@ -112,7 +144,45 @@ export function WebChat() {
     };
 
     // Pede a identificação depois da primeira mensagem, sem bloquear a conversa.
-    const askIdentification = Boolean(session && !session.identified && (identifyOpen || !session.dismissed));
+    const askIdentification = Boolean(!sandboxLocked && session && !session.identified && (identifyOpen || !session.dismissed));
+
+    const leaveSandbox = () => {
+        sessionStorage.removeItem(SANDBOX_MODE_KEY);
+        setSandboxSession(null);
+        setMessages([]);
+        setError('');
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            const previous = saved ? JSON.parse(saved) as Session : null;
+            setSession(previous && previous.expires > Date.now() ? previous : null);
+        } catch {
+            setSession(null);
+        }
+        setSandboxLocked(false);
+    };
+
+    const redeemSandbox = async (event: FormEvent) => {
+        event.preventDefault();
+        if (busy || !sandboxCode.trim()) return;
+        setBusy(true);
+        setError('');
+        setSandboxLocked(true);
+        sessionStorage.setItem(SANDBOX_MODE_KEY, '1');
+        try {
+            const response = await axios.post('/chat/sandbox/access', { code: sandboxCode.trim() });
+            setSandboxSession({ id: response.data.conversation.id, token: response.data.session, expires_at: response.data.expires_at });
+            setMessages(response.data.conversation.messages as Message[]);
+            setSandboxCode('');
+        } catch (reason) {
+            if (axios.isAxiosError(reason) && [401, 403, 422].includes(reason.response?.status ?? 0)) {
+                setError('Código inválido, utilizado ou expirado. O atendimento operacional não foi iniciado.');
+            } else {
+                setError('Não foi possível validar o código. O atendimento operacional não foi iniciado; tente novamente mais tarde.');
+            }
+        } finally {
+            setBusy(false);
+        }
+    };
 
     const send = async (event: FormEvent) => {
         event.preventDefault();
@@ -121,6 +191,13 @@ export function WebChat() {
         setBusy(true);
         setError('');
         try {
+            if (sandboxLocked) {
+                if (!sandboxSession) throw new Error('Informe um código de homologação válido.');
+                const response = await axios.post(`/chat/sandbox/${sandboxSession.id}/messages`, { body }, { headers: { 'X-Sandbox-Session': sandboxSession.token } });
+                setMessages(response.data.conversation.messages as Message[]);
+                setText('');
+                return;
+            }
             const client_message_id = crypto.randomUUID();
             if (!session) {
                 const response = await axios.post('/chat/conversations', { message: body, client_message_id, page_url: window.location.href });
@@ -140,7 +217,7 @@ export function WebChat() {
 
     const identify = async (event: FormEvent) => {
         event.preventDefault();
-        if (!session || savingContact) return;
+        if (sandboxLocked || !session || savingContact) return;
         const errors = contactErrors(contact);
         setFieldErrors(errors);
         if (Object.keys(errors).length) return;
@@ -189,22 +266,26 @@ export function WebChat() {
                 >
                     <header className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
                         <div>
-                            <p className="font-semibold">Atendimento VetorOS</p>
-                            <p className="text-xs text-slate-300">Vendas e suporte, aqui pelo site</p>
+                            <p className="font-semibold">{sandboxLocked ? 'Homologação VetorOS' : 'Atendimento VetorOS'}</p>
+                            <p className="text-xs text-slate-300">{sandboxLocked ? 'Sessão isolada de teste' : 'Vendas e suporte, aqui pelo site'}</p>
                         </div>
-                        <button type="button" onClick={() => setOpen(false)} aria-label="Fechar chat" className="rounded p-2 hover:bg-white/10">
-                            <X size={18} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            {!sandboxLocked && <button type="button" onClick={() => { sessionStorage.setItem(SANDBOX_MODE_KEY, '1'); setMessages([]); setText(''); setError(''); setSandboxLocked(true); }} className="rounded p-2 text-xs text-slate-300 hover:bg-white/10">Tenho código de homologação</button>}
+                            {sandboxLocked && <button type="button" onClick={leaveSandbox} className="rounded p-2 text-xs hover:bg-white/10">Sair do teste</button>}
+                            <button type="button" onClick={() => setOpen(false)} aria-label="Fechar chat" className="rounded p-2 hover:bg-white/10"><X size={18} /></button>
+                        </div>
                     </header>
                     <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4" aria-live="polite">
-                        <p className="max-w-[90%] rounded-2xl rounded-tl-sm bg-white p-3 text-sm text-slate-700 shadow-sm">
+                        {!sandboxLocked && <p className="max-w-[90%] rounded-2xl rounded-tl-sm bg-white p-3 text-sm text-slate-700 shadow-sm">
                             {webChatSettings?.web_chat_welcome_message ||
                                 'Olá! Envie sua mensagem e nossa equipe responderá por aqui. Não precisa se cadastrar para começar.'}
-                        </p>
-                        {webChatSettings?.web_chat_business_hours && (
+                        </p>}
+                        {sandboxLocked && !sandboxSession && <form onSubmit={redeemSandbox} className="space-y-2 rounded-xl border bg-white p-3 text-sm"><p className="font-medium">Acesso de homologação autorizado</p><label className="block text-xs" htmlFor="sandbox-code">Código temporário</label><input id="sandbox-code" value={sandboxCode} onChange={(event) => setSandboxCode(event.target.value)} autoComplete="off" spellCheck={false} maxLength={64} className="w-full rounded border p-2 font-mono" placeholder="Cole o código emitido pelo administrador" /><button disabled={busy || sandboxCode.length !== 64} className="w-full rounded bg-slate-900 p-2 text-white disabled:opacity-50">Validar código</button></form>}
+                        {sandboxSession && <p className="rounded bg-amber-50 p-2 text-xs text-amber-900">Sandbox isolado · expira em {new Date(sandboxSession.expires_at).toLocaleTimeString()}</p>}
+                        {!sandboxLocked && webChatSettings?.web_chat_business_hours && (
                             <p className="text-xs text-slate-500">Horário de atendimento: {webChatSettings.web_chat_business_hours}</p>
                         )}
-                        {webChatSettings?.chat_open === false && webChatSettings.web_chat_offline_message && (
+                        {!sandboxLocked && webChatSettings?.chat_open === false && webChatSettings.web_chat_offline_message && (
                             <p className="max-w-[90%] rounded-2xl rounded-tl-sm bg-white p-3 text-sm text-slate-700 shadow-sm">
                                 {webChatSettings.web_chat_offline_message}
                             </p>
@@ -214,7 +295,7 @@ export function WebChat() {
                                 <p
                                     className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${message.sender === 'visitor' ? 'rounded-br-sm bg-blue-700 text-white' : 'rounded-bl-sm bg-white text-slate-700 shadow-sm'}`}
                                 >
-                                    {message.body}
+                                    {message.sender === 'bot' && <span className="mb-1 block text-xs font-semibold">Assistente automático</span>}{message.body}
                                 </p>
                             </div>
                         ))}
@@ -343,7 +424,7 @@ export function WebChat() {
                         )}
                         <div ref={bottom} />
                     </div>
-                    {session && !session.identified && !askIdentification && (
+                    {!sandboxLocked && session && !session.identified && !askIdentification && (
                         <div className="border-t px-3 py-2">
                             <button type="button" onClick={() => setIdentifyOpen(true)} className="text-xs text-blue-700 underline">
                                 Informar meus dados para retorno
@@ -364,11 +445,12 @@ export function WebChat() {
                             value={text}
                             onChange={(event) => setText(event.target.value)}
                             maxLength={4000}
-                            placeholder="Digite sua mensagem..."
+                            disabled={sandboxLocked && !sandboxSession}
+                            placeholder={sandboxLocked ? (sandboxSession ? 'Mensagem para o laboratório...' : 'Informe um código de homologação') : 'Digite sua mensagem...'}
                             className="min-w-0 flex-1 rounded-lg border px-3 text-sm"
                         />
                         <button
-                            disabled={busy || !text.trim()}
+                            disabled={busy || !text.trim() || (sandboxLocked && !sandboxSession)}
                             aria-label="Enviar mensagem"
                             className="rounded-lg bg-blue-700 p-3 text-white disabled:opacity-50"
                         >
@@ -381,7 +463,7 @@ export function WebChat() {
                             Política de Privacidade
                         </a>
                         .{' '}
-                        {contactLink(channel) && (
+                        {!sandboxLocked && contactLink(channel) && (
                             <a className="ml-1 underline" href={contactLink(channel)!} target="_blank" rel="noreferrer">
                                 Continuar no WhatsApp
                             </a>

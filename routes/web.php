@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::prefix('chat')->name('chat.')->group(function (): void {
+    Route::post('sandbox/access', [WebChatProxyController::class, 'redeemSandbox'])->middleware('throttle:10,1,sandbox-redeem:')->name('sandbox.redeem');
+    Route::get('sandbox/{conversation}', [WebChatProxyController::class, 'showSandbox'])->whereUuid('conversation')->middleware('throttle:60,1,sandbox-poll:')->name('sandbox.show');
+    Route::post('sandbox/{conversation}/messages', [WebChatProxyController::class, 'sendSandbox'])->whereUuid('conversation')->middleware('throttle:30,1,sandbox-messages:')->name('sandbox.messages');
+});
 Route::prefix('chat')->middleware('throttle:30,1')->name('chat.')->group(function (): void {
     Route::post('conversations', [WebChatProxyController::class, 'start'])->name('start');
     Route::get('conversations/{conversation}', [WebChatProxyController::class, 'show'])->whereUuid('conversation')->name('show');

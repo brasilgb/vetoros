@@ -3,11 +3,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 export const faqItems = [
     {
         question: 'Preciso de cartão de crédito para testar?',
-        answer: 'Não. O cadastro libera 14 dias de acesso completo sem pedir cartão. Depois do teste, o pagamento é feito via Pix, só quando você decidir continuar.',
+        answer: 'Não. O cadastro libera 14 dias de acesso completo sem pedir cartão. Depois do teste, consulte as formas de pagamento e as condições vigentes antes de decidir continuar.',
     },
     {
         question: 'Posso cancelar quando quiser?',
-        answer: 'Sim. Não há fidelidade nem multa de cancelamento — você paga via Pix apenas quando for renovar o plano mensal ou anual.',
+        answer: 'Sim. Não há fidelidade nem multa de cancelamento. Consulte as condições vigentes do plano antes de renovar.',
     },
     {
         question: 'O VetorOS emite nota fiscal?',

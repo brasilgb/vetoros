@@ -80,6 +80,23 @@ class WebChatProxyController extends Controller
         return $this->forward('post', "/api/web-chat/conversations/{$conversation}/close", [], $this->visitorToken($request, $conversation));
     }
 
+    public function redeemSandbox(Request $request): JsonResponse
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'size:64', 'regex:/^[a-f0-9]{64}$/']]);
+        return $this->forward('post', '/api/web-chat/sandbox/redeem', $data)->header('Cache-Control', 'no-store');
+    }
+
+    public function showSandbox(Request $request, string $conversation): JsonResponse
+    {
+        return $this->forwardSandbox('get', "/api/web-chat/sandbox/{$conversation}", [], (string) $request->header('X-Sandbox-Session'));
+    }
+
+    public function sendSandbox(Request $request, string $conversation): JsonResponse
+    {
+        $data = $request->validate(['body' => ['required', 'string', 'min:1', 'max:4000']]);
+        return $this->forwardSandbox('post', "/api/web-chat/sandbox/{$conversation}/messages", $data, (string) $request->header('X-Sandbox-Session'));
+    }
+
     private function visitorToken(Request $request, string $conversation): ?string
     {
         try {
@@ -109,6 +126,22 @@ class WebChatProxyController extends Controller
             $response = $request->{$method}($base.$path, $payload);
 
             return response()->json($response->json() ?? ['message' => 'Falha na integração.'], $response->status());
+        } catch (ConnectionException) {
+            return response()->json(['message' => 'Chat indisponível no momento.'], 503);
+        }
+    }
+
+    private function forwardSandbox(string $method, string $path, array $payload, string $sandboxSession): JsonResponse
+    {
+        if (! preg_match('/^[a-f0-9]{64}$/', $sandboxSession)) {
+            return response()->json(['message' => 'Sessão de homologação inválida.'], 401);
+        }
+        $base = rtrim((string) config('services.web_chat.url'), '/');
+        $serviceToken = (string) config('services.web_chat.token');
+        if ($base === '' || $serviceToken === '') return response()->json(['message' => 'Chat indisponível no momento.'], 503);
+        try {
+            $response = Http::acceptJson()->withToken($serviceToken)->withHeaders(['X-Sandbox-Session' => $sandboxSession])->timeout(5)->{$method}($base.$path, $payload);
+            return response()->json($response->json() ?? ['message' => 'Falha na integração.'], $response->status())->header('Cache-Control', 'no-store');
         } catch (ConnectionException) {
             return response()->json(['message' => 'Chat indisponível no momento.'], 503);
         }
