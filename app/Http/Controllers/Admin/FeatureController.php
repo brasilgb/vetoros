@@ -44,8 +44,8 @@ class FeatureController extends Controller
      */
     public function store(FeatureRequest $request): RedirectResponse
     {
-        $data = $request->all();
         $request->validated();
+        $data = $request->only(['name', 'period_id', 'order']);
         Feature::create($data);
 
         return redirect()->route('admin.features.index')->with('success', 'Característica cadastrada com sucesso!');
@@ -72,8 +72,8 @@ class FeatureController extends Controller
      */
     public function update(FeatureRequest $request, Feature $feature): RedirectResponse
     {
-        $data = $request->all();
         $request->validated();
+        $data = $request->only(['name', 'period_id', 'order']);
         $feature->update($data);
 
         return redirect()->route('admin.features.index')->with('success', 'Características editadas com sucesso!');

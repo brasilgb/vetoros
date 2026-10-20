@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
+use App\Support\TenantRule;
 
 class SaleController extends Controller
 {
@@ -98,12 +99,14 @@ class SaleController extends Controller
         }
 
         $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'total_amount' => 'required|numeric',
+            'customer_id' => ['nullable', TenantRule::exists('customers')],
+            'total_amount' => 'required|numeric|min:0',
+            // O PDV não tem desconto: o total é o preço das peças, calculado no servidor.
+            'discount_amount' => 'prohibited',
             'paid_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'required|in:pix,cartao,dinheiro,transferencia,boleto',
             'parts' => 'required|array',
-            'parts.*.part_id' => 'required|exists:parts,id',
+            'parts.*.part_id' => ['required', TenantRule::exists('parts')],
             'parts.*.quantity' => 'required|integer|min:1',
         ]);
 

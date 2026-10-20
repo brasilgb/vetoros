@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\App\Image;
 use App\Models\App\Order;
 use App\Models\User;
+use App\Support\OrderFiles;
+use App\Support\TenantRule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\File;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -44,25 +45,6 @@ class ImageController extends Controller
         return $query->firstOrFail();
     }
 
-    private function orderImagesPath(Order $order): string
-    {
-        return public_path('storage/orders/'.$order->order_number);
-    }
-
-    private function deleteImageFile(Order $order, Image $image): void
-    {
-        $paths = [
-            $this->orderImagesPath($order).DIRECTORY_SEPARATOR.$image->filename,
-            public_path('storage/orders/'.$image->order_id).DIRECTORY_SEPARATOR.$image->filename,
-        ];
-
-        foreach (array_unique($paths) as $path) {
-            if (file_exists($path)) {
-                unlink($path);
-            }
-        }
-    }
-
     public function index(Request $request)
     {
         $query = $request->get('or');
@@ -82,7 +64,7 @@ class ImageController extends Controller
     {
         $validated = $request->validate(
             [
-                'order_id' => ['required', 'exists:orders,id'],
+                'order_id' => ['required', TenantRule::exists('orders')],
                 'images' => ['required', 'array', 'min:1'],
                 'images.*' => [
                     'bail',
@@ -111,15 +93,8 @@ class ImageController extends Controller
             ]);
         }
 
-        $storePath = $this->orderImagesPath($order);
-
-        if (! file_exists($storePath)) {
-            mkdir($storePath, 0777, true);
-        }
-
         foreach ($validated['images'] as $imageFile) {
-            $filename = uniqid().'.'.$imageFile->getClientOriginalExtension();
-            $imageFile->move($storePath, $filename);
+            $filename = OrderFiles::storeUploadedImage($order, $imageFile);
 
             Image::create([
                 'order_id' => $validated['order_id'],
@@ -135,7 +110,7 @@ class ImageController extends Controller
         $order = Order::query()->findOrFail($image->order_id);
         $this->authorize('update', $order);
 
-        $this->deleteImageFile($order, $image);
+        OrderFiles::deleteImage($image, $order);
         $image->delete();
 
         return redirect()->back()->with('success', 'Imagem excluida com sucesso!');
@@ -148,7 +123,7 @@ class ImageController extends Controller
         $order = Order::query()->findOrFail($image->order_id);
         $this->authorize('update', $order);
 
-        $this->deleteImageFile($order, $image);
+        OrderFiles::deleteImage($image, $order);
         $image->delete();
 
         return [
@@ -182,12 +157,14 @@ class ImageController extends Controller
             ]);
         }
 
-        $storePath = $this->orderImagesPath($order);
-        if (! file_exists($storePath)) {
-            mkdir($storePath, 0777, true);
+        // O app envia PNG em base64; outro conteúdo não vira "imagem" da OS.
+        if (! str_starts_with(OrderFiles::mimeType($image), 'image/')) {
+            throw ValidationException::withMessages([
+                'filename' => 'Imagem inválida.',
+            ]);
         }
-        $filename = time().rand(1, 50).'.'.'png';
-        File::put($storePath.DIRECTORY_SEPARATOR.$filename, $image);
+
+        $filename = OrderFiles::storeImageContents($order, $image, $this->imageExtension($image));
         Image::create([
             'order_id' => $order->id,
             'filename' => $filename,
@@ -198,6 +175,16 @@ class ImageController extends Controller
             'success' => true,
             'message' => 'Imagem salva com sucesso',
         ];
+    }
+
+    private function imageExtension(string $contents): string
+    {
+        return match (OrderFiles::mimeType($contents)) {
+            'image/jpeg' => 'jpg',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            default => 'png',
+        };
     }
 
     public function getImages(int $order)

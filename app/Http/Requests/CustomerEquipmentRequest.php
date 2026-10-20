@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -35,7 +36,7 @@ class CustomerEquipmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'equipment_id' => ['nullable', 'exists:equipment,id'],
+            'equipment_id' => ['nullable', TenantRule::exists('equipment')],
             'brand' => ['nullable', 'string', 'max:255'],
             'model' => ['nullable', 'string', 'max:255'],
             'serial_number' => ['nullable', 'string', 'max:255'],

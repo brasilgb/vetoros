@@ -164,6 +164,7 @@ class Order extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /** @return HasMany<Image, $this> */
     public function images(): HasMany
     {
         return $this->hasMany(Image::class);

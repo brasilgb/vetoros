@@ -90,6 +90,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('equipments.access', fn ($user) => $user->hasPermission('register_equipments'));
         Gate::define('checklists.access', fn ($user) => $user->hasPermission('register_checklists'));
         Gate::define('services.access', fn ($user) => $user->hasPermission('settings'));
+        Gate::define('budgets.access', fn ($user) => $user->hasPermission('budgets'));
         Gate::define('label-printing.access', fn ($user) => $user->hasPermission('label_printing'));
 
         Event::listen(

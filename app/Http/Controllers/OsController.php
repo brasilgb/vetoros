@@ -21,6 +21,7 @@ use App\Services\OrderBudgetService;
 use App\Services\OrderStatusService;
 use App\Support\OrderActor;
 use App\Support\OrderStatus;
+use App\Support\PublicOrderPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -93,14 +94,14 @@ class OsController extends Controller
             ->first(['id', 'order_id', 'version', 'status', 'quoted_amount', 'valid_until', 'sent_at']);
 
         return Inertia::render('app/serviceorders/index', [
-            'order' => $order,
+            'order' => PublicOrderPresenter::tracking($order),
             'budget' => $budget ? [
                 'version' => (int) $budget->version,
                 'status' => $budget->effective_status,
                 'quoted_amount' => $budget->quoted_amount,
                 'valid_until' => $budget->valid_until?->toDateString(),
             ] : null,
-            'company' => $company,
+            'company' => PublicOrderPresenter::trackingCompany($company),
             'hasChecklist' => $hasChecklist,
         ])->withViewData([
             'meta' => $this->orderMeta($order, $company, $request->fullUrl()),
@@ -356,9 +357,9 @@ class OsController extends Controller
         }
 
         return Inertia::render('app/receipts/print-receipt', [
-            'order' => $order,
+            'order' => PublicOrderPresenter::receipt($order),
             'type' => $type,
-            'company' => $company,
+            'company' => PublicOrderPresenter::receiptCompany($company),
             'receipt' => $receipt,
             'checklist' => $checklist,
             'backUrl' => route('os.token', $order->tracking_token),
@@ -378,8 +379,8 @@ class OsController extends Controller
         $company = $this->tenantScopedFirst(Company::class, (int) $order->tenant_id);
 
         return Inertia::render('app/serviceorders/payment-proof', [
-            'order' => $order,
-            'company' => $company,
+            'order' => PublicOrderPresenter::paymentProof($order),
+            'company' => PublicOrderPresenter::receiptCompany($company),
             'backUrl' => route('os.token', $order->tracking_token),
         ]);
     }
@@ -396,8 +397,8 @@ class OsController extends Controller
         $company = $this->tenantScopedFirst(Company::class, (int) $order->tenant_id);
 
         return Inertia::render('app/serviceorders/fiscal-proof', [
-            'order' => $order,
-            'company' => $company,
+            'order' => PublicOrderPresenter::fiscalProof($order),
+            'company' => PublicOrderPresenter::receiptCompany($company),
             'backUrl' => route('os.token', $order->tracking_token),
         ]);
     }

@@ -46,6 +46,7 @@ interface OrderPayment {
 interface OrderImage {
     id: number;
     filename: string;
+    url: string;
 }
 
 interface Order {
@@ -254,7 +255,7 @@ function ServiceOrders({ order }: { order: Order }) {
         financialSummary.remaining <= 0.009;
     const imageUrls = (order.images ?? []).map((image) => ({
         id: image.id,
-        src: `/storage/orders/${order.id}/${image.filename}`,
+        src: image.url,
         alt: `Imagem da ordem ${order.order_number}`,
     }));
     const hasBudgetReceipt = Boolean(order.budget_description || Number(order.budget_value ?? 0) > 0);

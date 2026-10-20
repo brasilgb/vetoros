@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * API dos apps (auth:sanctum) só para usuários de uma empresa. Sem tenant, o TenantScope
+ * API dos apps (auth:sanctum) só para usuários ativos de uma empresa. Sem tenant, o TenantScope
  * não filtra nada e as consultas devolveriam dados de todas as empresas.
  */
 class EnsureTenantApiUser
@@ -18,6 +18,13 @@ class EnsureTenantApiUser
             return response()->json([
                 'success' => false,
                 'message' => 'Acesso disponível apenas para usuários de uma empresa.',
+            ], 403);
+        }
+
+        if (! $request->user()->isActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Seu usuário está inativo. Procure o administrador da empresa.',
             ], 403);
         }
 

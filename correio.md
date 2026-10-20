@@ -1,111 +1,121 @@
-# VETOR-CHAT-10.1 — Central omnichannel VetorLeads
+# VETOROS-DEPLOY-SEC-01 — Commit, Push e Deploy em Produção
 
-**Objetivo:** consolidar o atendimento WebChat e WhatsApp em uma única interface operacional, utilizando os recursos existentes e preparando a integração com n8n e OpenAI.
+## Objetivo
 
-## 1. Central unificada
+Publicar no servidor VPS as implementações VETOROS-SECURITY-FIX-01 e VETOROS-EFI-TEST-01, preservando integralmente os dados e permitindo homologação operacional diretamente no ambiente real.
 
-Implementar no VetorLeads uma central acessível pelo menu "Atendimento", contendo:
+**Infraestrutura:** `/opt/infra-abrasil`
 
-- Caixa de entrada unificada para WhatsApp e WebChat.
-- Filtros por canal, situação, responsável e mensagens não lidas.
-- Lista de contatos com nome, origem e última mensagem.
-- Histórico cronológico por conversa e identificação do canal.
-- Área de resposta humana.
-- Associação a leads e oportunidades.
-- Atribuição de responsável pelo atendimento.
-- Alteração de situação: pendente, em andamento e encerrada.
-- Atualização de novas mensagens sem recarregar a página.
+**Autorização:** realizar commit, push, build, migrations necessárias e deploy. Não executar exclusões destrutivas, limpeza de arquivos antigos ou alterações de dados comerciais reais.
 
-Priorizar interface responsiva com três áreas no desktop: conversas, mensagens e informações do contato. No mobile, usar navegação adaptada.
+## 1. Preparação local
 
-## 2. Reutilização
+1. Confirmar branch, alterações pendentes e diferenças contra `origin/main`.
+2. Incluir os arquivos das implementações de segurança, Efí Bank e auditoria.
+3. Verificar se há credenciais, certificados, tokens ou dados sensíveis nos arquivos que serão versionados.
+4. Executar os testes automatizados, análise estática e build.
+5. Verificar que a integração Efí existente permanece funcional.
+6. Criar commit descritivo:
+   `fix(vetoros): harden tenant security and add Efi payment tests`
+7. Executar push para `origin/main`, sem force push.
 
-Reaproveitar APIs, models, serviços e estruturas de WebChat e WhatsApp existentes.
+Interromper se houver falhas relevantes ou divergências inesperadas.
 
-Evitar duplicar histórico, mensagens, contatos ou regras de negócio.
+## 2. Preparação da VPS
 
-Se for necessário criar uma camada unificada, utilizar serviços e DTOs que normalizem os canais sem perder a identificação original das mensagens.
+Acessar `/opt/infra-abrasil`.
 
-Manter `/web-chat` e as funcionalidades atuais compatíveis durante a transição.
+Antes de publicar:
 
-## 3. WhatsApp
+- Identificar o container VetorOS e o Compose efetivamente utilizados.
+- Confirmar branch e revisão atualmente implantada.
+- Verificar os volumes persistentes do banco e dos arquivos.
+- Realizar backup do banco e dos arquivos de OS, com verificação de integridade.
+- Confirmar espaço em disco.
+- Garantir persistência de `ORDER_FILES_ROOT`.
+- Preservar configurações e credenciais da Efí Bank, Spedy, WAHA e SMTP.
+- Garantir que o serviço anterior possa ser restaurado em caso de falha.
 
-- Manter isolamento de sessão WAHA por tenant.
-- Receber novas mensagens na central.
-- Responder diretamente pela central usando a sessão autorizada.
-- Exibir mensagens enviadas, recebidas e seus estados.
-- Preservar deduplicação e validação HMAC existentes.
-- Tratar desconexões sem perder mensagens.
-- Impedir atribuição incorreta de mensagens quando contatos forem ambíguos.
+Não sobrescrever arquivos `.env` de produção.
 
-## 4. WebChat do VetorOS
+## 3. Publicação
 
-- Mostrar conversas do widget público na central.
-- Permitir que o atendente responda diretamente.
-- Entregar a resposta ao visitante pelo mecanismo existente.
-- Preservar identificação do tenant de atendimento.
-- Respeitar horários, disponibilidade e configurações já existentes.
+1. Atualizar o código a partir do commit publicado.
+2. Construir as imagens necessárias.
+3. Verificar previamente as migrations pendentes.
+4. Aplicar somente migrations conhecidas e compatíveis, incluindo `create_efi_integration_tests_table`.
+5. Publicar a versão atualizada do VetorOS.
+6. Executar os ajustes de cache do Laravel conforme a configuração existente.
+7. Verificar logs, health checks, conexões e funcionamento da aplicação.
 
-Não converter automaticamente WebChat em WhatsApp. Cada canal deverá funcionar independentemente.
+Não executar comandos que recriem volumes de banco ou removam arquivos persistentes.
 
-## 5. Integração n8n
+## 4. Arquivos antigos das OS
 
-Auditar os workflows existentes antes de criar novos.
+Executar inicialmente:
 
-Preparar eventos internos para:
+`php artisan vetoros:migrate-order-files`
 
-- Nova conversa.
-- Nova mensagem recebida.
-- Lead identificado.
-- Atendimento atribuído.
-- Atendimento encerrado.
-- Follow-up agendado.
+Analisar o relatório JSON da simulação.
 
-Entregar eventos ao n8n com autenticação, identificadores de tenant e conversa, idempotência e política de repetição.
+Após confirmar backup, configuração persistente e ausência de conflitos impeditivos, executar:
 
-A operação humana básica deve continuar funcionando se o n8n estiver indisponível.
+`php artisan vetoros:migrate-order-files --execute`
 
-Não enviar segredos, tokens de visitante ou dados desnecessários aos workflows.
+Verificar quantidades, checksums e arquivos ambíguos.
 
-## 6. Preparação para IA
+**Não remover `public/storage/orders` nesta execução.** Registrar os riscos residuais e reservar a retirada pública para depois da homologação.
 
-Criar apenas a base de integração futura com OpenAI, sem consumo real nesta etapa:
+## 5. Homologação no servidor
 
-- Configuração administrativa para habilitar IA por tenant.
-- Estrutura para limites de consumo.
-- Identificação de mensagens humanas e automatizadas.
-- Mecanismo para transferência ao atendente humano.
-- Pontos de integração com workflows n8n.
+Validar os seguintes fluxos:
 
-Não inventar respostas automáticas nem ativar agentes nesta fase.
+- Login e painel administrativo.
+- RootAdmin e acesso às empresas.
+- Isolamento entre tenants.
+- Cadastro e consulta de clientes.
+- Criação, consulta e edição de ordens de serviço.
+- Fotos, assinaturas e recibos de OS.
+- Portal público de acompanhamento, com e sem chave.
+- Orçamentos e permissões de técnicos.
+- Estoque, vendas, PDV e cancelamentos.
+- Financeiro e contratos SaaS.
+- Integração Efí Bank e abertura do modal de pagamentos de teste.
+- Acesso por dispositivos móveis.
 
-## 7. Testes
+Usar registros de teste identificáveis e evitar alterações em dados comerciais de clientes reais.
 
-Comprovar:
+Não realizar cobrança financeira real antes de uma autorização específica para o valor e o método.
 
-1. Recebimento WebChat na central.
-2. Resposta do atendente chegando ao widget.
-3. Recebimento WhatsApp na central.
-4. Resposta enviada pela sessão WAHA correspondente.
-5. Isolamento entre tenants.
-6. Mensagens duplicadas não gerando registros repetidos.
-7. Conversas encerradas e atribuições.
-8. Falha do n8n sem impedir atendimento humano.
-9. Segurança e autorização dos endpoints.
+## 6. Critérios de aprovação
 
-Executar testes automatizados e homologação visual quando possível.
+Considerar o deploy concluído somente quando:
 
-## 8. Entrega
+- O commit publicado corresponder ao código implantado.
+- Containers e serviços estiverem saudáveis.
+- Migrations necessárias estiverem aplicadas.
+- Banco e arquivos persistentes estiverem preservados.
+- Login, OS, portal público e PDV estiverem funcionais.
+- Isolamento entre empresas estiver validado.
+- O RootAdmin conseguir abrir o modal Efí.
+- Não houver erros críticos novos nos logs.
 
-Não encerrar a tarefa somente com auditoria.
+Se houver falha crítica, interromper a homologação e executar o rollback previsto, sem eliminar os registros necessários à investigação.
 
-Implementar os módulos necessários e registrar em `executed.md`:
+## 7. Relatório final
 
-- Arquivos alterados.
-- Funcionalidades implementadas.
-- Testes aprovados.
-- Fluxos E2E efetivamente executados.
-- Limitações de infraestrutura.
-- Pendências específicas.
+Atualizar `executed.md` com:
 
-Não executar deploy em produção sem autorização.
+- Hash do commit e resultado do push.
+- Revisão anterior e revisão publicada.
+- Containers atualizados.
+- Migrations executadas.
+- Resultado dos backups.
+- Resultado da migração de arquivos.
+- Testes funcionais realizados.
+- Evidências dos testes Efí.
+- Erros encontrados e correções.
+- Pendências e riscos residuais.
+- Status final: PUBLICADO E HOMOLOGADO, PUBLICADO COM PENDÊNCIAS ou ROLLBACK EXECUTADO.
+
+**Não declarar homologação completa apenas porque os containers iniciaram.**

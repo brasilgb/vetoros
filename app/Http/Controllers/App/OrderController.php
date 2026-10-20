@@ -44,6 +44,7 @@ use App\Support\OrderActor;
 use App\Support\OrderSignature;
 use App\Support\OrderStatus;
 use App\Support\Pagination;
+use App\Support\TenantRule;
 use App\Support\TenantSequence;
 use App\Support\WhatsAppPhone;
 use Illuminate\Http\RedirectResponse;
@@ -1200,8 +1201,8 @@ class OrderController extends Controller
         $this->authorize('create', Order::class);
 
         $validatedData = $request->validate([
-            'order_id' => 'required|integer|exists:orders,id',
-            'part_id' => 'required|integer|exists:parts,id',
+            'order_id' => ['required', 'integer', TenantRule::exists('orders')],
+            'part_id' => ['required', 'integer', TenantRule::exists('parts')],
         ]);
 
         $order = Order::find($validatedData['order_id']);

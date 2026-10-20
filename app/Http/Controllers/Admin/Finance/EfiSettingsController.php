@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\EfiIntegrationTest;
 use App\Models\Admin\FiscalAdminAudit;
 use App\Models\Admin\SaasPaymentEvent;
 use App\Models\Admin\SaasPaymentSetting;
@@ -10,6 +11,7 @@ use App\Models\App\Payment;
 use App\Services\Payments\Efi\EfiChargesClient;
 use App\Services\Payments\Efi\EfiException;
 use App\Services\Payments\Efi\EfiPixClient;
+use App\Services\Payments\EfiIntegrationTestService;
 use App\Services\Payments\LegacyPaymentsReport;
 use App\Services\Payments\SaasPaymentService;
 use Illuminate\Http\RedirectResponse;
@@ -57,6 +59,13 @@ class EfiSettingsController extends Controller
             ],
             'method_options' => collect(SaasPaymentSetting::METHODS)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
             'errors_log' => $this->recentErrors(),
+            // Modal "Testar pagamento" (VETOROS-EFI-TEST-01): só leitura do banco ao abrir a tela.
+            'integration_test' => [
+                'methods' => app(EfiIntegrationTestService::class)->availableMethods(),
+                'minimum_cents' => EfiIntegrationTestService::MINIMUM_CENTS,
+                'payee_code' => $settings->efi_payee_code,
+                'recent' => EfiIntegrationTest::query()->with('creator:id,name')->latest('id')->limit(10)->get()->map->toPanel(),
+            ],
             // Histórico de provedores anteriores (somente leitura) para o procedimento de transição.
             'legacy' => app(LegacyPaymentsReport::class)->summary(),
             'payments' => Payment::query()

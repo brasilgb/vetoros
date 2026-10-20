@@ -413,6 +413,13 @@ class SaasPaymentService
             }
 
             $payment = $txid === '' ? null : Payment::query()->where('gateway', Payment::GATEWAY_EFI)->where('payment_id', $txid)->first();
+            if (! $payment && ($test = app(EfiIntegrationTestService::class)->findByProviderId($txid))) {
+                // Teste de integração (VETOROS-EFI-TEST-01): só atualiza o registro de teste.
+                app(EfiIntegrationTestService::class)->webhookReceived($test, $event);
+                $queued++;
+
+                continue;
+            }
             if (! $payment) {
                 $event->forceFill(['status' => SaasPaymentEvent::STATUS_IGNORED, 'error' => 'txid desconhecido nesta aplicação.', 'processed_at' => now()])->save();
 
@@ -469,6 +476,13 @@ class SaasPaymentService
             $payment = Payment::query()->where('gateway', Payment::GATEWAY_EFI)->where('payment_id', $chargeId)->first()
                 ?? ($subscriptionId ? $this->subscriptionChargePayment($chargeId, $subscriptionId) : null);
 
+            if (! $payment && ($test = app(EfiIntegrationTestService::class)->findByProviderId($chargeId))) {
+                // Teste de integração (VETOROS-EFI-TEST-01): já estamos no job da notificação; concilia só o teste.
+                $test->forceFill(['webhook_received_at' => now(), 'webhook_count' => $test->webhook_count + 1])->save();
+                app(EfiIntegrationTestService::class)->reconcile($test);
+
+                continue;
+            }
             if (! $payment) {
                 Log::info('Notificação Efí de cobrança desconhecida ignorada.', ['charge_id' => $chargeId]);
 

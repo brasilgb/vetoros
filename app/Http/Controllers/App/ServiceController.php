@@ -59,8 +59,7 @@ class ServiceController extends Controller
     {
         Gate::authorize('services.access');
 
-        $data = $request->all();
-        $request->validated();
+        $data = $request->validated();
         $data['service_number'] = TenantSequence::next(Service::class, 'service_number');
         Service::create($data);
 
@@ -90,9 +89,7 @@ class ServiceController extends Controller
     {
         Gate::authorize('services.access');
 
-        $data = $request->all();
-        $request->validated();
-        $service->update($data);
+        $service->update($request->validated());
 
         return redirect()->route('app.register-services.index')->with('success', 'Serviço editado com sucesso');
     }

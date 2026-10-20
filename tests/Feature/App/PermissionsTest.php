@@ -8,9 +8,11 @@ use App\Models\App\Image;
 use App\Models\App\Order;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\OrderFiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PermissionsTest extends TestCase
@@ -114,8 +116,7 @@ class PermissionsTest extends TestCase
 
     public function test_api_upload_stores_base64_image_for_order(): void
     {
-        $this->app->usePublicPath(storage_path('framework/testing/public'));
-        File::deleteDirectory(public_path());
+        Storage::fake(OrderFiles::DISK);
 
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
         $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
@@ -128,7 +129,7 @@ class PermissionsTest extends TestCase
         $this->actingAs($this->operator, 'sanctum')
             ->postJson(route('upload'), [
                 'order_number' => $order->order_number,
-                'filename' => base64_encode('image-content'),
+                'filename' => base64_encode(UploadedFile::fake()->image('foto.png')->getContent()),
             ])
             ->assertOk()
             ->assertJson([
@@ -139,13 +140,13 @@ class PermissionsTest extends TestCase
         $image = Image::query()->where('order_id', $order->id)->firstOrFail();
 
         $this->assertSame($this->tenant->id, $image->tenant_id);
-        $this->assertFileExists(public_path('storage/orders/'.$order->order_number.'/'.$image->filename));
+        // Armazenamento privado por empresa e OS (VETOROS-SECURITY-FIX-01).
+        Storage::disk(OrderFiles::DISK)->assertExists(OrderFiles::imagePath($order, $image->filename));
     }
 
     public function test_api_delete_image_removes_database_record_and_file(): void
     {
-        $this->app->usePublicPath(storage_path('framework/testing/public'));
-        File::deleteDirectory(public_path());
+        Storage::fake(OrderFiles::DISK);
 
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
         $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
@@ -158,9 +159,8 @@ class PermissionsTest extends TestCase
             'order_id' => $order->id,
             'filename' => 'delete-me.png',
         ]);
-        $path = public_path('storage/orders/'.$order->order_number.'/'.$image->filename);
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, 'image-content');
+        $path = OrderFiles::imagePath($order, $image->filename);
+        Storage::disk(OrderFiles::DISK)->put($path, 'image-content');
 
         $this->actingAs($this->operator, 'sanctum')
             ->deleteJson(route('deleteimage', $image))
@@ -171,7 +171,7 @@ class PermissionsTest extends TestCase
             ]);
 
         $this->assertDatabaseMissing('images', ['id' => $image->id]);
-        $this->assertFileDoesNotExist($path);
+        Storage::disk(OrderFiles::DISK)->assertMissing($path);
     }
 
     public function test_technician_cannot_access_receipts_whatsapp_labels_sales_cashier_or_expenses(): void

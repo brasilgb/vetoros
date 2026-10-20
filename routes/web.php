@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\SupportSessionController;
 use App\Http\Controllers\App\SaasCheckoutController;
 use App\Http\Controllers\App\SubscriptionController;
+use App\Http\Controllers\OrderFileController;
 use App\Http\Controllers\OsController;
 use App\Http\Controllers\SharedFiscalDocumentController;
 use App\Http\Controllers\SharedSaasFiscalDocumentController;
@@ -54,6 +55,16 @@ Route::get('/nfse-saas/{document}/{format}', SharedSaasFiscalDocumentController:
     ->where('format', 'pdf|xml')
     ->middleware('throttle:30,1')
     ->name('saas-fiscal-documents.shared');
+// Fotos e assinatura da OS (VETOROS-SECURITY-FIX-01): só por URL assinada e temporária, emitida depois
+// da autorização (tela da OS, API do app ou portal público liberado).
+Route::get('/files/orders/images/{image}', [OrderFileController::class, 'image'])
+    ->whereNumber('image')
+    ->middleware(['signed', 'throttle:300,1'])
+    ->name('order-files.image');
+Route::get('/files/orders/{order}/signature', [OrderFileController::class, 'signature'])
+    ->whereNumber('order')
+    ->middleware(['signed', 'throttle:300,1'])
+    ->name('order-files.signature');
 Route::post('/os/{token}/feedback', [OsController::class, 'submitFeedback'])
     ->name('os.feedback.submit');
 Route::get('/experience/{token}', [TenantFeedbackController::class, 'show'])->name('tenant.feedback.show');

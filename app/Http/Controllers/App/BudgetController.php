@@ -11,6 +11,7 @@ use App\Support\TenantSequence;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
@@ -151,6 +152,8 @@ class BudgetController extends Controller
      */
     public function index(Request $request)
     {
+        Gate::authorize('budgets.access');
+
         $search = $request->search;
         $query = Budget::orderBy('id', 'DESC');
         if ($search) {
@@ -174,6 +177,8 @@ class BudgetController extends Controller
      */
     public function create()
     {
+        Gate::authorize('budgets.access');
+
         $budgets = Budget::distinct()->pluck('model');
         $equipments = Equipment::get();
 
@@ -185,8 +190,7 @@ class BudgetController extends Controller
      */
     public function store(BudgetsRequest $request): RedirectResponse
     {
-        $data = $request->all();
-        $request->validated();
+        $data = $request->validated();
         $data['budget_number'] = TenantSequence::next(Budget::class, 'budget_number');
         Budget::create($data);
 
@@ -198,6 +202,8 @@ class BudgetController extends Controller
      */
     public function show(Budget $budget, Request $request)
     {
+        Gate::authorize('budgets.access');
+
         $budgets = Budget::distinct()->pluck('model');
         $equipments = Equipment::get();
 
@@ -215,6 +221,8 @@ class BudgetController extends Controller
      */
     public function edit(Budget $budget, Request $request)
     {
+        Gate::authorize('budgets.access');
+
         return Redirect::route('app.budgets.show', [
             'budget' => $budget->id,
             'page' => $request->page,
@@ -227,9 +235,7 @@ class BudgetController extends Controller
      */
     public function update(BudgetsRequest $request, Budget $budget): RedirectResponse
     {
-        $data = $request->all();
-        $request->validated();
-        $budget->update($data);
+        $budget->update($request->validated());
 
         return redirect()->route('app.budgets.index')->with('success', 'Orçamento editado com sucesso');
     }
@@ -239,6 +245,8 @@ class BudgetController extends Controller
      */
     public function destroy(Budget $budget)
     {
+        Gate::authorize('budgets.access');
+
         $budget->delete();
 
         return redirect()->route('app.budgets.index')->with('success', 'Orçamento excluido com sucesso!');

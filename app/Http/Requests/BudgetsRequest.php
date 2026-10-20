@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class BudgetsRequest extends FormRequest
 {
@@ -12,7 +14,7 @@ class BudgetsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return Gate::allows('budgets.access');
     }
 
     /**
@@ -23,11 +25,13 @@ class BudgetsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'equipment_id' => 'required',
+            // Só equipamentos da própria empresa.
+            'equipment_id' => ['required', 'integer', Rule::exists('equipment', 'id')->where('tenant_id', resolveCurrentTenantId())],
             'model' => 'required',
             'service' => 'required|string|max:500',
             'description' => 'required|string|max:500',
             'estimated_time' => 'required',
+            'part_value' => 'nullable',
             'labor_value' => 'required',
             'total_value' => 'required',
             'warranty' => 'required', // Garantia
@@ -44,6 +48,7 @@ class BudgetsRequest extends FormRequest
             'service' => 'serviço',
             'description' => 'descrição',
             'estimated_time' => 'tempo estimado',
+            'part_value' => 'valor das peças',
             'labor_value' => 'valor mão de obra',
             'total_value' => 'valor total',
             'warranty' => 'garantia',

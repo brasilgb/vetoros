@@ -1,0 +1,2605 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Relation ''tenant'' is not found in App\\Models\\App\\Order model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Console/Commands/ProcessCustomerFeedbackRequests.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Console/Commands/ProcessCustomerFeedbackRequests.php
+
+		-
+			message: '#^Relation ''tenant'' is not found in App\\Models\\App\\Order model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Console/Commands/SendBudgetFollowUps.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Console/Commands/SendBudgetFollowUps.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Console/Commands/SendPaymentFollowUps.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: app/Console/Commands/SendTenantFeedbackRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/DashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Tenant\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>timestamp" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Payment\:\:\$tenant\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 7
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Offset ''error'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Offset ''message'' on string\|null on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Admin\\FiscalAdminAudit\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:sortByDesc\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Parameter \#1 \$source of method Illuminate\\Support\\Collection\<int,array\<string, string\|null\>\>\:\:concat\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Property App\\Models\\Admin\\SaasPaymentSetting\:\:\$efi_methods \(string\|null\) does not accept list\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Relation ''tenant'' is not found in App\\Models\\App\\Payment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/Finance/EfiSettingsController.php
+
+		-
+			message: '#^Anonymous function should return array\{id\: int\<0, max\>, name\: string, cnpj\: string\|null, emission_enabled\: bool, allowed\: Illuminate\\Support\\Collection\<string, bool\>, tenant_enabled\: array\{nfe\: bool, nfce\: bool, nfse\: bool\}, registration_status\: string, registered_on_spedy\: bool, \.\.\.\} but returns array\{id\: int\<0, max\>, name\: string, cnpj\: string\|null, emission_enabled\: bool, allowed\: Illuminate\\Support\\Collection\<string, bool\>, tenant_enabled\: array\{nfe\: bool, nfce\: bool, nfse\: bool\}, registration_status\: string, registered_on_spedy\: bool, \.\.\.\}\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalCompanyController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 5
+			path: app/Http/Controllers/Admin/Fiscal/FiscalCompanyController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\Tenant\>\:\:through\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalCompanyController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\Tenant\>\:\:through\(\) expects callable\(App\\Models\\Tenant, int\)\: array\{id\: int\<0, max\>, name\: string, cnpj\: string\|null, emission_enabled\: bool, allowed\: Illuminate\\Support\\Collection\<string, bool\>, tenant_enabled\: array\{nfe\: bool, nfce\: bool, nfse\: bool\}, registration_status\: string, registered_on_spedy\: bool, spedy_company_id\: string\|null, spedy_environment\: string\|null, environment_mismatch\: bool, last_synced_at\: mixed, registration_error\: string\|null, registered_at\: mixed, certificate_subject\: string\|null, certificate_expires_at\: mixed, emission_environment\: string, production_released_at\: mixed, tax_settings_confirmed_at\: mixed, blockers\: Illuminate\\Support\\Collection\<string, string\|null\>\|null, homologation_authorized\: int\}, Closure\(App\\Models\\Tenant\)\: array\{id\: int\<0, max\>, name\: string, cnpj\: string\|null, emission_enabled\: bool, allowed\: Illuminate\\Support\\Collection\<string, bool\>, tenant_enabled\: array\{nfe\: bool, nfce\: bool, nfse\: bool\}, registration_status\: string, registered_on_spedy\: bool, spedy_company_id\: string\|null, spedy_environment\: string\|null, environment_mismatch\: bool, last_synced_at\: mixed, registration_error\: string\|null, registered_at\: mixed, certificate_subject\: string\|null, certificate_expires_at\: mixed, emission_environment\: string, production_released_at\: mixed, tax_settings_confirmed_at\: mixed, blockers\: Illuminate\\Support\\Collection\<string, string\|null\>\|null, homologation_authorized\: int\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalCompanyController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\FiscalSetting\:\:\$tenant\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalIntegrationController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Http/Controllers/Admin/Fiscal/FiscalIntegrationController.php
+
+		-
+			message: '#^Relation ''tenant'' is not found in App\\Models\\App\\FiscalSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalIntegrationController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalIntegrationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\FiscalDocument\:\:\$authorized\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalMonitoringController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\FiscalDocument\:\:\$failures\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalMonitoringController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\FiscalDocument\:\:\$month\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalMonitoringController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\FiscalDocument\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/Fiscal/FiscalMonitoringController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\App\\FiscalDocument\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/FiscalMonitoringController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$error\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sentBy\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 4
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Admin\\AdminFiscalDocument\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/Fiscal/SaasInvoiceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$active_users_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$customers_max_created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$customers_with_period_orders_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$delivered_orders_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$open_orders_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$orders_max_created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$period_customers_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$period_orders_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$users_max_last_login_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Tenant\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/ReportController.php
+
+		-
+			message: '#^Called ''isEmpty'' on Laravel collection, but could have been retrieved as a query\.$#'
+			identifier: larastan.noUnnecessaryCollectionCall
+			count: 1
+			path: app/Http/Controllers/Admin/SettingController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$active\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$amount\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$billing_months\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$contract_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$error\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$error_message\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$next_due_date\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$revertPlan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$revert_scheduled_for\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sales_rep\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:periodicityLabel\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Admin\\TenantSubscriptionCharge\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Admin/TenantCommercialController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$computed_subscription_bucket\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$computed_subscription_label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$current_plan_period_label\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$days_remaining\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Tenant\:\:\$status_label\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, array\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Parameter \#1 \$plan of method App\\Http\\Controllers\\Admin\\TenantController\:\:resolveCurrentPlanPeriodLabel\(\) expects App\\Models\\Admin\\Plan\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Parameter \#2 \$plan of class App\\Mail\\SubscriptionInvoicePaidMail constructor expects App\\Models\\Admin\\Plan, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Parameter \#4 \$fiscalDocument of class App\\Mail\\SubscriptionInvoicePaidMail constructor expects App\\Models\\Admin\\AdminFiscalDocument\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between float and 0 will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>timestamp" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/TenantController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/TenantImprovementRequestController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\AccountPayableController\:\:destroy\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/AccountPayableController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\AccountPayableController\:\:registerPayment\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/AccountPayableController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\AccountPayableController\:\:store\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/AccountPayableController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\AccountPayableController\:\:update\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/AccountPayableController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$equipment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/BudgetController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$equipment_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/BudgetController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/BudgetController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\CashSessionController\:\:cancelWithdrawal\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/CashSessionController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\CashSessionController\:\:close\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/CashSessionController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\CashSessionController\:\:open\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/CashSessionController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\CashSessionController\:\:withdrawal\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/CashSessionController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$customer_feedback_submitted_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$orderPayments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_number\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_status\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Services\\OrderCommunicationContextService\:\:communicationDaysPending\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Services\\OrderCommunicationContextService\:\:isBudgetFollowUp\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Services\\OrderCommunicationContextService\:\:isFeedbackWindowOpen\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Services\\OrderCommunicationContextService\:\:isPendingPayment\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Variable \$value on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: app/Http/Controllers/App/CustomerController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\PurchaseOrder\:\:\$count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\PurchaseOrder\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Sale\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Sale\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Sale\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/DashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\App\\Sale\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/App/DashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\ExpenseController\:\:destroy\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/ExpenseController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\ExpenseController\:\:store\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/ExpenseController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\ExpenseController\:\:update\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/ExpenseController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Http/Controllers/App/ExpenseController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FiscalDocumentController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FiscalDocumentController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\App\\FiscalDocument\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/App/FiscalDocumentController.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/App/FiscalSettingController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 4
+			path: app/Http/Controllers/App/FiscalSettingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Order\:\:\$budget_follow_up_paused\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Order\:\:\$last_communication\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Order\:\:\$next_action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Order\:\:\$payment_follow_up_paused\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 11
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$orderPayments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: mixed$#'
+			identifier: match.unhandled
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Offset ''days_pending'' on array\{id\: int, scope\: string, order_number\: int, customer\: mixed, technician\: mixed, assigned_to\: mixed, assigned_to_id\: int\|null, type\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),array\<string, mixed\>\>\:\:sortByDesc\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 4
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Parameter \#1 \$key of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:contains\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|Illuminate\\Database\\Eloquent\\Model\|int\|string, Closure\(App\\Models\\App\\OrderLog\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Parameter \#1 \$source of method Illuminate\\Support\\Collection\<\(int\|string\),array\<string, mixed\>\>\:\:concat\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 3
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Parameter \#1 \.\.\.\$values of method Illuminate\\Support\\Collection\<int,App\\Models\\User\>\:\:push\(\) expects App\\Models\\User, array\<string, int\<0, max\>\|string\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" in empty\(\) is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 4
+			path: app/Http/Controllers/App/FollowUpController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/LabelPrintingController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>companyname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/LabelPrintingController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/LabelPrintingController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>telephone" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/LabelPrintingController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$data\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, App\\Models\\App\\AccountReceivable\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array, Closure\(App\\Models\\App\\AccountReceivable\)\: array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: int\<0, max\>, amount\: float, paid_at\: string, payment_method\: string, source\: string, received_by\: mixed, notes\: string\|null, reversed_at\: string\|null, reversed_by\: mixed, reversal_reason\: string\|null\}, Closure\(App\\Models\\App\\AccountReceivablePayment\)\: array\{id\: int\<0, max\>, amount\: float, paid_at\: string, payment_method\: string, source\: string, received_by\: mixed, notes\: string\|null, reversed_at\: string\|null, reversed_by\: mixed, reversal_reason\: string\|null\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>status" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractChargeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\FiscalDocument\:\:\$due_date\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:cancel\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:destroy\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:reactivate\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:renew\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:store\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:suspend\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\MaintenanceContractController\:\:update\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/MaintenanceContractController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Order\:\:\$public_access_key\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$warranty_expires_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$whatsapp\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\OrderController\:\:latestCommunicationLog\(\) should return App\\Models\\App\\OrderLog\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 2
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\OrderController\:\:logOperationalAudit\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Offset ''budget_value'' on non\-empty\-array on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Offset ''service_value'' on non\-empty\-array on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, App\\Models\\App\\Order\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\App\\Order\>\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, App\\Models\\App\\Schedule\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Relation ''tenant'' is not found in App\\Models\\App\\Order model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>tenant_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\User\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/OrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/OtherController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>companyname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/App/OtherController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/OtherController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/OtherController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$supplier_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\PurchaseOrderController\:\:cancel\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\PurchaseOrderController\:\:destroy\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\PurchaseOrderController\:\:receive\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\PurchaseOrderController\:\:send\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\PurchaseOrderController\:\:store\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\App\\PurchaseOrderController\:\:update\(\) should return Illuminate\\Http\\RedirectResponse but returns Symfony\\Component\\HttpFoundation\\Response\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/App/PurchaseOrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$delivery_date\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/QualityIndicatorController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$equipment\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/QualityIndicatorController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 7
+			path: app/Http/Controllers/App/QualityIndicatorController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/QualityIndicatorController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\App\\Order\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/App/QualityIndicatorController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\App\\Order\>\:\:through\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: app/Http/Controllers/App/QualityIndicatorController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$defect\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ReportController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$equipment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ReportController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/App/ReportController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ReportController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\App\\Order\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/App/ReportController.php
+
+		-
+			message: '#^Relation ''part_movements'' is not found in App\\Models\\App\\Part model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/App/ReportController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/SaasCheckoutController.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value ''expires_at'' \(''expires_at'', ''expires_at''\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: app/Http/Controllers/App/SaasCheckoutController.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/App/SaasCheckoutController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$filename\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$orderPayments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_attended_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_checklist_items\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_received\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$whatsapp\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, App\\Models\\App\\Order\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Http\\Controllers\\App\\ScheduleController\:\:orderScheduleDetails\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Http\\Controllers\\App\\ScheduleController\:\:orderScheduleService\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>technician_checklist_items" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/ScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$contract_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:hasCustomContract\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:periodicityLabel\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:persistedSubscriptionStatus\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:subscriptionBucket\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Parameter \#1 \$tenant of method App\\Http\\Controllers\\App\\SubscriptionController\:\:render\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Parameter \#1 \$tenant of method App\\Services\\Commercial\\SaasContractService\:\:openChargeFor\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/App/SubscriptionController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$accessories\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$avatar\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$budget_description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$budget_value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$city\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$complement\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$defect\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$delivery_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$delivery_forecast\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$district\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$equipment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$materials_used\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$model\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$number\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$observations\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$orderPayments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$order_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_cost\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_details\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$services_performed\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$state\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$state_conservation\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$street\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_attended_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_checklist_completed_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_checklist_items\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_diagnosis\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_amount\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_method\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_notes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_received\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_received_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_local_payment_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_observations\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$technician_solution\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telephone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tracking_token\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$whatsapp\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zipcode\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Comparison operation "\>" between int\<1, max\> and 0 is always true\.$#'
+			identifier: greater.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>technician_checklist_items" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 4
+			path: app/Http/Controllers/App/TechnicianScheduleController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/App/TenantImprovementRequestController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/TenantImprovementRequestController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>can_view_all_orders" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/App/UserController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Integration\\RegistrationCheckController\:\:firstRegistrationByWhatsapp\(\) should return Illuminate\\Support\\Carbon\|null but returns Carbon\\Carbon\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Integration/RegistrationCheckController.php
+
+		-
+			message: '#^Offset ''service_status'' on array\{customer_notification_acknowledged_at\: Illuminate\\Support\\Carbon\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/OsController.php
+
+		-
+			message: '#^Offset ''service_status'' on array\{customer_pickup_acknowledged_at\: Illuminate\\Support\\Carbon\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/OsController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Site/HomeController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\TenantFeedback\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Site/HomeController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>company" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Site/HomeController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>web_chat_enabled" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Site/HomeController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>web_chat_enabled" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Site/PlanController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/TenantFeedbackController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/TenantFeedbackController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/TenantFeedbackController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$subscription_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/CheckSubscriptionStatus.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:persistedSubscriptionStatus\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Middleware/CheckSubscriptionStatus.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:subscriptionBucket\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Middleware/CheckSubscriptionStatus.php
+
+		-
+			message: '#^Parameter \#1 \$tenant of static method App\\Support\\SubscriptionAlert\:\:for\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Middleware/CheckSubscriptionStatus.php
+
+		-
+			message: '#^Call to an undefined method Symfony\\Component\\HttpFoundation\\Response\:\:header\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Middleware/Cors.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$expires_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$grace_days_remaining\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$orderPayments\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$plan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$service_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:hasCustomContract\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^PHPDoc tag @var above a method has no effect\.$#'
+			identifier: varTag.misplaced
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>grace_days_remaining" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Requests/Admin/TenantRequest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$contract_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Mail/SaasChargeInvoiceMail.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Mail/SaasChargeInvoiceMail.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 4
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''barcode'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''billet_link'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''billet_pdf'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''card_mask'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''due_date'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''pix_copy_paste'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Offset ''pix_qr_image'' on array\{\}\|string on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Models/Admin/EfiIntegrationTest.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Http\\Request\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/Admin/FiscalAdminAudit.php
+
+		-
+			message: '#^Method App\\Models\\Admin\\Plan\:\:preferredPeriod\(\) should return App\\Models\\Admin\\Period\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Admin/Plan.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:first\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|null, Closure\(App\\Models\\Admin\\Period\)\: bool given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Models/Admin/Plan.php
+
+		-
+			message: '#^Cannot call method copy\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Models/Admin/TenantSubscriptionCharge.php
+
+		-
+			message: '#^Cannot call method isFuture\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Models/App/FiscalSetting.php
+
+		-
+			message: '#^Method App\\Models\\App\\Payment\:\:settledAt\(\) should return Illuminate\\Support\\Carbon but returns Carbon\\Carbon\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/App/Payment.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$equipment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/App/Schedule.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$due_date\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$saas_invoice_enabled\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$saas_invoice_enabled_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:coverageUntil\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Cannot call method copy\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Cannot call method equalTo\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Cannot call method gt\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Cannot call method gte\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Cannot call method isFuture\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 6
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:first\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|null, Closure\(App\\Models\\Admin\\TenantSubscriptionCharge\)\: bool given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Parameter \#1 \$contract of method App\\Services\\Commercial\\SaasContractService\:\:syncCoverage\(\) expects App\\Models\\Admin\\TenantCommercialContract, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Parameter \#1 \$document of static method App\\Support\\Fiscal\\FiscalDocumentLinks\:\:forSaas\(\) expects App\\Models\\Admin\\AdminFiscalDocument, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Parameter \#1 \$tenant of method App\\Services\\Commercial\\SaasContractService\:\:applyRevert\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Parameter \#2 \$tenant of method App\\Services\\Commercial\\SaasContractService\:\:snapshot\(\) expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type string\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Commercial/SaasContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fiscal_document_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/NativeFiscalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tenant_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/NativeFiscalService.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\App\\FiscalSetting\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Fiscal/NativeFiscalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$contract_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:periodicityLabel\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Cannot call method isPast\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(array\{series\: non\-falsy\-string, environmentType\: ''production''\|''simulation'', issueType\: ''annfs''\|''normal''\}\) to function array_filter does not contain falsy values, the array will always stay the same\.$#'
+			identifier: arrayFilter.same
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Parameter \#3 \$start of method App\\Services\\Fiscal\\SaasInvoiceService\:\:defaultDescription\(\) expects Illuminate\\Support\\Carbon, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Parameter \#4 \$end of method App\\Services\\Fiscal\\SaasInvoiceService\:\:defaultDescription\(\) expects Illuminate\\Support\\Carbon, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Fiscal/SaasInvoiceService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$access_key\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$authorization_protocol\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cancelled_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$environment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$issued_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$provider_reference\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$series\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyInvoiceState.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cpfcnpj\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$street\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zipcode\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Parameter \#1 \$array \(array\{series\: non\-falsy\-string, environmentType\: ''development''\|''production''\}\) to function array_filter does not contain falsy values, the array will always stay the same\.$#'
+			identifier: arrayFilter.same
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Parameter \#1 \$array \(array\{series\: non\-falsy\-string, environmentType\: ''production''\|''simulation'', issueType\: ''annfs''\|''normal''\}\) to function array_filter does not contain falsy values, the array will always stay the same\.$#'
+			identifier: arrayFilter.same
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Parameter \#1 \$customer of method App\\Services\\Fiscal\\Spedy\\SpedyPayloadBuilder\:\:consumerPayload\(\) expects App\\Models\\App\\Customer\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Parameter \#1 \$customer of method App\\Services\\Fiscal\\Spedy\\SpedyPayloadBuilder\:\:productPayload\(\) expects App\\Models\\App\\Customer\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Parameter \#1 \$customer of method App\\Services\\Fiscal\\Spedy\\SpedyPayloadBuilder\:\:receiver\(\) expects App\\Models\\App\\Customer, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Fiscal/Spedy/SpedyPayloadBuilder.php
+
+		-
+			message: '#^Offset ''finance_mode'' on array\{request_key\: string, type\: string, customer_id\?\: int\|null, description\?\: string\|null, items\?\: list\<array\{part_id\: int, quantity\: float\|int\|string, unit_price\: float\|int\|string\}\>, service_amount\?\: float\|int\|string\|null, service_list_item\?\: string\|null, iss_rate\?\: float\|int\|string\|null, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Fiscal/StandaloneInvoiceService.php
+
+		-
+			message: '#^Parameter \#2 \$visitDate of method App\\Services\\MaintenanceContractService\:\:createContractOrder\(\) expects Illuminate\\Support\\Carbon, Carbon\\Carbon given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/MaintenanceContractService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/MaintenanceContractService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cost_price\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderItemSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/OrderItemSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderItemSyncService.php
+
+		-
+			message: '#^Offset ''delivered''\|''read'' on array\{sent\: 1, delivered\: 2, read\: 3\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/OrderMessageService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 10
+			path: app/Services/OrderNotificationService.php
+
+		-
+			message: '#^Relation ''tenant'' is not found in App\\Models\\App\\Order model\.$#'
+			identifier: larastan.relationExistence
+			count: 6
+			path: app/Services/OrderNotificationService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 5
+			path: app/Services/OrderNotificationService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/OrderPaymentService.php
+
+		-
+			message: '#^Parameter \#1 \$order of method App\\Services\\FinancialReceivableService\:\:syncOrder\(\) expects App\\Models\\App\\Order, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/OrderPaymentService.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(lowercase\-string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/PartImportService.php
+
+		-
+			message: '#^Cannot call method isPast\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Payments/EfiIntegrationTestService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\App\\Payment\:\:\$tenant\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$next_due_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$payment_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:statusLabel\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Offset non\-falsy\-string on array\{\}\|string in empty\(\) does not exist\.$#'
+			identifier: empty.offset
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Parameter \#1 \$charge of method App\\Services\\Commercial\\SaasContractService\:\:refund\(\) expects App\\Models\\Admin\\TenantSubscriptionCharge, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Parameter \#1 \$charge of method App\\Services\\Commercial\\SaasContractService\:\:registerPayment\(\) expects App\\Models\\Admin\\TenantSubscriptionCharge, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Parameter \#1 \$contract of method App\\Services\\Commercial\\SaasContractService\:\:generateCharge\(\) expects App\\Models\\Admin\\TenantCommercialContract, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Parameter \#2 \$plan of method App\\Services\\Commercial\\PlanRenewalService\:\:renew\(\) expects App\\Models\\Admin\\Plan, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Payments/SaasPaymentService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$billing_months\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentTarget.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$contract_number\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/SaasPaymentTarget.php
+
+		-
+			message: '#^Cannot call method copy\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Payments/SaasPaymentTarget.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/Payments/SaasPaymentTarget.php
+
+		-
+			message: '#^Parameter \#1 \$tenant of class App\\Services\\Payments\\SaasPaymentTarget constructor expects App\\Models\\Tenant, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Payments/SaasPaymentTarget.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/PurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$part_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/PurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/PurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$unit_cost\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/PurchaseOrderService.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between float and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Services/PurchaseOrderService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/PurchaseOrderService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$part_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/SaleService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$quantity\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/SaleService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/SaleService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$unit_cost\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/SaleService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/TechnicianCommissionService.php
+
+		-
+			message: '#^Cannot access property \$accountPayable on null\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: app/Services/TechnicianCommissionService.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: app/Services/TechnicianCommissionService.php
+
+		-
+			message: '#^Parameter \#1 \$bill of method App\\Services\\AccountPayableService\:\:delete\(\) expects App\\Models\\App\\AccountPayable, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/TechnicianCommissionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TechnicianPushNotificationService.php
+
+		-
+			message: '#^Parameter \#1 \$array \(array\{0\?\: non\-empty\-array\}\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Services/WahaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>commercial_whatsapp_internal" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Support/CommercialContact.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>commercial_whatsapp_public" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Support/CommercialContact.php
+
+		-
+			message: '#^Call to function is_a\(\) with arguments class\-string\<Illuminate\\Database\\Eloquent\\Model\>, ''Illuminate\\\\Database\\\\Eloquent\\\\Model'' and true will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Support/TenantSequence.php

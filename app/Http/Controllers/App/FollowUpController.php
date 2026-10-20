@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\FollowUpTaskService;
 use App\Support\OrderStatus;
 use App\Support\Pagination;
+use App\Support\TenantRule;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -1135,7 +1136,7 @@ class FollowUpController extends Controller
 
         $validated = $request->validate([
             'scope' => 'required|in:budget,payment,feedback',
-            'user_id' => 'nullable|integer|exists:users,id',
+            'user_id' => ['nullable', 'integer', TenantRule::exists('users')],
         ]);
 
         $assignee = null;
@@ -1166,9 +1167,9 @@ class FollowUpController extends Controller
 
         $validated = $request->validate([
             'tasks' => 'required|array|min:1',
-            'tasks.*.order_id' => 'required|integer|exists:orders,id',
+            'tasks.*.order_id' => ['required', 'integer', TenantRule::exists('orders')],
             'tasks.*.scope' => 'required|in:budget,payment,feedback',
-            'user_id' => 'nullable|integer|exists:users,id',
+            'user_id' => ['nullable', 'integer', TenantRule::exists('users')],
         ]);
 
         $assignee = null;
