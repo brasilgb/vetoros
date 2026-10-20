@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Fiscal\NativeFiscalService;
 use App\Services\MaintenanceContractService;
 use App\Support\Pagination;
+use App\Support\TenantRule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,7 +59,7 @@ class MaintenanceContractController extends Controller
             'start_date' => 'required|date',
             'duration_months' => 'nullable|integer|min:1|max:120',
             'visit_frequency_days' => 'nullable|integer|min:1|max:365',
-            'preferred_technician_id' => 'nullable|exists:users,id',
+            'preferred_technician_id' => ['nullable', TenantRule::exists('users')],
             'notes' => 'nullable|string|max:500',
             'auto_issue_invoice' => 'sometimes|boolean',
             'invoice_competence' => ['sometimes', Rule::in(MaintenanceContract::COMPETENCES)],

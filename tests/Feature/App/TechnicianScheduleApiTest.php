@@ -12,9 +12,12 @@ use App\Models\App\Schedule;
 use App\Models\App\ScheduleImage;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\OrderFiles;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TechnicianScheduleApiTest extends TestCase
@@ -717,8 +720,7 @@ class TechnicianScheduleApiTest extends TestCase
 
     public function test_technician_uploads_image_for_owned_schedule_order(): void
     {
-        $this->app->usePublicPath(storage_path('framework/testing/public'));
-        File::deleteDirectory(public_path());
+        Storage::fake(OrderFiles::DISK);
 
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
         $order = Order::factory()->forTenant($this->tenant->id)->create([
@@ -735,7 +737,7 @@ class TechnicianScheduleApiTest extends TestCase
         $this->actingAs($this->technician, 'sanctum')
             ->postJson(route('upload'), [
                 'order_number' => $order->order_number,
-                'filename' => base64_encode('technical-image'),
+                'filename' => base64_encode(UploadedFile::fake()->image('foto.png')->getContent()),
             ])
             ->assertOk()
             ->assertJson([
@@ -746,7 +748,8 @@ class TechnicianScheduleApiTest extends TestCase
         $image = Image::query()->where('order_id', $order->id)->firstOrFail();
 
         $this->assertSame($this->tenant->id, $image->tenant_id);
-        $this->assertFileExists(public_path('storage/orders/'.$order->order_number.'/'.$image->filename));
+        // Armazenamento privado por empresa e OS (VETOROS-SECURITY-FIX-01).
+        Storage::disk(OrderFiles::DISK)->assertExists(OrderFiles::imagePath($order, $image->filename));
     }
 
     public function test_technician_manages_images_for_owned_schedule_without_order(): void

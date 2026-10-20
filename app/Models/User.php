@@ -104,9 +104,26 @@ class User extends Authenticatable
         return $this->hasMany(OrderCommission::class, 'user_id');
     }
 
+    protected static function booted(): void
+    {
+        // Inativado: os tokens do app deixam de valer na hora (sessões web caem no
+        // middleware EnsureUserIsActive).
+        static::updated(function (User $user): void {
+            if ($user->wasChanged('status') && ! $user->isActive()) {
+                $user->tokens()->delete();
+            }
+        });
+    }
+
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /** Inativo só quando marcado explicitamente (status 0); status nulo de cadastros antigos segue ativo. */
+    public function isActive(): bool
+    {
+        return $this->status === null || (int) $this->status !== 0;
     }
 
     public function improvementRequests(): HasMany

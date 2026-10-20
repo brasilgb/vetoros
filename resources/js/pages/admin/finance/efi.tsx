@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AdminLayout from '@/layouts/admin/admin-layout';
+import EfiTestModal, { IntegrationTest, IntegrationTestConfig, testStatusLabels } from '@/pages/admin/finance/efi-test-modal';
 import { formatDate, money } from '@/pages/admin/fiscal/fiscal-tabs';
 import { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
@@ -57,6 +58,7 @@ type Props = {
         pending_expired: number;
     };
     payments: PaymentRow[];
+    integration_test: IntegrationTestConfig;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -85,7 +87,7 @@ const legacyGroupLabels: Record<string, string> = {
     outros: 'Outros',
 };
 
-export default function EfiSettings({ settings, method_options, errors_log, legacy, payments }: Props) {
+export default function EfiSettings({ settings, method_options, errors_log, legacy, payments, integration_test }: Props) {
     const form = useForm({
         environment: settings.environment,
         charges_client_id: '',
@@ -105,6 +107,13 @@ export default function EfiSettings({ settings, method_options, errors_log, lega
     });
     const homologation = useForm({ action: settings.homologated_at ? 'suspend' : 'homologate', confirm: false, password: '' });
     const [refundPassword, setRefundPassword] = useState('');
+    const [testOpen, setTestOpen] = useState(false);
+    const [testDetail, setTestDetail] = useState<IntegrationTest | null>(null);
+
+    const openTest = (detail: IntegrationTest | null) => {
+        setTestDetail(detail);
+        setTestOpen(true);
+    };
 
     const toggleMethod = (method: string, checked: boolean) =>
         form.setData('methods', checked ? [...form.data.methods, method] : form.data.methods.filter((item) => item !== method));
@@ -165,6 +174,7 @@ export default function EfiSettings({ settings, method_options, errors_log, lega
                             <Button variant="outline" onClick={() => router.post(route('admin.finance.efi.webhook'), {}, { preserveScroll: true })}>
                                 Cadastrar webhook Pix
                             </Button>
+                            <Button onClick={() => openTest(null)}>Testar pagamento</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -469,7 +479,57 @@ export default function EfiSettings({ settings, method_options, errors_log, lega
                         ))}
                     </CardContent>
                 </Card>
+
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Últimos testes</CardTitle>
+                        <CardDescription>
+                            Cobranças de teste da integração (source=integration_test), isoladas das cobranças dos clientes.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        {integration_test.recent.length === 0 && <p className="text-muted-foreground">Nenhum teste realizado.</p>}
+                        {integration_test.recent.map((test) => (
+                            <div key={test.id} className="flex flex-col gap-1 border-b pb-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p>
+                                        {methodLabels[test.method] ?? test.method} · {money(test.amount)} ·{' '}
+                                        <Badge
+                                            variant={
+                                                test.status === 'paid'
+                                                    ? 'default'
+                                                    : ['error', 'failed'].includes(test.status)
+                                                      ? 'destructive'
+                                                      : 'outline'
+                                            }
+                                        >
+                                            {testStatusLabels[test.status] ?? test.status}
+                                        </Badge>
+                                    </p>
+                                    <p className="text-muted-foreground text-xs">
+                                        {dateTime(test.created_at)} · {test.environment === 'production' ? 'produção' : 'homologação'}
+                                        {test.created_by && ` · ${test.created_by}`}
+                                    </p>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => openTest(test)}>
+                                    Ver detalhes
+                                </Button>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
             </div>
+
+            <EfiTestModal
+                open={testOpen}
+                onOpenChange={(open) => {
+                    setTestOpen(open);
+                    if (!open) router.reload({ only: ['integration_test'] });
+                }}
+                environment={settings.environment}
+                config={integration_test}
+                initial={testDetail}
+            />
         </AdminLayout>
     );
 }

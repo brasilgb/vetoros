@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ServiceRequest extends FormRequest
 {
@@ -23,7 +24,7 @@ class ServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'equipment_id' => 'required',
+            'equipment_id' => ['required', 'integer', Rule::exists('equipment', 'id')->where('tenant_id', resolveCurrentTenantId())],
             'service' => 'required|string|max:500',
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TenantRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -18,11 +19,11 @@ class PurchaseOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => ['required', TenantRule::exists('suppliers')],
             'expected_date' => 'nullable|date',
             'notes' => 'nullable|string|max:500',
             'items' => 'required|array|min:1',
-            'items.*.part_id' => 'required|exists:parts,id',
+            'items.*.part_id' => ['required', TenantRule::exists('parts')],
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_cost' => 'required|numeric|min:0',
         ];

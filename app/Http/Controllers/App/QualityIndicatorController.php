@@ -8,6 +8,7 @@ use App\Models\App\Order;
 use App\Models\App\Other;
 use App\Models\User;
 use App\Support\OrderStatus;
+use App\Support\TenantRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -437,7 +438,7 @@ class QualityIndicatorController extends Controller
         Gate::authorize('quality.manage');
 
         $validated = $request->validate([
-            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'assigned_to' => ['nullable', 'integer', TenantRule::exists('users')],
             'status' => ['required', 'string', 'in:'.implode(',', self::FEEDBACK_RECOVERY_STATUSES)],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);

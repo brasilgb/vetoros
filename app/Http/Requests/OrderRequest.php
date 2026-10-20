@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\App\Order;
 use App\Support\OrderStatus;
+use App\Support\TenantRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -48,7 +49,7 @@ class OrderRequest extends FormRequest
             'equipment_id' => [
                 Rule::requiredIf($this->input('order_type', Order::TYPE_EQUIPMENT) === Order::TYPE_EQUIPMENT),
                 'nullable',
-                'exists:equipment,id',
+                TenantRule::exists('equipment'),
             ],
             'customer_equipment_id' => [
                 'nullable',
@@ -81,7 +82,7 @@ class OrderRequest extends FormRequest
                 Rule::requiredIf($this->boolean('is_warranty_return')),
                 'nullable',
                 'integer',
-                'exists:orders,id',
+                TenantRule::exists('orders'),
             ],
 
             'budget_description' => [
@@ -110,8 +111,8 @@ class OrderRequest extends FormRequest
             'delivery_forecast_reason' => 'nullable|string|max:500',
             'budget_valid_until' => 'nullable|date',
 
-            'user_id' => 'nullable|exists:users,id',
-            'schedule_id' => 'nullable|exists:schedules,id',
+            'user_id' => ['nullable', TenantRule::exists('users')],
+            'schedule_id' => ['nullable', TenantRule::exists('schedules')],
             'delivery_date' => 'nullable|date',
             'delivery_forecast' => 'required|date',
             'observations' => 'nullable|string|max:500',

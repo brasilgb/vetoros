@@ -33,16 +33,16 @@ class EfiPixClient
         return $this->settings()->isProduction() ? self::PRODUCTION_URL : self::HOMOLOGATION_URL;
     }
 
-    /** Cobrança imediata com txid próprio (26 a 35 caracteres alfanuméricos). */
+    /** Cobrança imediata com txid próprio (26 a 35 caracteres alfanuméricos). Devedor vazio é omitido (opcional na API). */
     public function createImmediateCharge(string $txid, string $amount, array $debtor, int $expiresInSeconds, string $description): array
     {
-        return $this->request('criar cobrança Pix', fn (PendingRequest $http) => $http->put("/v2/cob/{$txid}", [
+        return $this->request('criar cobrança Pix', fn (PendingRequest $http) => $http->put("/v2/cob/{$txid}", array_filter([
             'calendario' => ['expiracao' => $expiresInSeconds],
             'devedor' => $debtor,
             'valor' => ['original' => $amount],
             'chave' => $this->settings()->efi_pix_key,
             'solicitacaoPagador' => Str::limit($description, 140, ''),
-        ]));
+        ], fn ($value) => $value !== [])));
     }
 
     public function getCharge(string $txid): array

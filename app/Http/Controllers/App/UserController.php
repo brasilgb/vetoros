@@ -15,11 +15,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class UserController extends Controller
 {
+    private const API_LOGIN_MAX_ATTEMPTS = 5;
+
     private function canManageTechnicianMaster(User $actor): bool
     {
         return $actor->isRoot() || $actor->isAdministrator();
@@ -232,12 +236,33 @@ class UserController extends Controller
             'email' => 'required|string|email',
             'password' => 'required|min:8',
         ]);
+        // Mesmo limite do login web: 5 tentativas por e-mail+IP; a rota ainda limita por IP.
+        $throttleKey = 'api-login|'.Str::transliterate(Str::lower($loginUserData['email'])).'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, self::API_LOGIN_MAX_ATTEMPTS)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Muitas tentativas de login. Tente novamente em '.RateLimiter::availableIn($throttleKey).' segundos.',
+                'result' => [],
+            ], 429);
+        }
+
         $user = User::where('email', $loginUserData['email'])->first();
         if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
+            RateLimiter::hit($throttleKey, 60);
+
             return response()->json([
                 'success' => false,
                 'result' => [],
             ], 401);
+        }
+        RateLimiter::clear($throttleKey);
+
+        if (! $user->isActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Seu usuário está inativo. Procure o administrador da empresa.',
+                'result' => [],
+            ], 403);
         }
         // Os apps são da empresa: usuário sem tenant (RootAdmin) não recebe token da API.
         if ($user->tenant_id === null) {

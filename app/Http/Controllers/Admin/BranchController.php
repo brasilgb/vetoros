@@ -36,8 +36,8 @@ class BranchController extends Controller
      */
     public function store(BranchRequest $request): RedirectResponse
     {
-        $data = $request->all();
         $request->validated();
+        $data = $request->only(['tenant_id', 'branch_cnpj', 'branch_name', 'branch_number', 'contact_name', 'contact_email', 'contact_phone', 'contact_whatsapp', 'cep', 'state', 'city', 'district', 'street', 'complement', 'number', 'status', 'observations']);
         Branch::create($data);
 
         return redirect()->route('admin.branches.index')->with('success', 'Filial cadastrada com sucesso!');
@@ -64,8 +64,8 @@ class BranchController extends Controller
      */
     public function update(BranchRequest $request, Branch $branch): RedirectResponse
     {
-        $data = $request->all();
         $request->validated();
+        $data = $request->only(['tenant_id', 'branch_cnpj', 'branch_name', 'branch_number', 'contact_name', 'contact_email', 'contact_phone', 'contact_whatsapp', 'cep', 'state', 'city', 'district', 'street', 'complement', 'number', 'status', 'observations']);
         $branch->update($data);
 
         return redirect()->route('admin.branches.show', ['branch' => $branch->id])->with('success', 'Filial atualizada com sucesso!');

@@ -19,6 +19,7 @@ interface ImageData {
 interface SavedImage {
     id: number;
     filename: string;
+    url: string;
 }
 
 interface ImageUploadProps {
@@ -287,7 +288,7 @@ const ImageUpload = ({ savedimages, orderid, ordernumber, errors }: ImageUploadP
                                             type="button"
                                             onClick={() =>
                                                 setSelectedImage({
-                                                    src: `/storage/orders/${ordernumber ?? orderid}/${img.filename}`,
+                                                    src: img.url,
                                                     alt: `Imagem ${index + 1} da ordem ${ordernumber ?? orderid}`,
                                                 })
                                             }
@@ -295,7 +296,7 @@ const ImageUpload = ({ savedimages, orderid, ordernumber, errors }: ImageUploadP
                                             aria-label={`Visualizar imagem ${index + 1}`}
                                         >
                                             <img
-                                                src={`/storage/orders/${ordernumber ?? orderid}/${img.filename}`}
+                                                src={img.url}
                                                 alt=""
                                                 className="h-32 w-full object-cover transition-transform group-hover:scale-105"
                                             />

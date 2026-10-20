@@ -30,8 +30,35 @@ class SaleService
                 throw new RuntimeException('Abra o caixa diário antes de concluir uma venda.');
             }
 
-            $totalAmount = round((float) $data['total_amount'], 2);
-            $paidAmount = round((float) ($data['paid_amount'] ?? $data['total_amount']), 2);
+            // Peças travadas em ordem de ID (evita deadlock entre vendas simultâneas) e estoque
+            // conferido pela soma das linhas da mesma peça.
+            $quantities = [];
+            foreach ($data['parts'] as $item) {
+                $quantities[(int) $item['part_id']] = ($quantities[(int) $item['part_id']] ?? 0) + (int) $item['quantity'];
+            }
+            ksort($quantities);
+
+            $parts = [];
+            $totalCents = 0;
+            foreach ($quantities as $partId => $quantity) {
+                $part = Part::query()->lockForUpdate()->findOrFail($partId);
+
+                if ($part->quantity < $quantity) {
+                    throw new RuntimeException("Estoque insuficiente para {$part->name}");
+                }
+
+                $parts[$partId] = $part;
+                $totalCents += (int) round((float) $part->sale_price * 100) * $quantity;
+            }
+
+            // O total é sempre o do servidor (preço atual das peças). O valor enviado pela tela
+            // só é conferido: divergência indica preço desatualizado ou manipulação.
+            $totalAmount = round($totalCents / 100, 2);
+            if (abs(round((float) $data['total_amount'], 2) - $totalAmount) >= 0.01) {
+                throw new RuntimeException('O total informado não confere com o preço atual das peças (R$ '.number_format($totalAmount, 2, ',', '.').'). Atualize a tela e tente novamente.');
+            }
+
+            $paidAmount = round((float) ($data['paid_amount'] ?? $totalAmount), 2);
 
             if ($paidAmount > $totalAmount) {
                 throw new RuntimeException('O valor pago não pode ser maior que o total da venda.');
@@ -49,11 +76,7 @@ class SaleService
             ]);
 
             foreach ($data['parts'] as $item) {
-                $part = Part::lockForUpdate()->findOrFail($item['part_id']);
-
-                if ($part->quantity < $item['quantity']) {
-                    throw new RuntimeException("Estoque insuficiente para {$part->name}");
-                }
+                $part = $parts[(int) $item['part_id']];
 
                 SaleItem::create([
                     'sale_id' => $sale->id,
@@ -99,6 +122,15 @@ class SaleService
         }
 
         return DB::transaction(function () use ($sale, $reason, $user) {
+            // Releitura com a venda travada: dois cancelamentos simultâneos (ou uma tela
+            // desatualizada) não devolvem o estoque duas vezes.
+            /** @var Sale $sale */
+            $sale = Sale::query()->whereKey($sale->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($sale->status === 'cancelled') {
+                throw new RuntimeException('Venda já está cancelada.');
+            }
+
             foreach ($sale->items as $item) {
                 $part = Part::query()->whereKey($item->part_id)->lockForUpdate()->first();
 

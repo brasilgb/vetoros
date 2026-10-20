@@ -5,6 +5,8 @@ use App\Http\Middleware\AppAccessMiddleware;
 use App\Http\Middleware\ApplySupportSession;
 use App\Http\Middleware\CheckSubscriptionStatus;
 use App\Http\Middleware\Cors;
+use App\Http\Middleware\EnforceTenantWrites;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RootAdminOnly;
@@ -81,12 +83,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(replace: [
             BaseStartSession::class => StartSession::class,
         ], append: [
+            EnforceTenantWrites::class,
             ApplySupportSession::class,
+            EnsureUserIsActive::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             Cors::class,
         ]);
+        $middleware->api(append: [EnforceTenantWrites::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->respond(function (Response $response, Throwable $exception, $request) {

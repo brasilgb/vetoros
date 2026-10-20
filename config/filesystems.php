@@ -40,6 +40,17 @@ return [
             'report' => false,
         ],
 
+        // Fotos e assinaturas de OS (VETOROS-SECURITY-FIX-01). Privado, por empresa e por OS;
+        // entregue só por URL assinada. Em produção precisa apontar para um volume persistente
+        // (ORDER_FILES_ROOT), como o FISCAL_STORAGE_ROOT.
+        'order_files' => [
+            'driver' => 'local',
+            'root' => env('ORDER_FILES_ROOT') ?: storage_path('app/private/order-files'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

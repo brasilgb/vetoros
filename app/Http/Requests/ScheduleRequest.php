@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\App\Schedule;
+use App\Support\TenantRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -33,7 +34,7 @@ class ScheduleRequest extends FormRequest
     {
         return [
             'customer_id' => 'required',
-            'order_id' => 'nullable|exists:orders,id',
+            'order_id' => ['nullable', TenantRule::exists('orders')],
             'user_id' => 'required',
             'schedules' => 'required',
             'service' => 'required|string|max:500',
@@ -41,7 +42,7 @@ class ScheduleRequest extends FormRequest
             'material_checklist' => 'nullable|array',
             'material_checklist.*.name' => 'required|string|max:150',
             'material_checklist.*.quantity' => 'required|integer|min:1|max:999',
-            'material_checklist.*.part_id' => 'nullable|integer|exists:parts,id',
+            'material_checklist.*.part_id' => ['nullable', 'integer', TenantRule::exists('parts')],
             'material_checklist.*.used' => 'boolean',
             'technician_checklist' => 'nullable|array',
             'technician_checklist.*' => 'required|string|max:500',

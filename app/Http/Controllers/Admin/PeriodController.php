@@ -44,8 +44,8 @@ class PeriodController extends Controller
      */
     public function store(PeriodRequest $request)
     {
-        $data = $request->all();
         $request->validated();
+        $data = $request->only(['plan_id', 'name', 'interval', 'interval_count', 'price']);
         Period::create($data);
 
         return redirect()->route('admin.periods.index')->with('success', 'Período cadastrado com sucesso!');
@@ -72,8 +72,8 @@ class PeriodController extends Controller
      */
     public function update(PeriodRequest $request, Period $period): RedirectResponse
     {
-        $data = $request->all();
         $request->validated();
+        $data = $request->only(['plan_id', 'name', 'interval', 'interval_count', 'price']);
         $period->update($data);
 
         return redirect()->route('admin.periods.index')->with('success', 'Período editado com sucesso!');

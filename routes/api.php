@@ -42,7 +42,7 @@ Route::post('/webhooks/spedy', SpedyWebhookController::class)
 Route::post('/webhooks/waha', WahaWebhookController::class)
     ->middleware('throttle:600,1')
     ->name('webhook.waha');
-Route::post('/loginuser', [UserController::class, 'loginuser'])->name('loginuser');
+Route::post('/loginuser', [UserController::class, 'loginuser'])->middleware('throttle:20,1')->name('loginuser');
 
 Route::middleware(['auth:sanctum', EnsureTenantApiUser::class])->group(function () {
     Route::get('/ordercli/{customer}', [OrderController::class, 'getOrderCli'])->name('ordercli');
