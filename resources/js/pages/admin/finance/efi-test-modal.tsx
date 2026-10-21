@@ -136,20 +136,29 @@ export default function EfiTestModal({
         const { default: EfiPay } = await import('payment-token-efi');
         const efiEnvironment = production ? 'production' : 'sandbox';
         const number = card.number.replace(/\D/g, '');
-        const brand = await EfiPay.CreditCard.setEnvironment(efiEnvironment).setCardNumber(number).verifyCardBrand();
-        const token = await EfiPay.CreditCard.setAccount(String(config.payee_code))
-            .setEnvironment(efiEnvironment)
-            .setCreditCardData({
-                brand,
-                number,
-                cvv: card.cvv,
-                expirationMonth: card.expirationMonth.padStart(2, '0'),
-                expirationYear: card.expirationYear.length === 2 ? `20${card.expirationYear}` : card.expirationYear,
-                holderName: card.holderName,
-                holderDocument: payer.cpf.replace(/\D/g, ''),
-                reuse: false,
-            })
-            .getPaymentToken();
+        let token: Awaited<ReturnType<typeof EfiPay.CreditCard.getPaymentToken>>;
+        try {
+            const brand = await EfiPay.CreditCard.setEnvironment(efiEnvironment).setCardNumber(number).verifyCardBrand();
+            token = await EfiPay.CreditCard.setAccount(String(config.payee_code))
+                .setEnvironment(efiEnvironment)
+                .setCreditCardData({
+                    brand,
+                    number,
+                    cvv: card.cvv,
+                    expirationMonth: card.expirationMonth.padStart(2, '0'),
+                    expirationYear: card.expirationYear.length === 2 ? `20${card.expirationYear}` : card.expirationYear,
+                    holderName: card.holderName,
+                    holderDocument: payer.cpf.replace(/\D/g, ''),
+                    reuse: false,
+                })
+                .getPaymentToken();
+        } catch (e) {
+            // A biblioteca rejeita com { code, error, error_description } (conta inválida, salt, chave pública...).
+            const efiError = e as { code?: number; error?: string; error_description?: string } | null;
+            setError(efiError?.error_description || 'A Efí não respondeu à tokenização. Tente novamente.');
+            step(`Tokenização falhou na Efí${efiError?.code ? ` (${efiError.code}${efiError.error ? ` · ${efiError.error}` : ''})` : ''}.`);
+            return null;
+        }
 
         if (!('payment_token' in token)) {
             setError(token.error_description || 'Cartão não aceito pela Efí. Confira os dados.');
