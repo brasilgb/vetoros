@@ -1,3 +1,4 @@
+import { SCHEDULE_STATUS_LABELS } from '@/lib/reports/report-labels';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import moment from 'moment';
 
@@ -86,20 +87,14 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-const STATUS_MAP: Record<number, string> = {
-    1: 'Ordem Aberta',
-    2: 'Em atendimento',
-    3: 'Fechada',
-};
-
-export default function SchedulesReportPDF({ data, dateRange, company }: any) {
+export default function SchedulesReportPDF({ data, dateRange, company }: ReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
             : 'Período não informado';
-    const openedCount = data.filter((schedule: any) => Number(schedule.status) === 1).length;
-    const inServiceCount = data.filter((schedule: any) => Number(schedule.status) === 2).length;
-    const closedCount = data.filter((schedule: any) => Number(schedule.status) === 3).length;
+    const openedCount = data.filter((schedule: ReportRow) => Number(schedule.status) === 1).length;
+    const inServiceCount = data.filter((schedule: ReportRow) => Number(schedule.status) === 2).length;
+    const closedCount = data.filter((schedule: ReportRow) => Number(schedule.status) === 3).length;
 
     return (
         <Document>
@@ -126,14 +121,14 @@ export default function SchedulesReportPDF({ data, dateRange, company }: any) {
                         <Text style={styles.colRight}>Solicitação</Text>
                     </View>
 
-                    {data.map((customer: any) => (
+                    {data.map((customer: ReportRow) => (
                         <View key={customer.id} style={styles.tableRow}>
                             <Text style={styles.colSmall}>{customer.schedules_number}</Text>
-                            <Text style={styles.colLarge}>{customer.customer.name}</Text>
+                            <Text style={styles.colLarge}>{customer.customer?.name || '—'}</Text>
                             <Text style={styles.colMedium}>{moment(customer.schedules).format('DD/MM/YYYY HH:mm')}</Text>
                             <Text style={styles.colMedium}>{customer.service}</Text>
-                            <Text style={styles.colMedium}>{STATUS_MAP[customer.status] || '—'}</Text>
-                            <Text style={styles.colMedium}>{customer.user.name}</Text>
+                            <Text style={styles.colMedium}>{SCHEDULE_STATUS_LABELS[Number(customer.status)] || '—'}</Text>
+                            <Text style={styles.colMedium}>{customer.user?.name || '—'}</Text>
                             <Text style={styles.colRight}>{moment(customer.created_at).format('DD/MM/YYYY')}</Text>
                         </View>
                     ))}

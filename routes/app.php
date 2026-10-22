@@ -186,6 +186,8 @@ Route::post('/cashier/open', [CashSessionController::class, 'open'])->name('cash
 Route::post('/cashier/{cashSession}/withdrawal', [CashSessionController::class, 'withdrawal'])->name('cashier.withdrawal');
 Route::post('/cashier/{cashSession}/withdrawal/{movement}/cancel', [CashSessionController::class, 'cancelWithdrawal'])->name('cashier.withdrawal.cancel');
 Route::post('/cashier/{cashSession}/close', [CashSessionController::class, 'close'])->name('cashier.close');
+// Registrada antes do resource para não ser capturada por /reports/{report}.
+Route::get('/reports/visualizar', [ReportController::class, 'preview'])->name('reports.preview');
 Route::resource('/reports', ReportController::class);
 
 Route::get('/ajuda', [HelpTopicController::class, 'index'])->name('help-topics.index');

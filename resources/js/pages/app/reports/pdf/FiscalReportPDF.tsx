@@ -1,3 +1,4 @@
+import { fiscalProviderLabel, fiscalTargetLabel } from '@/lib/reports/report-labels';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import moment from 'moment';
 
@@ -25,18 +26,7 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-function targetLabel(document: any) {
-    const type = String(document.documentable_type || '');
-    if (type.endsWith('\\Sale')) return `Venda #${document.documentable_id}`;
-    if (type.endsWith('\\Order')) return `OS #${document.documentable_id}`;
-    return `Registro #${document.documentable_id}`;
-}
-
-function providerLabel(provider: string) {
-    return provider === 'manual' ? 'Manual' : 'Integração anterior';
-}
-
-export default function FiscalReportPDF({ data, reportMeta, dateRange, company }: any) {
+export default function FiscalReportPDF({ data, reportMeta, dateRange, company }: ReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
@@ -66,11 +56,11 @@ export default function FiscalReportPDF({ data, reportMeta, dateRange, company }
                     <Text style={styles.colUser}>Registrado por</Text>
                 </View>
 
-                {data.map((document: any) => (
+                {data.map((document: ReportRow) => (
                     <View key={document.id} style={styles.tableRow}>
                         <Text style={styles.colType}>{String(document.type || '').toUpperCase()}</Text>
-                        <Text style={styles.colProvider}>{providerLabel(document.provider)}</Text>
-                        <Text style={styles.colTarget}>{targetLabel(document)}</Text>
+                        <Text style={styles.colProvider}>{fiscalProviderLabel(document.provider ?? '')}</Text>
+                        <Text style={styles.colTarget}>{fiscalTargetLabel(document)}</Text>
                         <Text style={styles.colNumber}>{document.number || '-'}</Text>
                         <Text style={styles.colStatus}>{document.status || '-'}</Text>
                         <Text style={styles.colDate}>{document.issued_at ? moment(document.issued_at).format('DD/MM/YYYY') : '-'}</Text>

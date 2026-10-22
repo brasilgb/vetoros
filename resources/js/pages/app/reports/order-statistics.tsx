@@ -10,7 +10,7 @@ interface DateRange {
     to?: Date;
 }
 
-export default function OrdersStatistics({ dateRange, company }: { dateRange?: DateRange; company: string }) {
+export default function OrdersStatistics({ dateRange, company }: { dateRange?: DateRange; company: ReportCompany | null }) {
     const [loading, setLoading] = useState(false);
 
     async function handleGeneratePDF() {
@@ -36,9 +36,9 @@ export default function OrdersStatistics({ dateRange, company }: { dateRange?: D
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: async (page: any) => {
-                    const reportData = page.props?.reportData || [];
-                    const reportMeta = page.props?.reportMeta || {};
+                onSuccess: async (page) => {
+                    const reportData = readReportRows(page.props.reportData);
+                    const reportMeta = readReportMeta(page.props.reportMeta);
 
                     // Gera o PDF no frontend
                     // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.

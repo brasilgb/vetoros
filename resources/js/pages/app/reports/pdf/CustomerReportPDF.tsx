@@ -87,15 +87,15 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-export default function CustomerReportPDF({ data, dateRange, company }: any) {
+export default function CustomerReportPDF({ data, dateRange, company }: ReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
             : 'Período não informado';
 
-    const customersWithEmail = data.filter((customer: any) => Boolean(customer.email)).length;
-    const customersWithPhone = data.filter((customer: any) => Boolean(customer.phone)).length;
-    const customersWithCpfCnpj = data.filter((customer: any) => Boolean(customer.cpfcnpj)).length;
+    const customersWithEmail = data.filter((customer: ReportRow) => Boolean(customer.email)).length;
+    const customersWithPhone = data.filter((customer: ReportRow) => Boolean(customer.phone)).length;
+    const customersWithCpfCnpj = data.filter((customer: ReportRow) => Boolean(customer.cpfcnpj)).length;
 
     return (
         <Document>
@@ -121,13 +121,13 @@ export default function CustomerReportPDF({ data, dateRange, company }: any) {
                         <Text style={styles.colRight}>Cadastro</Text>
                     </View>
 
-                    {data.map((customer: any) => (
+                    {data.map((customer: ReportRow) => (
                         <View key={customer.id} style={styles.tableRow}>
                             <Text style={styles.colSmall}>{customer.customer_number}</Text>
                             <Text style={styles.colLarge}>{customer.name}</Text>
                             <Text style={styles.colMedium}>{customer.email}</Text>
-                            <Text style={styles.colMedium}>{maskCpfCnpj(customer.cpfcnpj)}</Text>
-                            <Text style={styles.colMedium}>{maskPhone(customer.phone)}</Text>
+                            <Text style={styles.colMedium}>{maskCpfCnpj(customer.cpfcnpj ?? '')}</Text>
+                            <Text style={styles.colMedium}>{maskPhone(customer.phone ?? '')}</Text>
                             <Text style={styles.colRight}>{moment(customer.created_at).format('DD/MM/YYYY')}</Text>
                         </View>
                     ))}

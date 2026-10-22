@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-export default function OrderStatisticsPDF({ data, reportMeta, dateRange, company }: any) {
+export default function OrderStatisticsPDF({ data, reportMeta, dateRange, company }: ReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
@@ -126,13 +126,13 @@ export default function OrderStatisticsPDF({ data, reportMeta, dateRange, compan
 
     const stats = {
         total: data.length,
-        abertas: data.filter((o: any) => o.service_status === ORDER_STATUS.OPEN).length,
-        orcGerados: data.filter((o: any) => o.service_status === ORDER_STATUS.BUDGET_GENERATED).length,
-        orcAprovados: data.filter((o: any) => o.service_status === ORDER_STATUS.BUDGET_APPROVED).length,
-        reparo: data.filter((o: any) => o.service_status === ORDER_STATUS.REPAIR_IN_PROGRESS).length,
-        concluidos: data.filter((o: any) => ORDER_STATUSES_COMPLETED.includes(o.service_status)).length,
-        entregues: data.filter((o: any) => o.service_status === ORDER_STATUS.DELIVERED).length,
-        retornosGarantia: data.filter((o: any) => Boolean(o.is_warranty_return)).length,
+        abertas: data.filter((o: ReportRow) => o.service_status === ORDER_STATUS.OPEN).length,
+        orcGerados: data.filter((o: ReportRow) => o.service_status === ORDER_STATUS.BUDGET_GENERATED).length,
+        orcAprovados: data.filter((o: ReportRow) => o.service_status === ORDER_STATUS.BUDGET_APPROVED).length,
+        reparo: data.filter((o: ReportRow) => o.service_status === ORDER_STATUS.REPAIR_IN_PROGRESS).length,
+        concluidos: data.filter((o: ReportRow) => ORDER_STATUSES_COMPLETED.includes(Number(o.service_status))).length,
+        entregues: data.filter((o: ReportRow) => o.service_status === ORDER_STATUS.DELIVERED).length,
+        retornosGarantia: data.filter((o: ReportRow) => Boolean(o.is_warranty_return)).length,
     };
     const warrantyReturnRate = Number(
         reportMeta?.warranty_return_rate ?? (stats.total > 0 ? ((stats.retornosGarantia / stats.total) * 100).toFixed(1) : '0.0'),
@@ -146,9 +146,9 @@ export default function OrderStatisticsPDF({ data, reportMeta, dateRange, compan
             : warrantySeverity === 'Atenção'
               ? { backgroundColor: '#EFF6FF', borderColor: '#60A5FA', color: '#1D4ED8' }
               : { backgroundColor: '#ECFDF5', borderColor: '#34D399', color: '#065F46' };
-    const warrantyOrders = data.filter((o: any) => Boolean(o.is_warranty_return));
+    const warrantyOrders = data.filter((o: ReportRow) => Boolean(o.is_warranty_return));
     const topWarrantyEquipments: WarrantyRankingItem[] = Object.entries(
-        warrantyOrders.reduce((acc: Record<string, number>, order: any) => {
+        warrantyOrders.reduce((acc: Record<string, number>, order: ReportRow) => {
             const key = order.equipment?.equipment || 'Equipamento não informado';
             acc[key] = (acc[key] ?? 0) + 1;
             return acc;
@@ -158,7 +158,7 @@ export default function OrderStatisticsPDF({ data, reportMeta, dateRange, compan
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
     const topWarrantyDefects: WarrantyRankingItem[] = Object.entries(
-        warrantyOrders.reduce((acc: Record<string, number>, order: any) => {
+        warrantyOrders.reduce((acc: Record<string, number>, order: ReportRow) => {
             const key = String(order.defect || 'Defeito não informado').trim() || 'Defeito não informado';
             acc[key] = (acc[key] ?? 0) + 1;
             return acc;
@@ -168,9 +168,9 @@ export default function OrderStatisticsPDF({ data, reportMeta, dateRange, compan
         .sort((a, b) => b.total - a.total)
         .slice(0, 5);
 
-    const totalServicos = data.reduce((acc: number, o: any) => acc + Number(o.service_value || 0), 0);
+    const totalServicos = data.reduce((acc: number, o: ReportRow) => acc + Number(o.service_value || 0), 0);
 
-    const totalPecas = data.reduce((acc: number, o: any) => acc + Number(o.parts_value || 0), 0);
+    const totalPecas = data.reduce((acc: number, o: ReportRow) => acc + Number(o.parts_value || 0), 0);
 
     const totalGeral = totalServicos + totalPecas;
 

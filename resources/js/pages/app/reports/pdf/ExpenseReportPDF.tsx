@@ -59,14 +59,14 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-export default function ExpenseReportPDF({ data, dateRange, company }: any) {
+export default function ExpenseReportPDF({ data, dateRange, company }: ReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
             : 'Período não informado';
 
-    const totalExpenses = data.reduce((acc: number, expense: any) => acc + Number(expense.amount || 0), 0);
-    const uniqueCategories = new Set(data.map((expense: any) => String(expense.category || '').trim()).filter(Boolean)).size;
+    const totalExpenses = data.reduce((acc: number, expense: ReportRow) => acc + Number(expense.amount || 0), 0);
+    const uniqueCategories = new Set(data.map((expense: ReportRow) => String(expense.category || '').trim()).filter(Boolean)).size;
     const avgExpense = data.length ? totalExpenses / data.length : 0;
 
     return (
@@ -92,7 +92,7 @@ export default function ExpenseReportPDF({ data, dateRange, company }: any) {
                     <Text style={styles.colMoney}>Valor</Text>
                 </View>
 
-                {data.map((expense: any) => (
+                {data.map((expense: ReportRow) => (
                     <View key={expense.id} style={styles.tableRow}>
                         <Text style={styles.colNumber}>{expense.expense_number || expense.id}</Text>
                         <Text style={styles.colDate}>{moment(expense.expense_date).format('DD/MM/YYYY')}</Text>

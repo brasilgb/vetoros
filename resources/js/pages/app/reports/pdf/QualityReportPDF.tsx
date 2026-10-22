@@ -52,7 +52,7 @@ function recoveryStatusLabel(status?: string) {
     return 'Pendente';
 }
 
-export default function QualityReportPDF({ reportMeta, dateRange, company }: any) {
+export default function QualityReportPDF({ reportMeta, dateRange, company }: QualityReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`

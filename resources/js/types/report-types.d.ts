@@ -1,0 +1,17 @@
+type ReportRow = import('@/lib/reports/report-types').ReportRow;
+type ReportMeta = import('@/lib/reports/report-types').ReportMeta;
+type ReportCompany = import('@/lib/reports/report-types').ReportCompany;
+type ReportDateRange = import('@/lib/reports/report-types').ReportDateRange;
+type ReportPDFProps = import('@/lib/reports/report-types').ReportPDFProps;
+type QualityReportPDFProps = import('@/lib/reports/report-types').QualityReportPDFProps;
+type CashierDailyReportProps = import('@/lib/reports/report-types').CashierDailyReportProps;
+type CashierReportSession = import('@/lib/reports/report-types').CashierReportSession;
+type ReportPayment = import('@/lib/reports/report-types').ReportPayment;
+type ReportSale = import('@/lib/reports/report-types').ReportSale;
+type ReportWithdrawal = import('@/lib/reports/report-types').ReportWithdrawal;
+type TechnicianReportStats = import('@/lib/reports/report-types').TechnicianReportStats;
+type ReportsPageProps = import('@/lib/reports/report-types').ReportsPageProps;
+type OrderDailyReportRow = import('@/lib/reports/report-types').OrderDailyReportRow;
+declare const readReportRows: typeof import('@/lib/reports/report-types').readReportRows;
+declare const readReportMeta: typeof import('@/lib/reports/report-types').readReportMeta;
+declare const readOrderDailyReportRows: typeof import('@/lib/reports/report-types').readOrderDailyReportRows;

@@ -117,13 +117,13 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 4, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-export default function TechnicianProductivityPDF({ data, reportMeta, company, dateRange }: any) {
+export default function TechnicianProductivityPDF({ data, reportMeta, company, dateRange }: ReportPDFProps) {
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
             : 'Período não informado';
 
-    const statsByTechnician: any = {};
+    const statsByTechnician: Record<string, TechnicianReportStats> = {};
     const warrantyByTechnician: Record<string, number> = {};
     const warrantyReturnRate = Number(reportMeta?.warranty_return_rate ?? 0);
     const warrantyThreshold = Number(reportMeta?.warranty_return_threshold ?? 10);
@@ -136,14 +136,14 @@ export default function TechnicianProductivityPDF({ data, reportMeta, company, d
               ? { backgroundColor: '#EFF6FF', borderColor: '#60A5FA', color: '#1D4ED8' }
               : { backgroundColor: '#ECFDF5', borderColor: '#34D399', color: '#065F46' };
 
-    data.forEach((order: any) => {
+    data.forEach((order: ReportRow) => {
         const tech = order.technician?.name || 'Não definido';
 
         if (order.is_warranty_return) {
             warrantyByTechnician[tech] = (warrantyByTechnician[tech] ?? 0) + 1;
         }
 
-        if (!ORDER_STATUSES_COMPLETED.includes(order.service_status)) return;
+        if (!ORDER_STATUSES_COMPLETED.includes(Number(order.service_status))) return;
 
         if (!statsByTechnician[tech]) {
             statsByTechnician[tech] = {
@@ -157,39 +157,39 @@ export default function TechnicianProductivityPDF({ data, reportMeta, company, d
         statsByTechnician[tech].totalServicos += Number(order.service_value || 0);
     });
 
-    const rows = Object.values(statsByTechnician).map((r: any) => ({
+    const rows = Object.values(statsByTechnician).map((r: TechnicianReportStats) => ({
         ...r,
         ticketMedio: r.totalServicos / r.totalOrdens,
     }));
 
-    const completedOrders = data.filter((o: any) => ORDER_STATUSES_COMPLETED.includes(o.service_status));
+    const completedOrders = data.filter((o: ReportRow) => ORDER_STATUSES_COMPLETED.includes(Number(o.service_status)));
 
-    const deliveredOrders = data.filter((o: any) => o.service_status === ORDER_STATUS.DELIVERED);
+    const deliveredOrders = data.filter((o: ReportRow) => o.service_status === ORDER_STATUS.DELIVERED);
 
     const avgRepairDays =
-        completedOrders.reduce((acc: number, order: any) => {
+        completedOrders.reduce((acc: number, order: ReportRow) => {
             const start = moment(order.created_at);
             const end = moment(order.updated_at);
             return acc + end.diff(start, 'days');
         }, 0) / (completedOrders.length || 1);
 
     const avgDeliveryDays =
-        deliveredOrders.reduce((acc: number, order: any) => {
+        deliveredOrders.reduce((acc: number, order: ReportRow) => {
             const start = moment(order.created_at);
             const end = moment(order.updated_at);
             return acc + end.diff(start, 'days');
         }, 0) / (deliveredOrders.length || 1);
 
-    const pendingLongTime = data.filter((order: any) => {
-        if (orderStatusRank(order.service_status) >= orderStatusRank(ORDER_STATUS.REPAIR_IN_PROGRESS)) return false;
+    const pendingLongTime = data.filter((order: ReportRow) => {
+        if (orderStatusRank(Number(order.service_status)) >= orderStatusRank(ORDER_STATUS.REPAIR_IN_PROGRESS)) return false;
 
         const days = moment().diff(moment(order.created_at), 'days');
 
         return days > 7;
     }).length;
 
-    const totalOrdens = rows.reduce((acc: any, r: any) => acc + r.totalOrdens, 0);
-    const totalServicos = rows.reduce((acc: any, r: any) => acc + r.totalServicos, 0);
+    const totalOrdens = rows.reduce((acc: number, r) => acc + r.totalOrdens, 0);
+    const totalServicos = rows.reduce((acc: number, r) => acc + r.totalServicos, 0);
     const warrantyRows = Object.entries(warrantyByTechnician)
         .map(([technician, totalReturns]) => ({ technician, totalReturns }))
         .sort((a, b) => b.totalReturns - a.totalReturns);
@@ -230,7 +230,7 @@ export default function TechnicianProductivityPDF({ data, reportMeta, company, d
                         <Text style={styles.colMoney}>Ticket Médio</Text>
                     </View>
 
-                    {rows.map((row: any, index: number) => (
+                    {rows.map((row, index: number) => (
                         <View key={index} style={styles.row}>
                             <Text style={styles.colName}>{row.technician}</Text>
 

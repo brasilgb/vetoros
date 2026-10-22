@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     emptyState: { paddingVertical: 10, textAlign: 'center', color: '#666' },
 });
 
-export default function CashierPeriodReportPDF({ data, dateRange, company, reportMeta }: any) {
+export default function CashierPeriodReportPDF({ data, dateRange, company, reportMeta }: ReportPDFProps) {
     const paymentMethodLabels: Record<string, string> = {
         pix: 'Pix',
         cartao: 'Cartão',
@@ -136,7 +136,7 @@ export default function CashierPeriodReportPDF({ data, dateRange, company, repor
                     </View>
 
                     {Array.isArray(data) && data.length > 0 ? (
-                        data.map((session: any) => (
+                        data.map((session: ReportRow) => (
                             <View key={session.id} style={styles.tableRow}>
                                 <Text style={styles.colId}>{session.id}</Text>
                                 <Text style={styles.colDate}>{session.opened_at ? moment(session.opened_at).format('DD/MM/YYYY HH:mm') : '-'}</Text>
@@ -145,7 +145,7 @@ export default function CashierPeriodReportPDF({ data, dateRange, company, repor
                                 <Text style={styles.colMoney}>
                                     {currencyFormatter(
                                         (session.withdrawals || []).reduce(
-                                            (sum: number, withdrawal: any) => (withdrawal.cancelled_at ? sum : sum + Number(withdrawal.amount || 0)),
+                                            (sum: number, withdrawal: ReportRow) => (withdrawal.cancelled_at ? sum : sum + Number(withdrawal.amount || 0)),
                                             0,
                                         ),
                                     )}

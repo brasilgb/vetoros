@@ -1,3 +1,4 @@
+import { partTypeLabel } from '@/lib/reports/report-labels';
 import { currencyFormatter } from '@/Utils/currency-formatter';
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import moment from 'moment';
@@ -90,27 +91,17 @@ const styles = StyleSheet.create({
     logoPlaceholder: { paddingVertical: 2, width: 38, height: 38, justifyContent: 'center', alignItems: 'center', minWidth: '100%' },
 });
 
-const partTypeLabels: Record<string, string> = {
-    part: 'Peça',
-    product: 'Produto',
-};
-
-export default function PartReportPDF({ data, dateRange, company }: any) {
-    const normalizePartType = (value: unknown) => {
-        if (value === null || value === undefined) return '-';
-
-        return partTypeLabels[String(value)] ?? '-';
-    };
+export default function PartReportPDF({ data, dateRange, company }: ReportPDFProps) {
 
     const period =
         dateRange?.from && dateRange?.to
             ? `${moment(dateRange.from).format('DD/MM/YYYY')} - ${moment(dateRange.to).format('DD/MM/YYYY')}`
             : 'Período não informado';
     const totalItems = data.length;
-    const stockTotal = data.reduce((acc: number, part: any) => acc + Number(part.quantity || 0), 0);
-    const lowStock = data.filter((part: any) => Number(part.quantity || 0) <= Number(part.minimum_stock_level || 0)).length;
-    const stockCost = data.reduce((acc: number, part: any) => acc + Number(part.quantity || 0) * Number(part.cost_price || 0), 0);
-    const stockSale = data.reduce((acc: number, part: any) => acc + Number(part.quantity || 0) * Number(part.sale_price || 0), 0);
+    const stockTotal = data.reduce((acc: number, part: ReportRow) => acc + Number(part.quantity || 0), 0);
+    const lowStock = data.filter((part: ReportRow) => Number(part.quantity || 0) <= Number(part.minimum_stock_level || 0)).length;
+    const stockCost = data.reduce((acc: number, part: ReportRow) => acc + Number(part.quantity || 0) * Number(part.cost_price || 0), 0);
+    const stockSale = data.reduce((acc: number, part: ReportRow) => acc + Number(part.quantity || 0) * Number(part.sale_price || 0), 0);
 
     return (
         <Document>
@@ -138,9 +129,9 @@ export default function PartReportPDF({ data, dateRange, company }: any) {
                         <Text style={styles.colSale}>Venda</Text>
                     </View>
 
-                    {data.map((part: any) => (
+                    {data.map((part: ReportRow) => (
                         <View key={part.id} style={styles.tableRow}>
-                            <Text style={styles.colType}>{normalizePartType(part.type)}</Text>
+                            <Text style={styles.colType}>{partTypeLabel(part.type)}</Text>
                             <Text style={styles.colRef}>{part.reference_number || '-'}</Text>
                             <Text style={styles.colName}>{part.name || '-'}</Text>
                             <Text style={styles.colManufacturer}>{part.manufacturer || '-'}</Text>

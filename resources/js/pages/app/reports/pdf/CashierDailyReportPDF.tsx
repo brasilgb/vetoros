@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     footer: { marginTop: 12, borderTop: '1px solid #d6d6d6', paddingTop: 6, textAlign: 'center' },
 });
 
-export default function CashierDailyReportPDF({ session, company }: any) {
+export default function CashierDailyReportPDF({ session, company }: CashierDailyReportProps) {
     const openDate = session?.opened_at ? moment(session.opened_at).format('DD/MM/YYYY HH:mm') : '-';
     const closeDate = session?.closed_at ? moment(session.closed_at).format('DD/MM/YYYY HH:mm') : '-';
     const reportDate = session?.closed_at
@@ -39,14 +39,13 @@ export default function CashierDailyReportPDF({ session, company }: any) {
         boleto: 'Boleto',
     };
     const paymentMethods = ['pix', 'cartao', 'dinheiro', 'transferencia', 'boleto'];
-    const orderPaymentTotalsByMethod = (session?.order_payments || []).reduce((acc: Record<string, number>, payment: any) => {
+    const orderPaymentTotalsByMethod = (session?.order_payments || []).reduce((acc: Record<string, number>, payment: ReportRow) => {
         const method = String(payment?.payment_method || '').toLowerCase();
         if (!acc[method]) acc[method] = 0;
         acc[method] += Number(payment?.amount || 0);
         return acc;
     }, {});
-    const paymentMethodsWithValue = paymentMethods.filter((method) => Number(orderPaymentTotalsByMethod[method] || 0) > 0);
-    const salesTotalsByMethod = (session?.sales || []).reduce((acc: Record<string, number>, sale: any) => {
+    const salesTotalsByMethod = (session?.sales || []).reduce((acc: Record<string, number>, sale: ReportSale) => {
         if (sale?.status !== 'completed') return acc;
         const method = String(sale?.payment_method || '').toLowerCase();
         if (!acc[method]) acc[method] = 0;
@@ -60,8 +59,8 @@ export default function CashierDailyReportPDF({ session, company }: any) {
     const openingNotes = String(session?.notes || '').trim();
     const closingNotes = String(session?.closing_notes || '').trim();
     const withdrawals = session?.withdrawals || [];
-    const activeWithdrawals = withdrawals.filter((withdrawal: any) => !withdrawal?.cancelled_at);
-    const withdrawalsTotal = activeWithdrawals.reduce((sum: number, withdrawal: any) => sum + Number(withdrawal?.amount || 0), 0);
+    const activeWithdrawals = withdrawals.filter((withdrawal: ReportRow) => !withdrawal?.cancelled_at);
+    const withdrawalsTotal = activeWithdrawals.reduce((sum: number, withdrawal: ReportRow) => sum + Number(withdrawal?.amount || 0), 0);
 
     return (
         <Document>
@@ -145,7 +144,7 @@ export default function CashierDailyReportPDF({ session, company }: any) {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Sangrias</Text>
                         <View style={styles.table}>
-                            {activeWithdrawals.map((withdrawal: any, index: number) => (
+                            {activeWithdrawals.map((withdrawal: ReportRow, index: number) => (
                                 <View
                                     key={withdrawal.id || index}
                                     style={[styles.row, ...(index === activeWithdrawals.length - 1 ? [transparentRowStyle] : [])]}

@@ -43,8 +43,8 @@ export default function OrdersDaily({ dateRange, company }: { dateRange?: DateRa
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: async (page: any) => {
-                    const reportData = page.props?.reportData || [];
+                onSuccess: async (page) => {
+                    const reportData = readOrderDailyReportRows(page.props.reportData);
                     // O gerador de PDF (~1,5 MB) só é baixado quando o usuário pede o documento.
                     const [{ pdf }, { default: OrderDailyReportPDF }] = await Promise.all([
                         import('@react-pdf/renderer'),

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, usePage, useRemember } from '@inertiajs/react';
+import type { DateRange } from 'react-day-picker';
 import { FileTextIcon } from 'lucide-react';
 import CashierReport from './cashier-report';
 import CustomersReport from './customers-report';
@@ -30,8 +31,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Reports() {
-    const { company, auth, othersetting, fiscalSetting } = usePage().props as any;
-    const [dateRange, setDateRange] = useRemember<any>(
+    const { company, auth, othersetting, fiscalSetting } = usePage<ReportsPageProps>().props;
+    const [dateRange, setDateRange] = useRemember<DateRange>(
         {
             from: new Date(),
             to: new Date(),
@@ -75,7 +76,7 @@ export default function Reports() {
                     </CardHeader>
                     <CardContent className="flex justify-start">
                         <div className="w-full max-w-md">
-                            <DatePicker mode={'range'} setDate={setDateRange} date={dateRange} />
+                        <DatePicker mode="range" setDate={(date) => setDateRange(date as DateRange)} date={dateRange} />
                         </div>
                     </CardContent>
                     <CardContent className="space-y-8">

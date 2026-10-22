@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'vetorchat' => [
+        'widget_key' => env('VETORCHAT_WIDGET_KEY'),
+        'script_url' => env('VETORCHAT_SCRIPT_URL', 'https://vetorleads.com.br/widget.js'),
+    ],
+
     'web_chat' => [
         'url' => env('VETORLEADS_WEB_CHAT_URL'),
         'token' => env('VETORLEADS_WEB_CHAT_TOKEN'),

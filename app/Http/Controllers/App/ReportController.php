@@ -219,6 +219,278 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Relatório em HTML: abre rápido mesmo com milhares de linhas e só gera o PDF se o
+     * usuário pedir. Envia apenas as colunas que a tela usa, em vez de modelos inteiros.
+     */
+    public function preview(Request $request)
+    {
+        Gate::authorize('reports.view');
+
+        $data = $request->validate([
+            'type' => ['required', 'string', 'in:orders,customers,schedules,sales,parts,expenses,fiscal'],
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
+        ]);
+
+        // Permissão antes do período: quem não pode ver o relatório não deve nem receber a mensagem dele.
+        $allowed = match ($data['type']) {
+            'orders' => (bool) Auth::user()?->hasPermission('orders'),
+            'customers' => (bool) Auth::user()?->hasPermission('customers'),
+            'schedules' => (bool) Auth::user()?->hasPermission('schedules'),
+            'parts' => (bool) Auth::user()?->hasPermission('parts'),
+            'sales' => $this->canUseSalesReports(),
+            'expenses' => $this->canUseFinanceReports(),
+            'fiscal' => $this->canUseFiscalReports(),
+        };
+        abort_unless($allowed, 403);
+
+        $from = Carbon::parse($data['from'])->startOfDay();
+        $to = Carbon::parse($data['to'])->endOfDay();
+        $props = [
+            'type' => $data['type'],
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'reportData' => [],
+            'reportMeta' => [],
+            'error' => null,
+        ];
+
+        // Aqui a tela é aberta numa aba nova via GET: em vez de redirecionar de volta com erro,
+        // a própria página de visualização mostra a mensagem.
+        if ($from->diffInDays($to) > self::MAX_REPORT_RANGE_DAYS) {
+            $props['error'] = 'O período selecionado é muito longo para gerar este relatório de uma vez. Escolha um intervalo de até '
+                .self::MAX_REPORT_RANGE_DAYS.' dias.';
+
+            return Inertia::render('app/reports/view', $props);
+        }
+
+        [$props['reportData'], $props['reportMeta']] = match ($data['type']) {
+            'orders' => $this->ordersPreview($from, $to),
+            'customers' => $this->customersPreview($from, $to),
+            'schedules' => $this->schedulesPreview($from, $to),
+            'sales' => $this->salesPreview($from, $to),
+            'parts' => $this->partsPreview($from, $to),
+            'expenses' => $this->expensesPreview($from, $to),
+            'fiscal' => $this->fiscalPreview($from, $to),
+        };
+
+        return Inertia::render('app/reports/view', $props);
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function ordersPreview(Carbon $from, Carbon $to): array
+    {
+        $orders = Order::query()
+            ->select([
+                'id',
+                'order_number',
+                'customer_id',
+                'user_id',
+                'model',
+                'service_status',
+                'is_warranty_return',
+                'parts_value',
+                'service_value',
+                'created_at',
+            ])
+            ->with(['customer:id,name', 'user:id,name'])
+            ->whereBetween('created_at', [$from, $to])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $rows = $orders->map(fn (Order $order) => [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'customer' => $order->customer ? ['name' => $order->customer->name] : null,
+            'user' => $order->user ? ['name' => $order->user->name] : null,
+            'model' => $order->model,
+            'service_status' => $order->service_status,
+            'is_warranty_return' => (bool) $order->is_warranty_return,
+            'parts_value' => (float) ($order->parts_value ?? 0),
+            'service_value' => (float) ($order->service_value ?? 0),
+        ])->all();
+
+        return [$rows, $this->buildWarrantyReturnMeta($orders)];
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function customersPreview(Carbon $from, Carbon $to): array
+    {
+        $rows = Customer::query()
+            ->select(['id', 'customer_number', 'name', 'email', 'cpfcnpj', 'phone', 'created_at'])
+            ->whereBetween('created_at', [$from, $to])
+            ->orderBy('customer_number')
+            ->get()
+            ->map(fn (Customer $customer) => [
+                'id' => $customer->id,
+                'customer_number' => $customer->customer_number,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'cpfcnpj' => $customer->cpfcnpj,
+                'phone' => $customer->phone,
+                'created_at' => $customer->created_at?->toIso8601String(),
+            ])
+            ->all();
+
+        return [$rows, []];
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function schedulesPreview(Carbon $from, Carbon $to): array
+    {
+        $rows = Schedule::query()
+            ->select(['id', 'schedules_number', 'customer_id', 'user_id', 'order_id', 'schedules', 'status', 'created_at'])
+            ->with(['customer:id,name', 'user:id,name', 'order:id,service_type,defect'])
+            ->whereBetween('created_at', [$from, $to])
+            ->orderBy('schedules')
+            ->get()
+            ->map(fn (Schedule $schedule) => [
+                'id' => $schedule->id,
+                'schedules_number' => $schedule->schedules_number,
+                'customer' => $schedule->customer ? ['name' => $schedule->customer->name] : null,
+                'user' => $schedule->user ? ['name' => $schedule->user->name] : null,
+                'schedules' => $schedule->schedules,
+                'service' => $schedule->order?->service_type ?: $schedule->order?->defect,
+                'status' => (int) $schedule->status,
+                'created_at' => $schedule->created_at?->toIso8601String(),
+            ])
+            ->all();
+
+        return [$rows, []];
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function salesPreview(Carbon $from, Carbon $to): array
+    {
+        $rows = Sale::query()
+            ->select(['id', 'sales_number', 'customer_id', 'status', 'payment_method', 'total_amount', 'created_at'])
+            ->with('customer:id,name')
+            ->withCount('items')
+            ->whereBetween('created_at', [$from, $to])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (Sale $sale) => [
+                'id' => $sale->id,
+                'sales_number' => $sale->sales_number,
+                'customer' => $sale->customer ? ['name' => $sale->customer->name] : null,
+                'status' => $sale->status,
+                'payment_method' => $sale->payment_method,
+                'items_count' => (int) $sale->items_count,
+                'total_amount' => (float) ($sale->total_amount ?? 0),
+                'created_at' => $sale->created_at?->toIso8601String(),
+            ])
+            ->all();
+
+        $meta = [
+            'expenses_total' => (float) Expense::query()
+                ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+                ->sum('amount'),
+        ];
+
+        return [$rows, $meta];
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function partsPreview(Carbon $from, Carbon $to): array
+    {
+        $rows = Part::query()
+            ->select(['id', 'type', 'reference_number', 'name', 'manufacturer', 'quantity', 'minimum_stock_level', 'cost_price', 'sale_price'])
+            ->whereBetween('created_at', [$from, $to])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Part $part) => [
+                'id' => $part->id,
+                'type' => $part->type,
+                'reference_number' => $part->reference_number,
+                'name' => $part->name,
+                'manufacturer' => $part->manufacturer,
+                'quantity' => (float) ($part->quantity ?? 0),
+                'minimum_stock_level' => (float) ($part->minimum_stock_level ?? 0),
+                'cost_price' => (float) ($part->cost_price ?? 0),
+                'sale_price' => (float) ($part->sale_price ?? 0),
+            ])
+            ->all();
+
+        return [$rows, []];
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function expensesPreview(Carbon $from, Carbon $to): array
+    {
+        $rows = Expense::query()
+            ->select(['id', 'expense_number', 'created_by', 'expense_date', 'description', 'category', 'amount'])
+            ->with('createdBy:id,name')
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->orderByDesc('expense_date')
+            ->orderByDesc('expense_number')
+            ->get()
+            ->map(fn (Expense $expense) => [
+                'id' => $expense->id,
+                'expense_number' => $expense->expense_number,
+                'expense_date' => $expense->expense_date instanceof \DateTimeInterface
+                    ? $expense->expense_date->format('Y-m-d')
+                    : $expense->expense_date,
+                'description' => $expense->description,
+                'category' => $expense->category,
+                'amount' => (float) ($expense->amount ?? 0),
+                'created_by' => $expense->createdBy ? ['name' => $expense->createdBy->name] : null,
+            ])
+            ->all();
+
+        return [$rows, []];
+    }
+
+    /**
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function fiscalPreview(Carbon $from, Carbon $to): array
+    {
+        $documents = FiscalDocument::query()
+            ->select(['id', 'type', 'provider', 'documentable_type', 'documentable_id', 'number', 'status', 'issued_at', 'registered_by', 'created_at'])
+            ->with('registeredBy:id,name')
+            ->whereBetween('created_at', [$from, $to])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $rows = $documents->map(fn (FiscalDocument $document) => [
+            'id' => $document->id,
+            'type' => $document->type,
+            'provider' => $document->provider,
+            'documentable_type' => $document->documentable_type,
+            'documentable_id' => $document->documentable_id,
+            'number' => $document->number,
+            'status' => $document->status,
+            'issued_at' => $document->issued_at instanceof \DateTimeInterface
+                ? $document->issued_at->toIso8601String()
+                : $document->issued_at,
+            'registered_by' => $document->registeredBy ? ['name' => $document->registeredBy->name] : null,
+        ])->all();
+
+        $meta = [
+            'documents_count' => $documents->count(),
+            'manual_count' => $documents->where('provider', 'manual')->count(),
+            'integration_count' => $documents->where('provider', '!=', 'manual')->count(),
+            'nfe_count' => $documents->where('type', 'nfe')->count(),
+            'nfse_count' => $documents->where('type', 'nfse')->count(),
+            'error_count' => $documents->where('status', 'error')->count(),
+        ];
+
+        return [$rows, $meta];
+    }
+
     public function store(Request $request)
     {
         Gate::authorize('reports.view');
