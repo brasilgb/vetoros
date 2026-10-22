@@ -8,3 +8,5 @@ storage/logs/*
 storage/framework/
 public/build/
 bootstrap/cache/*.php
+public_vetoros.zip
+public-old/
