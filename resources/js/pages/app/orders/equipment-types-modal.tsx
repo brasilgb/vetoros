@@ -147,7 +147,7 @@ export default function EquipmentTypesModal({
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
-                toastSuccess('Sucesso', 'Tipo de equipamento excluido com sucesso');
+                toastSuccess('Sucesso', 'Tipo de equipamento excluído com sucesso');
             },
         });
     };
@@ -173,7 +173,7 @@ export default function EquipmentTypesModal({
                 <form onSubmit={submitCreate} className="grid gap-4 rounded-md border p-4" autoComplete="off">
                     <div className="grid gap-4 md:grid-cols-[1fr_160px_auto_auto] md:items-end">
                         <div className="grid gap-2">
-                            <Label htmlFor="new-equipment">Nome do equipamento *</Label>
+                            <Label htmlFor="new-equipment">Nome do tipo de equipamento *</Label>
                             <Input
                                 id="new-equipment"
                                 value={createForm.data.equipment}
@@ -182,7 +182,7 @@ export default function EquipmentTypesModal({
                             {createForm.errors.equipment && <div className="text-sm text-red-500">{createForm.errors.equipment}</div>}
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="new-equipment-kind">Tipo</Label>
+                            <Label htmlFor="new-equipment-kind">Grupo</Label>
                             <Select onValueChange={(value) => createForm.setData('kind', value)} value={createForm.data.kind}>
                                 <SelectTrigger className="w-full" id="new-equipment-kind">
                                     <SelectValue placeholder="Opcional" />
@@ -219,8 +219,8 @@ export default function EquipmentTypesModal({
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[90px]">#</TableHead>
-                                <TableHead>Equipamento</TableHead>
-                                <TableHead className="w-[140px]">Tipo</TableHead>
+                                <TableHead>Tipo de equipamento</TableHead>
+                                <TableHead className="w-[140px]">Grupo</TableHead>
                                 <TableHead className="w-[120px]">Gráfico</TableHead>
                                 <TableHead className="w-[120px]"></TableHead>
                             </TableRow>

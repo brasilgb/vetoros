@@ -18,7 +18,7 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: route('app.dashboard'),
     },
     {
-        title: 'Equipamentos',
+        title: 'Tipos de equipamento',
         href: '#',
     },
 ];
@@ -29,17 +29,17 @@ export default function Equipment({ equipments, search }: any) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Equipamentos" />
+            <Head title="Tipos de equipamento" />
 
             <div className="flex min-h-16 flex-col justify-center gap-1 px-4 py-3">
                 <div className="flex items-center gap-2">
                     <Icon iconNode={Monitor} className="h-8 w-8" />
-                    <h2 className="text-xl font-semibold tracking-tight">Equipamentos</h2>
+                    <h2 className="text-xl font-semibold tracking-tight">Tipos de equipamento</h2>
                 </div>
             </div>
             <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="w-full min-w-0 lg:max-w-[420px] lg:flex-1">
-                    <InputSearch placeholder="Buscar equipamento" url="app.register-equipments.index" />
+                    <InputSearch placeholder="Buscar tipo de equipamento" url="app.register-equipments.index" />
                 </div>
                 <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end">
                     {canManageEquipments && <CreateEquipment />}
@@ -53,8 +53,8 @@ export default function Equipment({ equipments, search }: any) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[100px]">#</TableHead>
-                                <TableHead>Equipamento</TableHead>
-                                <TableHead>Tipo</TableHead>
+                                <TableHead>Tipo de equipamento</TableHead>
+                                <TableHead>Grupo</TableHead>
                                 <TableHead>Cadastro</TableHead>
                                 <TableHead className="min-w-[120px]"></TableHead>
                             </TableRow>
@@ -72,7 +72,7 @@ export default function Equipment({ equipments, search }: any) {
                                                 {canManageEquipments && <EditEquipment equipment={equipment} />}
                                                 {canManageEquipments && (
                                                     <ActionDelete
-                                                        title={'este equipamento'}
+                                                        title={'este tipo de equipamento'}
                                                         url={'app.register-equipments.destroy'}
                                                         param={equipment.id}
                                                     />

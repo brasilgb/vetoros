@@ -24,7 +24,7 @@ export default function CreateEquipment() {
         e.preventDefault();
         post(route('app.register-equipments.store'), {
             onSuccess: () => {
-                (toastSuccess('Sucesso', 'Cadastro realizado com sucesso'), reset(), setOpen(false));
+                (toastSuccess('Sucesso', 'Tipo de equipamento cadastrado com sucesso'), reset(), setOpen(false));
             },
         });
     };
@@ -35,23 +35,23 @@ export default function CreateEquipment() {
                 <DialogTrigger asChild>
                     <Button className="w-full gap-2 whitespace-nowrap sm:w-auto">
                         <Plus className="h-4 w-4" />
-                        <span>Novo Equipamento</span>
+                        <span>Novo tipo de equipamento</span>
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Cadastrar Tipo do Equipamento</DialogTitle>
+                        <DialogTitle>Cadastrar tipo de equipamento</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} autoComplete="off">
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="equipment">Nome do Equipamento *</Label>
+                                <Label htmlFor="equipment">Nome do tipo de equipamento *</Label>
                                 <Input id="equipment" value={data.equipment} onChange={(e) => setData('equipment', e.target.value)} />
                                 {errors.equipment && <div className="text-sm text-red-500">{errors.equipment}</div>}
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="kind">Tipo</Label>
+                                <Label htmlFor="kind">Grupo</Label>
                                 <Select onValueChange={(value) => setData('kind', value)} value={data.kind}>
                                     <SelectTrigger className="w-full" id="kind">
                                         <SelectValue placeholder="Selecione (opcional)" />

@@ -24,7 +24,7 @@ export default function EditEquipment({ equipment, page, search }: any) {
         e.preventDefault();
         patch(route('app.register-equipments.update', equipment.id), {
             onSuccess: () => {
-                toastSuccess('Sucesso', 'Edição realizado com sucesso');
+                toastSuccess('Sucesso', 'Tipo de equipamento atualizado com sucesso');
                 setOpen(false);
             },
         });
@@ -40,18 +40,18 @@ export default function EditEquipment({ equipment, page, search }: any) {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                        <DialogTitle>Editar Tipo de Equipamento</DialogTitle>
+                        <DialogTitle>Editar tipo de equipamento</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} autoComplete="off">
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nome">Nome do Equipamento *</Label>
+                                <Label htmlFor="nome">Nome do tipo de equipamento *</Label>
                                 <Input id="nome" value={data.equipment} onChange={(e) => setData('equipment', e.target.value)} />
                                 {errors.equipment && <div className="text-sm text-red-500">{errors.equipment}</div>}
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="kind">Tipo</Label>
+                                <Label htmlFor="kind">Grupo</Label>
                                 <Select onValueChange={(value) => setData('kind', value)} value={data.kind}>
                                     <SelectTrigger className="w-full" id="kind">
                                         <SelectValue placeholder="Selecione (opcional)" />

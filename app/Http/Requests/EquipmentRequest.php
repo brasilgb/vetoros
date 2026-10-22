@@ -33,8 +33,8 @@ class EquipmentRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'equipment' => 'equipamento',
-            'kind' => 'tipo',
+            'equipment' => 'tipo de equipamento',
+            'kind' => 'grupo',
         ];
     }
 }

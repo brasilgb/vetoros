@@ -78,7 +78,7 @@ class EquipmentController extends Controller
             ]);
         }
 
-        return redirect()->route('app.register-equipments.index')->with('success', 'Equipamento cadastrado com sucesso');
+        return redirect()->route('app.register-equipments.index')->with('success', 'Tipo de equipamento cadastrado com sucesso');
     }
 
     /**
@@ -116,7 +116,7 @@ class EquipmentController extends Controller
             ]);
         }
 
-        return redirect()->route('app.register-equipments.index')->with('success', 'Marca editada com sucesso');
+        return redirect()->route('app.register-equipments.index')->with('success', 'Tipo de equipamento atualizado com sucesso');
     }
 
     /**
@@ -142,6 +142,6 @@ class EquipmentController extends Controller
             ]);
         }
 
-        return redirect()->route('app.register-equipments.index')->with('success', 'Marca excluida com sucesso!');
+        return redirect()->route('app.register-equipments.index')->with('success', 'Tipo de equipamento excluído com sucesso');
     }
 }
