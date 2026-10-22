@@ -20,6 +20,7 @@ import {
     MessageCircle,
     MessageCircleCode,
     MessageSquareMore,
+    Monitor,
     PackageCheck,
     Printer,
     ReceiptText,
@@ -282,6 +283,13 @@ const mainConfItems = [
                 icon: CogIcon,
                 active: 'app.other-settings.*',
                 permission: 'other_settings',
+            },
+            {
+                title: 'Tipos de equipamento',
+                url: route('app.register-equipments.index'),
+                icon: Monitor,
+                active: 'app.register-equipments.*',
+                permission: 'register_equipments',
             },
             {
                 title: 'Mensagens do WhatsApp',
