@@ -15,26 +15,22 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useForm, usePage } from '@inertiajs/react';
 import { Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { EQUIPMENT_KINDS, equipmentKindLabel } from '../equipments/equipment-kinds';
 
 type EquipmentType = {
     id: number;
     equipment: string;
     equipment_number?: number;
-    kind?: string | null;
     chart?: boolean;
 };
 
 type EquipmentFlash = {
     id: number;
     equipment?: string;
-    kind?: string | null;
 };
 
 export default function EquipmentTypesModal({
@@ -57,14 +53,12 @@ export default function EquipmentTypesModal({
 
     const createForm = useForm({
         equipment: '',
-        kind: '',
         chart: false,
         _inline: true,
     });
 
     const editForm = useForm({
         equipment: '',
-        kind: '',
         chart: false,
         _inline: true,
     });
@@ -113,7 +107,6 @@ export default function EquipmentTypesModal({
         setEditingEquipment(equipment);
         editForm.setData({
             equipment: equipment.equipment,
-            kind: equipment.kind ?? '',
             chart: Boolean(equipment.chart),
             _inline: true,
         });
@@ -171,7 +164,7 @@ export default function EquipmentTypesModal({
                 </DialogHeader>
 
                 <form onSubmit={submitCreate} className="grid gap-4 rounded-md border p-4" autoComplete="off">
-                    <div className="grid gap-4 md:grid-cols-[1fr_160px_auto_auto] md:items-end">
+                    <div className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
                         <div className="grid gap-2">
                             <Label htmlFor="new-equipment">Nome do tipo de equipamento *</Label>
                             <Input
@@ -180,21 +173,6 @@ export default function EquipmentTypesModal({
                                 onChange={(event) => createForm.setData('equipment', event.target.value)}
                             />
                             {createForm.errors.equipment && <div className="text-sm text-red-500">{createForm.errors.equipment}</div>}
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="new-equipment-kind">Grupo</Label>
-                            <Select onValueChange={(value) => createForm.setData('kind', value)} value={createForm.data.kind}>
-                                <SelectTrigger className="w-full" id="new-equipment-kind">
-                                    <SelectValue placeholder="Opcional" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {EQUIPMENT_KINDS.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
                         </div>
                         <div className="flex items-center gap-2 pb-2">
                             <Switch
@@ -220,7 +198,6 @@ export default function EquipmentTypesModal({
                             <TableRow>
                                 <TableHead className="w-[90px]">#</TableHead>
                                 <TableHead>Tipo de equipamento</TableHead>
-                                <TableHead className="w-[140px]">Grupo</TableHead>
                                 <TableHead className="w-[120px]">Gráfico</TableHead>
                                 <TableHead className="w-[120px]"></TableHead>
                             </TableRow>
@@ -249,24 +226,6 @@ export default function EquipmentTypesModal({
                                                 >
                                                     {equipment.equipment}
                                                 </button>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {editingEquipment?.id === equipment.id ? (
-                                                <Select onValueChange={(value) => editForm.setData('kind', value)} value={editForm.data.kind}>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Opcional" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {EQUIPMENT_KINDS.map((option) => (
-                                                            <SelectItem key={option.value} value={option.value}>
-                                                                {option.label}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : (
-                                                equipmentKindLabel(equipment.kind)
                                             )}
                                         </TableCell>
                                         <TableCell>

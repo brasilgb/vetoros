@@ -342,3 +342,51 @@ Conclusão: dava para reutilizar clientes, credenciais, ambiente, tokenização 
 - **Cancelamento:** cobranças de teste pendentes (Pix/boleto) não são canceladas pelo modal; expiram sozinhas (Pix em 1 h, boleto no vencimento).
 - **Migration:** não foi aplicada em nenhum banco de desenvolvimento ou produção; é preciso rodar `php artisan migrate` no deploy.
 - Nenhum commit, push ou deploy foi feito.
+
+# VETOROS-EQUIP-01 — Simplificação dos tipos de equipamento
+
+Data: 23/10/2026
+
+Removido o conceito de **Grupo** do cadastro de tipos de equipamento. Cadastro e edição agora usam só o nome, e o gráfico do dashboard continua configurável.
+
+## Alterações
+
+- **Backend:**
+  - `EquipmentRequest`: regra `kind` e atributo `grupo` removidos; a única regra é `equipment` obrigatório.
+  - `EquipmentController` (store/update): `kind` não é mais lido nem gravado.
+  - `Equipment`: constantes `KIND_*` e `kinds()` removidas.
+- **Frontend:**
+  - `equipments/create-equipment.tsx` e `equipments/edit-equipment.tsx`: campo Grupo removido; ficam Nome, "Adicionar ao gráfico do dashboard", Cancelar e Salvar.
+  - `equipments/index.tsx`: coluna Grupo removida da listagem.
+  - `orders/equipment-types-modal.tsx` (cadastro rápido na OS): seletor de Grupo removido do formulário de criação, do modo de edição e da tabela.
+  - `equipments/equipment-kinds.ts`: arquivo removido (sem outros usos).
+  - `orders/customer-equipment-field.tsx`: tipo `kind` removido (não era usado).
+- **Testes:** `tests/Feature/App/EquipmentControllerTest.php` reescrito com 4 casos:
+  - cadastro só com o nome;
+  - `kind` enviado pelo cliente é ignorado;
+  - nome obrigatório;
+  - edição altera só o nome e preserva o `kind` legado já gravado.
+
+## Dados e banco
+
+- A coluna `equipment.kind` (nullable, migration `2026_09_17_150000`) **foi mantida**. Nenhum dado foi apagado, nenhuma migration nova foi criada.
+- Tipos antigos continuam com seu valor de `kind` no banco, sem exibição nem uso.
+- Relacionamentos com OS, orçamentos, checklists e equipamentos do cliente não foram alterados.
+- Remover a coluna exige migration própria e uma decisão separada; não foi feito aqui.
+
+## Testes e verificações
+
+- `php vendor/bin/phpunit` nos testes de equipamentos, equipamentos do cliente, OS/pedidos, eventos da OS e isolamento de tenant: **98 testes, 462 assertions, aprovados**.
+- `tsc --noEmit` no projeto inteiro: **sem erros**.
+- `npm run test:js`: **30/30 aprovados**.
+- Prettier nos arquivos alterados: sem pendências.
+- ESLint nos arquivos alterados: as 11 mensagens de erro e 3 avisos estão em linhas que não foram tocadas (ex.: `any` e `search`/`page` não usados em `create-equipment.tsx`, `edit-equipment.tsx` e `index.tsx`; avisos de `useEffect` no modal). A única linha adicionada é o grid do modal, sem novo problema.
+- Pint: o controller acusa `fully_qualified_strict_types` e `ordered_imports`. O mesmo arquivo no `HEAD` acusa as mesmas regras; não foi corrigido para não ampliar o escopo.
+- **Não executado:** testes de navegador (cadastro, edição e uso na OS pela tela). Não há `.env` nem banco configurados aqui para subir a aplicação. A cobertura automatizada cobre a API de cadastro/edição e a integração com OS.
+- `npm ci` instalou `node_modules` a partir do lockfile. Ele também alterou `yarn.lock`; a alteração foi revertida.
+
+## Pendências
+
+- Testes de navegador do fluxo completo (criar "Notebook" só com o nome, usar na OS) devem ser feitos em homologação.
+- A documentação gerada em `public/documentation` e `public-old/documentation` não foi revisada e pode ainda citar Grupo.
+- Nenhum commit, push ou deploy foi feito.

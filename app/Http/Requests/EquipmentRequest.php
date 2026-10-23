@@ -2,10 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Models\App\Equipment;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class EquipmentRequest extends FormRequest
 {
@@ -26,7 +24,6 @@ class EquipmentRequest extends FormRequest
     {
         return [
             'equipment' => 'required',
-            'kind' => ['nullable', Rule::in(array_keys(Equipment::kinds()))],
         ];
     }
 
@@ -34,7 +31,6 @@ class EquipmentRequest extends FormRequest
     {
         return [
             'equipment' => 'tipo de equipamento',
-            'kind' => 'grupo',
         ];
     }
 }

@@ -66,7 +66,7 @@ class EquipmentController extends Controller
         Gate::authorize('equipments.access');
 
         $request->validated();
-        $data = $request->only(['equipment', 'chart', 'kind']);
+        $data = $request->only(['equipment', 'chart']);
         $data['chart'] = $request->boolean('chart');
         $data['equipment_number'] = TenantSequence::next(Equipment::class, 'equipment_number');
         $equipment = Equipment::create($data);
@@ -105,7 +105,7 @@ class EquipmentController extends Controller
         Gate::authorize('equipments.access');
 
         $request->validated();
-        $data = $request->only(['equipment', 'chart', 'kind']);
+        $data = $request->only(['equipment', 'chart']);
         $data['chart'] = $request->boolean('chart');
         $equipment->update($data);
 

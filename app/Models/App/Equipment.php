@@ -11,21 +11,6 @@ class Equipment extends Model
 {
     use HasFactory, Tenantable;
 
-    public const KIND_MOBILE = 'mobile';
-
-    public const KIND_PC = 'pc';
-
-    public const KIND_OTHER = 'other';
-
-    public static function kinds(): array
-    {
-        return [
-            self::KIND_MOBILE => 'Mobile',
-            self::KIND_PC => 'PC',
-            self::KIND_OTHER => 'Outro',
-        ];
-    }
-
     public function checklists(): HasMany
     {
         return $this->hasMany(Checklist::class);

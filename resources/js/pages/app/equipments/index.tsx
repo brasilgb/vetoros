@@ -10,7 +10,6 @@ import { Monitor } from 'lucide-react';
 import moment from 'moment';
 import CreateEquipment from './create-equipment';
 import EditEquipment from './edit-equipment';
-import { equipmentKindLabel } from './equipment-kinds';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -54,7 +53,6 @@ export default function Equipment({ equipments, search }: any) {
                             <TableRow>
                                 <TableHead className="w-[100px]">#</TableHead>
                                 <TableHead>Tipo de equipamento</TableHead>
-                                <TableHead>Grupo</TableHead>
                                 <TableHead>Cadastro</TableHead>
                                 <TableHead className="min-w-[120px]"></TableHead>
                             </TableRow>
@@ -65,7 +63,6 @@ export default function Equipment({ equipments, search }: any) {
                                     <TableRow key={equipment.id}>
                                         <TableCell>{equipment.equipment_number}</TableCell>
                                         <TableCell className="font-medium">{equipment.equipment}</TableCell>
-                                        <TableCell>{equipmentKindLabel(equipment.kind)}</TableCell>
                                         <TableCell>{moment(equipment.created_at).format('DD/MM/YYYY')}</TableCell>
                                         <TableCell className="min-w-[120px]">
                                             <div className="flex flex-wrap justify-end gap-2">

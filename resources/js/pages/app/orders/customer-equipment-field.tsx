@@ -14,7 +14,6 @@ import EquipmentTypesModal from './equipment-types-modal';
 type EquipmentTypeOption = {
     id: number;
     equipment: string;
-    kind?: string | null;
 };
 
 export type CustomerEquipmentOption = {
