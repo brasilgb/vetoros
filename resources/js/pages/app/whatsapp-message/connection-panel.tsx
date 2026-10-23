@@ -133,7 +133,9 @@ export default function WhatsappConnectionPanel({ connection: initialConnection 
             )}
 
             {connection.status === 'failed' && (
-                <p className="text-sm text-red-600">Não foi possível conectar. Verifique o serviço do WAHA e tente novamente.</p>
+                <p className="text-sm text-red-600">
+                    A sessão foi encerrada, geralmente porque o QR Code não foi lido a tempo. Clique em Conectar WhatsApp para gerar um novo.
+                </p>
             )}
         </div>
     );
