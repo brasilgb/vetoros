@@ -8,7 +8,6 @@ import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 import { Hero } from '../components/hero';
 import { Testimonials, type TestimonialItem } from '../components/testimonials';
-import { WebChat } from '../components/web-chat';
 
 export default function Home({ testimonials = [] }: { testimonials?: TestimonialItem[] }) {
     return (
@@ -25,7 +24,6 @@ export default function Home({ testimonials = [] }: { testimonials?: Testimonial
             <FAQ />
             <CTA />
             <Footer />
-            <WebChat />
             <CookieConsent />
         </main>
     );

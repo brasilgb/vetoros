@@ -7,7 +7,6 @@ import { Footer } from '../components/footer';
 import { Header } from '../components/header';
 import { Pricing } from '../components/pricing';
 import { contactLink, useContactChannel } from '../components/site-contact';
-import { WebChat } from '../components/web-chat';
 
 const benefits = [
     'Controle financeiro, vendas e prestação de serviços',
@@ -85,7 +84,6 @@ export default function Plans() {
             </section>
 
             <Footer />
-            <WebChat />
             <CookieConsent />
         </main>
     );
