@@ -1,8 +1,9 @@
 import { BrandHorizontalLogo } from '@/components/brand-logo';
-import { CookieConsent } from '@/pages/site/components/cookie-consent';
+import { CookieConsent, CookiePreferencesButton } from '@/pages/site/components/cookie-consent';
 import { Link } from '@inertiajs/react';
 
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
+    const productName = import.meta.env.VITE_PUBLIC_PRODUCT_NAME || 'VetorOS';
     return (
         <div className="bg-background flex min-h-screen min-w-0 flex-col overflow-x-hidden">
             {/* Header */}
@@ -21,13 +22,15 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
 
             {/* Footer */}
             <footer className="border-border border-t">
-                <div className="text-muted-foreground mx-auto flex max-w-5xl min-w-0 flex-col justify-between gap-3 px-4 py-6 text-sm sm:flex-row">
-                    <p>© {new Date().getFullYear()} VetorOS</p>
-
-                    <div className="flex gap-6">
+                <div className="text-muted-foreground mx-auto max-w-5xl min-w-0 px-4 py-6 text-sm">
+                    <nav aria-label="Informações legais" className="mb-5 flex justify-center gap-6 sm:justify-end">
                         <Link href="/privacidade">Privacidade</Link>
-
                         <Link href="/termos">Termos</Link>
+                        <CookiePreferencesButton />
+                    </nav>
+                    <div className="flex flex-col items-center gap-3 border-t border-border pt-5 text-center sm:flex-row sm:justify-between sm:text-left">
+                        <p>© {new Date().getFullYear()} {productName}. Todos os direitos reservados.</p>
+                        <p>Desenvolvido por <a href="https://abrasilsistemas.com.br" target="_blank" rel="noopener noreferrer" className="font-semibold underline-offset-4 hover:underline focus-visible:underline">ABrasil Sistemas</a></p>
                     </div>
                 </div>
             </footer>

@@ -1,9 +1,11 @@
 import { BrandHorizontalLogo } from '@/components/brand-logo';
 import { Link } from '@inertiajs/react';
 import { MessageCircle } from 'lucide-react';
+import { CookiePreferencesButton } from './cookie-consent';
 import { contactLink, useContactChannel } from './site-contact';
 
 export function Footer() {
+    const productName = import.meta.env.VITE_PUBLIC_PRODUCT_NAME || 'VetorOS';
     const contactChannel = useContactChannel();
     const contactUrl = contactLink(contactChannel);
     return (
@@ -20,26 +22,7 @@ export function Footer() {
                             Sistema de gestão para assistências técnicas de celulares, informática e eletrônicos com mais controle sobre ordens,
                             clientes, vendas e financeiro.
                         </p>
-                        <a
-                            href="https://abrasilsistemas.com.br"
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Desenvolvido por ABrasil Sistemas"
-                            className="group inline-flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2.5 pr-4 transition hover:border-white/20 hover:bg-white/10"
-                        >
-                            <span className="grid size-10 place-items-center overflow-hidden rounded-lg bg-white p-1">
-                                <img
-                                    src="/images/logo_ab.png"
-                                    alt="Desenvolvido por ABrasil Sistemas"
-                                    title="Desenvolvido por ABrasil Sistemas"
-                                    className="size-full object-contain"
-                                />
-                            </span>
-                            <span className="text-xs font-semibold tracking-wide text-white/58 transition group-hover:text-white">
-                                Desenvolvido por
-                                <strong className="mt-0.5 block text-white">ABrasil Sistemas</strong>
-                            </span>
-                        </a>
+
                     </div>
 
                     {/* Produto */}
@@ -125,18 +108,14 @@ export function Footer() {
                 </div>
 
                 {/* Bottom */}
-                <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
-                    <p className="text-sm text-white/42">© {new Date().getFullYear()} VetorOS. Todos os direitos reservados.</p>
-
-                    <div className="flex gap-6 text-sm">
-                        <a href="/privacidade" className="text-white/42 transition-colors hover:text-white">
-                            Privacidade
-                        </a>
-
-                        <a href="/termos" className="text-white/42 transition-colors hover:text-white">
-                            Termos
-                        </a>
-                    </div>
+                <nav aria-label="Informações legais" className="mt-12 flex justify-center gap-6 border-t border-white/10 pt-6 text-sm sm:justify-end">
+                    <a href="/privacidade" className="text-white/60 transition-colors hover:text-white">Privacidade</a>
+                    <a href="/termos" className="text-white/60 transition-colors hover:text-white">Termos</a>
+                    <CookiePreferencesButton className="text-white/60 transition-colors hover:text-white" />
+                </nav>
+                <div className="mt-6 flex flex-col items-center gap-3 border-t border-white/10 pt-6 text-center text-xs text-white/70 sm:flex-row sm:justify-between sm:text-left">
+                    <p>© {new Date().getFullYear()} {productName}. Todos os direitos reservados.</p>
+                    <p>Desenvolvido por <a href="https://abrasilsistemas.com.br" target="_blank" rel="noopener noreferrer" className="font-semibold text-white underline-offset-4 hover:underline focus-visible:underline">ABrasil Sistemas</a></p>
                 </div>
             </div>
         </footer>
