@@ -58,6 +58,8 @@ const previewValues = {
     saudação: 'Boa tarde',
     saldo: 'R$ 185,00',
     dias_pendentes: '3',
+    valor_orcamento: 'R$ 1.250,00',
+    valor_servico: 'R$ 950,00',
     tecnico: 'Carlos Pereira',
     data_visita: '20/09/2026 14:00',
     servico: 'Manutenção preventiva',
@@ -162,8 +164,10 @@ export default function WhatsappMessage({
                                         Para usar as mensagens padrão, basta clicar em salvar. Se precisar, altere os textos conforme a necessidade.
                                         Os templates inserem automaticamente informações do cliente e da O.S. pelos placeholders:{' '}
                                         <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>, <code>{'{{ link_os }}'}</code>,{' '}
-                                        <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code> e <code>{'{{ dias_pendentes }}'}</code>. O aviso
-                                        de agendamento ao técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
+                                        <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code>, <code>{'{{ dias_pendentes }}'}</code>,{' '}
+                                        <code>{'{{ valor_orçamento }}'}</code> (total do orçamento, com peças) e <code>{'{{ valor_serviço }}'}</code>{' '}
+                                        (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. O aviso de agendamento ao
+                                        técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
                                         <code>{'{{ servico }}'}</code>, <code>{'{{ materiais }}'}</code> e <code>{'{{ endereco }}'}</code>.
                                     </div>
 

@@ -15,6 +15,7 @@ export type WhatsAppButtonProps = {
     context?: 'default' | 'budget_follow_up' | 'pending_payment';
     amountDue?: number;
     daysPending?: number;
+    financialValues?: { services: number | null; total: number | null };
 
     whats?: {
         generatedbudget?: string;
@@ -76,6 +77,17 @@ const hasPlaceholder = (template: string, key: string) => {
         return normalizePlaceholderKey(rawKey) === target;
     });
 };
+
+// Variáveis financeiras: sem valor definido na OS o template não pode ser enviado (nunca R$ 0,00 por engano).
+const FINANCIAL_PLACEHOLDERS: Record<string, 'services' | 'total'> = {
+    valor_orcamento: 'total',
+    valor_servico: 'services',
+};
+
+const hasMissingFinancialValue = (template: string, financialValues?: WhatsAppButtonProps['financialValues']) =>
+    Object.entries(FINANCIAL_PLACEHOLDERS).some(([key, field]) => hasPlaceholder(template, key) && financialValues?.[field] == null);
+
+const formatFinancialValue = (value?: number | null) => (value == null ? '' : formatBRL(value));
 
 const withGreeting = (greeting: string, customerName: string, content: string) => `${greeting}, ${customerName}!\n${content}`;
 
@@ -196,6 +208,7 @@ export const buildMessage = ({
     context,
     amountDue,
     daysPending,
+    financialValues,
     whats,
 }: Omit<WhatsAppButtonProps, 'phone' | 'className' | 'orderId'>) => {
     const currentStatus = normalizeStatus(status);
@@ -210,10 +223,13 @@ export const buildMessage = ({
         status: String(currentStatus),
         saldo: formatBRL(amountDue, { clampNegative: true }),
         dias_pendentes: String(daysPending ?? 0),
+        valor_orcamento: formatFinancialValue(financialValues?.total),
+        valor_servico: formatFinancialValue(financialValues?.services),
     };
 
     const selectedTemplate = getTemplateForContext({ status, feedback, context, whats });
     if (!selectedTemplate) return '';
+    if (hasMissingFinancialValue(selectedTemplate, financialValues)) return '';
 
     const message = normalizeWhatsAppLineBreaks(
         formatTemplateMessage({
@@ -228,8 +244,16 @@ export const buildMessage = ({
     return whats?.public_access_key_required && whats.public_access_key ? `${message}\nChave de acesso: ${whats.public_access_key}` : message;
 };
 
-const canSendWhatsAppMessage = ({ status, feedback, context, whats }: Pick<WhatsAppButtonProps, 'status' | 'feedback' | 'context' | 'whats'>) => {
-    return Boolean(getTemplateForContext({ status, feedback, context, whats }));
+const canSendWhatsAppMessage = ({
+    status,
+    feedback,
+    context,
+    whats,
+    financialValues,
+}: Pick<WhatsAppButtonProps, 'status' | 'feedback' | 'context' | 'whats' | 'financialValues'>) => {
+    const template = getTemplateForContext({ status, feedback, context, whats });
+
+    return Boolean(template) && !hasMissingFinancialValue(template ?? '', financialValues);
 };
 
 const getWhatsAppDisabledReason = ({
@@ -238,7 +262,8 @@ const getWhatsAppDisabledReason = ({
     feedback,
     context,
     whats,
-}: Pick<WhatsAppButtonProps, 'phone' | 'status' | 'feedback' | 'context' | 'whats'>) => {
+    financialValues,
+}: Pick<WhatsAppButtonProps, 'phone' | 'status' | 'feedback' | 'context' | 'whats' | 'financialValues'>) => {
     if (!phone || !phone.replace(/\D/g, '')) {
         return 'Cliente sem WhatsApp cadastrado.';
     }
@@ -264,7 +289,12 @@ const getWhatsAppDisabledReason = ({
         return 'Mensagem não configurada para este status.';
     }
 
-    if (!canSendWhatsAppMessage({ status, feedback, context, whats })) {
+    const template = getTemplateForContext({ status, feedback, context, whats });
+    if (template && hasMissingFinancialValue(template, financialValues)) {
+        return 'Defina o valor da OS para enviar esta mensagem.';
+    }
+
+    if (!canSendWhatsAppMessage({ status, feedback, context, whats, financialValues })) {
         return 'Configure uma mensagem padrão para os demais status.';
     }
 
@@ -281,12 +311,13 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
     context,
     amountDue,
     daysPending,
+    financialValues,
     whats,
     className,
 }) => {
     const [isSending, setIsSending] = useState(false);
-    const canSend = canSendWhatsAppMessage({ status, feedback, context, whats });
-    const disabledReason = getWhatsAppDisabledReason({ phone, status, feedback, context, whats });
+    const canSend = canSendWhatsAppMessage({ status, feedback, context, whats, financialValues });
+    const disabledReason = getWhatsAppDisabledReason({ phone, status, feedback, context, whats, financialValues });
     const isDisabled = !canSend || Boolean(disabledReason) || isSending;
 
     const handleClick = () => {
@@ -307,6 +338,7 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
             context,
             amountDue,
             daysPending,
+            financialValues,
             whats,
         });
 

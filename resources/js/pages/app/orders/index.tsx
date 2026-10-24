@@ -590,6 +590,7 @@ export default function Orders({ orders, whats, feedback, search, status, filter
                                                             context={whatsappContext}
                                                             amountDue={remaining}
                                                             daysPending={communicationDaysPending}
+                                                            financialValues={order.whatsapp_values}
                                                             whats={{
                                                                 generatedbudget: whats?.generatedbudget,
                                                                 servicecompleted: whats?.servicecompleted,

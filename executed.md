@@ -390,3 +390,58 @@ Removido o conceito de **Grupo** do cadastro de tipos de equipamento. Cadastro e
 - Testes de navegador do fluxo completo (criar "Notebook" só com o nome, usar na OS) devem ser feitos em homologação.
 - A documentação gerada em `public/documentation` e `public-old/documentation` não foi revisada e pode ainda citar Grupo.
 - Nenhum commit, push ou deploy foi feito.
+
+---
+
+# VETOROS-WHATSAPP-TEMPLATES-01 — Variáveis financeiras nos templates WhatsApp
+
+Data: 2026-10-23
+
+## Alterações
+
+- **Backend** (`app/Http/Controllers/App/OrderController.php`):
+  - `appendCommunicationFlags` passa a expor `whatsapp_values` em cada OS da listagem.
+  - Novo método `whatsappFinancialValues`: lê só os totais já persistidos. `total` = `service_cost` (total oficial). `services` = parcela de serviços de `OrderTotalsService::servicesShare` (serviços + acréscimo − desconto, rateados sobre as peças como no restante do sistema, inclusive a NFS-e). Não há cálculo novo.
+  - Quando a OS não tem valor (`service_cost` nulo) ou não tem valor de serviço (`service_value` nulo), o campo vai como `null`, não como zero.
+- **Frontend**:
+  - `resources/js/components/WhatsAppButtonProps.tsx`: nova prop `financialValues`. `buildMessage` substitui `{{ valor_orçamento }}` e `{{ valor_serviço }}` (e as grafias sem acento) por `formatBRL` (ex.: `R$ 1.250,00`). Se o template usa uma dessas variáveis e o valor falta, o botão fica desabilitado com o motivo "Defina o valor da OS para enviar esta mensagem." e `buildMessage` não gera texto. Nenhum placeholder literal chega ao cliente.
+  - `resources/js/pages/app/orders/index.tsx`: passa `financialValues={order.whatsapp_values}` ao botão.
+  - `resources/js/pages/app/whatsapp-message/index.tsx`: prévia do editor com `valor_orcamento` e `valor_servico`; a nota de variáveis documenta as duas novas. O editor não tem seletor de variáveis (é um campo de texto livre), então a lista disponível é essa nota.
+- **Templates padrão** não mudaram; templates existentes continuam iguais.
+
+## Decisões
+
+- `valor_orçamento` = total da OS (`service_cost`), que já inclui serviços, peças, desconto e acréscimo.
+- `valor_serviço` = serviços líquidos após desconto/acréscimo rateados, para que serviços + peças reproduzam o total. Se o desconto deve ficar fora desse rateio, o ajuste é só em `whatsappFinancialValues`.
+- Valor ausente é tratado como indefinido e bloqueia o envio, em vez de virar `R$ 0,00`.
+
+## Testes e verificações
+
+- `tests/Feature/App/OrderWhatsappFinancialValuesTest.php` (novo, 3 testes): OS só com serviços; OS com peças e desconto (serviços 961,54 e total 1.250,00); OS sem valor definido (`null`, não zero).
+- `tests/js/whatsapp-financial-values.test.ts` (novo, 6 testes): substituição com formato BRL; grafias sem acento; bloqueio sem valor (total ou serviços); template sem variáveis financeiras segue funcionando; nenhum `{{` restante.
+- Suítes relacionadas (Pest): OrderControllerTest, WhatsAppSendControllerTest, WhatsappMessageControllerTest, OrderCommunicationTest, OrderFinancialIntegrityTest, OrderBudgetVersioningTest, PermissionsTest, UserTenantIsolationTest, SharedInertiaPropsTest: **109 testes, 626 asserções, aprovados**.
+- `npm run test:js`: **36/36 aprovados**.
+- `tsc --noEmit`: sem erros. ESLint nos arquivos alterados: sem mensagens. Prettier: ajustado no editor, sem pendências. Pint nos arquivos PHP alterados: aprovado.
+- Suíte PHP completa (`vendor/bin/pest`): 879 aprovados e **8 falhas em `ReportControllerTest`**. Essas falhas também ocorrem sem nenhuma alteração desta tarefa (verificado com stash), então já existiam e não foram tratadas aqui.
+
+## Não executado
+
+- **Teste de navegador** (prévia e envio pela tela): não foi feito. A aplicação não está em execução neste ambiente (sem `.env` nem banco configurados, como registrado na VETOROS-EQUIP-01), e não há containers locais a criar. A cobertura é a automatizada descrita acima.
+- **Envio real via WAHA**: não foi testado contra um WAHA real. O texto é montado no navegador e enviado sem alteração pelo endpoint `orders.whatsapp.send`, como já era.
+
+## Pendências
+
+- Decisão a confirmar: uma OS salva sem valor grava `service_cost = 0`, e isso conta como valor definido, então a mensagem sai com `R$ 0,00`. Se zero deve ser tratado como ausente, a regra muda em `whatsappFinancialValues` (um campo a mais).
+- `WhatsappMessageTemplateService::render` (PHP) não tem chamadores e não substitui as novas variáveis. O envio real usa a montagem do navegador. Não foi alterado.
+- Sem commit, sem push e sem deploy. Deploy depende de autorização.
+
+## Deploy (2026-10-23, autorizado pelo usuário)
+
+- Snapshot de rollback: `vetoros:rollback-pre-whatsapp-tpl01` (imagem anterior `vetoros:waha-fix-1cea06d`, ID 21dcb02ec97d).
+- Build: `docker build -t vetoros:whatsapp-tpl01 gateway/vetoros` (working tree do submódulo; contém só esta tarefa sobre `1cea06da`).
+- `docker-compose.override.yml` (raiz): tag de imagem dos serviços `vetoros`, `vetoros-worker` e `vetoros-scheduler` trocada para `vetoros:whatsapp-tpl01`.
+- `docker compose up -d --no-deps --no-build vetoros vetoros-worker vetoros-scheduler`; `nginx -s reload`.
+- Verificação: três containers `healthy` na nova imagem; requisição via nginx retorna 200; bundle novo servido e código novo presente no container.
+- Migrations: nenhuma nova nesta tarefa.
+- Rollback, se necessário: trocar a tag no override para `vetoros:rollback-pre-whatsapp-tpl01` e rodar o mesmo `up -d --no-deps --no-build`.
+- Não feito: teste no navegador em produção; commit.

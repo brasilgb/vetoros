@@ -201,8 +201,34 @@ class OrderController extends Controller
         $order->setAttribute('communication_days_pending', $this->communicationDaysPending($order));
         $order->setAttribute('budget_follow_up', $this->isBudgetFollowUpOrder($order));
         $order->setAttribute('pending_payment_follow_up', $this->isPendingPaymentOrder($order, $paymentSummary));
+        $order->setAttribute('whatsapp_values', $this->whatsappFinancialValues($order));
 
         return $this->appendLastCommunication($order);
+    }
+
+    /**
+     * Valores para os templates de WhatsApp ({{ valor_orçamento }} e {{ valor_serviço }}).
+     * Usa só os totais já persistidos: service_cost é o total oficial da OS e a parcela de
+     * serviços sai de OrderTotalsService::servicesShare (desconto e acréscimo rateados como
+     * no restante do sistema). Null quando o valor não foi definido, para que o template
+     * não saia com R$ 0,00 por engano.
+     *
+     * @return array{services: float|null, total: float|null}
+     */
+    private function whatsappFinancialValues(Order $order): array
+    {
+        if ($order->service_cost === null) {
+            return ['services' => null, 'total' => null];
+        }
+
+        $services = $order->service_value === null ? null : OrderTotalsService::servicesShare(
+            (float) $order->service_value,
+            round((float) ($order->parts_value ?? 0), 2),
+            round((float) ($order->discount_amount ?? 0), 2),
+            round((float) ($order->surcharge_amount ?? 0), 2),
+        )['services_net'];
+
+        return ['services' => $services, 'total' => $order->total()];
     }
 
     private function currentUser(): ?User
