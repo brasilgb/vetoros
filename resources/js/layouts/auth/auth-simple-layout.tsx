@@ -1,12 +1,11 @@
 import { BrandLoginLogo } from '@/components/brand-logo';
 import { FlashToastMessages } from '@/components/flash-toast-messages';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAppearance } from '@/hooks/use-appearance';
-import authImage from '@/images/auth-images.jpg';
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 import { Toaster } from 'sonner';
+
 interface AuthLayoutProps {
     name?: string;
     title?: string;
@@ -14,45 +13,45 @@ interface AuthLayoutProps {
     width?: string;
 }
 
+const brandImage = '/images/vetoros-hero-maintenance.png';
+const brandMessage = 'Sua assistência técnica mais organizada e produtiva.';
+
 export default function AuthSimpleLayout({ children, title, description, width = 'w-full max-w-md' }: PropsWithChildren<AuthLayoutProps>) {
     const { appearance } = useAppearance();
 
     return (
-        <div className="relative flex min-h-svh min-w-0 items-center justify-center overflow-hidden p-3 sm:p-6">
-            {/* Background Image */}
-            <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                style={{
-                    backgroundImage: `url(${authImage})`,
-                }}
-            />
-
-            {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-linear-to-br from-black/75 via-black/80 to-black/75" />
-
-            <Card
-                className={cn(
-                    'border-border/50 bg-background/95 relative z-10 max-h-[calc(100svh-1.5rem)] min-w-0 shadow-2xl backdrop-blur-md sm:max-h-[calc(100svh-3rem)]',
-                    width,
-                )}
-            >
-                {/* Logo */}
-                <div className="top-8 left-8 z-10 flex min-w-0 flex-col items-center gap-3 px-3 sm:px-6">
-                    <Link href={route('home')} className="flex flex-col items-center gap-2 font-medium">
-                        <div className="mb-2 flex items-center justify-center rounded-md">
-                            <BrandLoginLogo />
-                        </div>
-                        <span className="sr-only">{title}</span>
+        <div className="grid min-h-svh min-w-0 overflow-x-hidden bg-background lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <aside className="relative hidden overflow-hidden text-white lg:flex">
+                <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `url('${brandImage}')` }}
+                    aria-hidden="true"
+                />
+                <div className="absolute inset-0 bg-linear-to-br from-zinc-950/90 via-zinc-950/65 to-zinc-950/30" aria-hidden="true" />
+                <div className="relative z-10 flex w-full flex-col justify-between p-12">
+                    <Link href={route('home')} className="flex items-center">
+                        <BrandLoginLogo />
                     </Link>
-
-                    <CardHeader className="w-full space-y-1 px-0">
-                        <CardTitle className="text-center text-xl font-bold text-balance sm:text-2xl">{title}</CardTitle>
-                        <CardDescription className="text-center text-base text-balance">{description}</CardDescription>
-                    </CardHeader>
+                    <p className="max-w-sm text-3xl leading-tight font-bold tracking-tight text-balance">{brandMessage}</p>
                 </div>
-                {/* Content */}
-                <div className="scrollbar-thin scrollbar-thumb-border relative z-10 min-w-0 overflow-y-auto px-3 sm:px-6">{children}</div>
-            </Card>
+            </aside>
+
+            <main className="flex min-w-0 items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
+                <div className={cn('flex min-w-0 flex-col gap-6', width)}>
+                    <div className="flex flex-col items-center lg:hidden">
+                        <Link href={route('home')} className="flex flex-col items-center gap-2 font-medium">
+                            <BrandLoginLogo />
+                        </Link>
+                    </div>
+
+                    <header className="flex flex-col gap-2 text-center">
+                        <h1 className="text-2xl font-bold text-balance text-foreground sm:text-3xl">{title}</h1>
+                        <p className="text-base text-balance text-muted-foreground">{description}</p>
+                    </header>
+
+                    <div className="min-w-0">{children}</div>
+                </div>
+            </main>
             <FlashToastMessages />
             <Toaster theme={appearance} />
         </div>
