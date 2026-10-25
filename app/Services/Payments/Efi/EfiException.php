@@ -28,9 +28,29 @@ class EfiException extends RuntimeException
         }
 
         $status = $response->status();
+
+        // Código fixo da Efí (não é dado sensível): a orientação substitui o texto devolvido pela API.
+        if ($status === 400 && is_array($body) && str_contains((string) json_encode($body, JSON_UNESCAPED_UNICODE), 'identificador_invalido')) {
+            return new self("Efí ({$operation}): HTTP 400 - identificador_invalido. ".self::identifierHint($operation), $status, false);
+        }
+
         $message = "Efí ({$operation}): HTTP {$status}".($detail ? ' - '.mb_substr((string) $detail, 0, 300) : '');
 
         return new self($message, $status, $status === 429 || $status >= 500);
+    }
+
+    /** Campos a conferir conforme a operação: boleto não usa o identificador de conta; cartão usa. */
+    private static function identifierHint(string $operation): string
+    {
+        if (str_contains($operation, 'boleto')) {
+            return 'Confira credenciais e ambiente da API Cobranças e os dados do boleto (valor, vencimento e pagador). O identificador de conta não é usado em boleto.';
+        }
+
+        if (str_contains($operation, 'cartão') || str_contains($operation, 'assinatura')) {
+            return 'Confira o identificador de conta cadastrado (usado na tokenização do cartão), as credenciais da API Cobranças e se a API de Emissão está habilitada no ambiente.';
+        }
+
+        return 'Confira o identificador de conta, as credenciais e o ambiente configurados.';
     }
 
     public static function connection(string $operation, \Throwable $exception): self

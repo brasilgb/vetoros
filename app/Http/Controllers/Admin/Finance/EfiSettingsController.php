@@ -56,6 +56,7 @@ class EfiSettingsController extends Controller
                 'pix_webhook_registered_at' => $settings->efi_pix_webhook_registered_at?->toIso8601String(),
                 'last_pix_notification_at' => $settings->last_pix_notification_at?->toIso8601String(),
                 'last_charges_notification_at' => $settings->last_charges_notification_at?->toIso8601String(),
+                'verifications' => $this->verifications($settings),
             ],
             'method_options' => collect(SaasPaymentSetting::METHODS)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
             'errors_log' => $this->recentErrors(),
@@ -140,6 +141,11 @@ class EfiSettingsController extends Controller
                 $settings->efi_homologated_at = null;
                 $settings->efi_homologated_by = null;
             }
+            // Teste OAuth antigo não vale para outro ambiente ou outras credenciais.
+            if (array_intersect(array_keys($changes), ['environment', 'charges_client_id', 'charges_client_secret', 'pix_client_id', 'pix_client_secret']) !== []) {
+                $settings->last_connection_ok = null;
+                $settings->last_connection_message = null;
+            }
 
             $settings->save();
             app(EfiPixClient::class)->forgetToken();
@@ -183,6 +189,8 @@ class EfiSettingsController extends Controller
             'efi_pix_certificate_expires_at' => $expiresAt,
             'efi_homologated_at' => null,
             'efi_homologated_by' => null,
+            'last_connection_ok' => null,
+            'last_connection_message' => null,
         ])->save();
         app(EfiPixClient::class)->forgetToken();
 
@@ -313,6 +321,62 @@ class EfiSettingsController extends Controller
         }
 
         return $certs['cert'].$certs['pkey'];
+    }
+
+    /**
+     * Verificações separadas. O teste de conexão cobre só a autenticação OAuth; boleto e cartão têm
+     * teste próprio (modal "Testar pagamento") no ambiente atual, e o Pix depende do webhook cadastrado.
+     *
+     * @return array<int, array{key: string, label: string, status: string, detail: string}>
+     */
+    private function verifications(SaasPaymentSetting $settings): array
+    {
+        $latest = fn (string $method) => EfiIntegrationTest::query()
+            ->where('method', $method)
+            ->where('environment', $settings->efi_environment)
+            ->latest('id')
+            ->first();
+
+        $fromTest = fn (?EfiIntegrationTest $test) => match (true) {
+            $test === null => 'pendente',
+            in_array($test->status, [EfiIntegrationTest::STATUS_ERROR, EfiIntegrationTest::STATUS_FAILED], true) => 'falhou',
+            default => 'ok',
+        };
+
+        $oauth = match ($settings->last_connection_ok) {
+            true => 'ok',
+            false => 'falhou',
+            default => 'pendente',
+        };
+
+        return [
+            [
+                'key' => 'auth',
+                'label' => 'Autenticação (OAuth Cobranças e Pix)',
+                'status' => $oauth,
+                'detail' => 'O teste de conexão valida somente a autenticação, não a emissão de cobranças.',
+            ],
+            [
+                'key' => 'billet',
+                'label' => 'Boleto',
+                'status' => $fromTest($latest(SaasPaymentSetting::METHOD_BILLET)),
+                'detail' => 'Precisa de teste de boleto no ambiente atual. Boleto não usa o identificador de conta.',
+            ],
+            [
+                'key' => 'card',
+                'label' => 'Cartão (tokenização e cobrança)',
+                'status' => filled($settings->efi_payee_code) ? $fromTest($latest(SaasPaymentSetting::METHOD_CARD)) : 'pendente',
+                'detail' => filled($settings->efi_payee_code)
+                    ? 'Precisa de teste de cartão no ambiente atual: a tokenização no navegador usa o identificador de conta.'
+                    : 'Informe o identificador de conta (Painel Efí > API > Introdução > Identificador de conta).',
+            ],
+            [
+                'key' => 'pix',
+                'label' => 'Pix',
+                'status' => $settings->efi_pix_webhook_registered_at ? 'ok' : 'pendente',
+                'detail' => 'Usa credenciais e certificado próprios. Requer webhook Pix cadastrado.',
+            ],
+        ];
     }
 
     /** Últimos erros sem dados sensíveis (as mensagens já vêm saneadas da EfiException). */

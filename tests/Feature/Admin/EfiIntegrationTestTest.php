@@ -210,4 +210,54 @@ class EfiIntegrationTestTest extends TestCase
 
         $this->assertSame($calls, count(Http::recorded()));
     }
+
+    public function test_identifier_rejection_names_the_operation_without_raw_api_detail(): void
+    {
+        $this->chargesRejectIdentifier = true;
+
+        $card = $this->create($this->cardPayload())->assertStatus(502)->json();
+        $this->assertStringContainsString('cobrar cartão', $card['error']);
+        $this->assertStringContainsString('identificador de conta', $card['error']);
+        $this->assertStringNotContainsString('Client_Secret', json_encode($card));
+
+        $billet = $this->create(['method' => 'billet', 'amount' => '5,00', 'payer' => $this->payer()])->assertStatus(502)->json();
+        $this->assertStringContainsString('boleto', $billet['error']);
+        $this->assertStringNotContainsString('Client_Secret', json_encode($billet));
+
+        $this->assertSame(2, EfiIntegrationTest::query()->where('status', EfiIntegrationTest::STATUS_ERROR)->count());
+    }
+
+    public function test_settings_show_separate_verifications_and_connection_test_covers_only_oauth(): void
+    {
+        $this->actingAs($this->root)->get(route('admin.finance.efi'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('settings.verifications', 4)
+            ->where('settings.verifications.0.key', 'auth')
+            ->where('settings.verifications.0.status', 'ok')
+            ->where('settings.verifications.1.key', 'billet')
+            ->where('settings.verifications.1.status', 'pendente')
+            ->where('settings.verifications.2.key', 'card')
+            ->where('settings.verifications.2.status', 'pendente'));
+
+        $this->create($this->cardPayload())->assertCreated();
+
+        $this->actingAs($this->root)->get(route('admin.finance.efi'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('settings.verifications.2.status', 'ok')
+            ->where('settings.verifications.1.status', 'pendente'));
+    }
+
+    public function test_changing_credentials_invalidates_the_previous_oauth_test(): void
+    {
+        $this->actingAs($this->root)->put(route('admin.finance.efi.update'), [
+            'environment' => 'homologation',
+            'charges_client_secret' => 'novo-secret',
+            'payee_code' => 'abc123payee',
+            'pix_key' => 'pix@abrasil.test',
+            'methods' => array_keys(SaasPaymentSetting::METHODS),
+            'password' => 'password',
+        ])->assertRedirect();
+
+        $settings = SaasPaymentSetting::current();
+        $this->assertNull($settings->last_connection_ok);
+        $this->assertNull($settings->last_connection_message);
+    }
 }

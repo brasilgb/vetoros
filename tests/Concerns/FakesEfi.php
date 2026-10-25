@@ -29,6 +29,8 @@ trait FakesEfi
 
     private bool $pixDown = false;
 
+    private bool $chargesRejectIdentifier = false;
+
     /** Efí configurada e homologada com os meios indicados (padrão: todos) e o simulador ligado. */
     protected function configureEfi(?array $methods = null): void
     {
@@ -121,6 +123,10 @@ trait FakesEfi
                     return Http::response(['access_token' => 'charges-token', 'expires_in' => 600]);
                 }
                 if ($path === '/v1/charge/one-step') {
+                    if ($this->chargesRejectIdentifier) {
+                        return Http::response(['nome' => 'identificador_invalido', 'mensagem' => 'Client_Secret_charges'], 400);
+                    }
+
                     $id = $this->nextChargeId++;
                     $billet = isset($request['payment']['banking_billet']);
                     $this->efiCharges[$id] = [
