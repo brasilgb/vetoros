@@ -20,14 +20,14 @@ export default function AuthSimpleLayout({ children, title, description, width =
     const { appearance } = useAppearance();
 
     return (
-        <div className="grid min-h-svh min-w-0 overflow-x-hidden bg-background lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="auth-surface grid min-h-svh min-w-0 overflow-x-hidden bg-background text-foreground lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <aside className="relative hidden overflow-hidden text-white lg:flex">
                 <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ backgroundImage: `url('${brandImage}')` }}
                     aria-hidden="true"
                 />
-                <div className="absolute inset-0 bg-linear-to-br from-zinc-950/90 via-zinc-950/65 to-zinc-950/30" aria-hidden="true" />
+                <div className="absolute inset-0 bg-linear-to-t from-zinc-950/85 via-zinc-950/20 to-transparent" aria-hidden="true" />
                 <div className="relative z-10 flex w-full flex-col justify-between p-12">
                     <Link href={route('home')} className="flex items-center">
                         <BrandLoginLogo />

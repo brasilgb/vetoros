@@ -99,6 +99,20 @@ html {
     }
 }
 
+/* Telas de autenticação mantêm superfície clara, mesmo com o tema escuro ativo */
+.auth-surface {
+    --background: #f8fafc;
+    --foreground: #0b1220;
+    --primary: #0d47a1;
+    --primary-foreground: #ffffff;
+    --card: #ffffff;
+    --card-foreground: #0b1220;
+    --muted: #eef2f7;
+    --muted-foreground: #6b7280;
+    --border: #dbe3ef;
+    --input: #dbe3ef;
+}
+
 :root {
     --radius: 0.65rem;
 
