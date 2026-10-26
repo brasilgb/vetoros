@@ -30,9 +30,11 @@ export default function AuthSimpleLayout({ children, title, description, width =
                 <div className="absolute inset-0 bg-linear-to-t from-zinc-950/85 via-zinc-950/20 to-transparent" aria-hidden="true" />
                 <div className="relative z-10 flex w-full flex-col justify-between p-12">
                     <Link href={route('home')} className="flex items-center">
-                        <BrandLoginLogo />
+                        <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md">
+                            <BrandLoginLogo />
+                        </div>
                     </Link>
-                    <p className="max-w-sm text-3xl leading-tight font-bold tracking-tight text-balance">{brandMessage}</p>
+                    <p className="max-w-sm text-3xl leading-tight font-black tracking-tight text-balance">{brandMessage}</p>
                 </div>
             </aside>
 
@@ -40,13 +42,15 @@ export default function AuthSimpleLayout({ children, title, description, width =
                 <div className={cn('flex min-w-0 flex-col gap-6', width)}>
                     <div className="flex flex-col items-center lg:hidden">
                         <Link href={route('home')} className="flex flex-col items-center gap-2 font-medium">
-                            <BrandLoginLogo />
+                            <div className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md">
+                                <BrandLoginLogo />
+                            </div>
                         </Link>
                     </div>
 
                     <header className="flex flex-col gap-2 text-center">
-                        <h1 className="text-2xl font-bold text-balance text-foreground sm:text-3xl">{title}</h1>
-                        <p className="text-base text-balance text-muted-foreground">{description}</p>
+                        <h1 className="text-2xl font-black tracking-tight text-balance text-foreground sm:text-3xl">{title}</h1>
+                        <p className="mx-auto max-w-sm text-sm leading-6 text-balance text-muted-foreground">{description}</p>
                     </header>
 
                     <div className="min-w-0">{children}</div>
