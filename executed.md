@@ -1,244 +1,3 @@
-# VETOROS-SECURITY-FIX-01 — Correção das vulnerabilidades da auditoria
-
-Data: 20/10/2026
-SHA-256 de `correio.md`: `935173ad51fb9f4a94b4b9f114f495940a6d6f1b4a93afb16bc25cc3fce775d0`
-Hash deste arquivo antes da atualização: `2fd9bc8ec01cd710e24b265330681d025b8bd632df02cd902533a4b0b7f3860b`. Os relatórios da VETOROS-AUDIT-01 e da VETOROS-EFI-TEST-01 continuam abaixo (ainda não commitados).
-Referência: `docs/audits/VETOROS-AUDIT-01.md`.
-
-Não houve commit, push, deploy, migration nem chamada externa, e nenhum dado real foi alterado. As alterações da EFI-TEST-01 foram preservadas: nenhum arquivo Efí foi tocado e o teste dela continua passando.
-
-## 1. Vulnerabilidades corrigidas
-
-### SEC-01 — Isolamento multitenant (C-01 da auditoria)
-
-- **`Tenantable`:** durante qualquer requisição web ou API, o registro criado fica **sempre** na empresa do contexto (usuário ou Modo Suporte), e o `tenant_id` não pode ser alterado. Toda tentativa é bloqueada e registrada em log.
-  - A trava vale só no ciclo da requisição (middleware `EnforceTenantWrites`, `TenantWriteGuard`).
-  - Jobs, webhooks e comandos continuam gravando o `tenant_id` explícito, como antes.
-- **Orçamentos:** `store`/`update` usam só os campos validados.
-  - `equipment_id` precisa ser da própria empresa.
-  - `part_value`, que o formulário enviava sem validação, entrou nas regras.
-- **Serviços:** `store`/`update` usam só os campos validados, e o equipamento precisa ser da empresa.
-- **Admin (Planos/Períodos, Características, Filiais):** `$request->all()` foi trocado por lista explícita dos campos do formulário.
-- **Pertencimento de relacionamentos:** as 19 regras `exists:tabela,id` da área da empresa viraram `TenantRule::exists(...)`, que só aceita ID da própria empresa.
-  - Alcance: OS, venda, compra, agenda, follow-up, contratos, indicadores de qualidade, equipamento do cliente e fotos.
-  - Exemplo do risco: a venda aceitava `customer_id` de cliente de outra empresa.
-- **`Model::unguard()` global:** foi mantido. Removê-lo exige revisar o `$fillable` de todos os models e cabe numa etapa própria. A brecha foi fechada pelas três camadas acima.
-
-### SEC-02 — Fotos e assinaturas de OS (C-02)
-
-- **Armazenamento:** fotos e assinatura vão para o disco privado `order_files`, em `{tenant_id}/{order_id}/images/…` e `{tenant_id}/{order_id}/signature.png`. Os nomes são aleatórios e a extensão vem do conteúdo, nunca do cliente.
-- **Entrega:** só por **URL assinada e temporária** (60 min, `ORDER_FILES_URL_TTL_MINUTES`), gerada depois da autorização.
-  - Rotas: `GET /files/orders/images/{image}` e `GET /files/orders/{order}/signature`.
-  - A URL é emitida na tela interna da OS, na API do app e no portal público com o acesso liberado.
-  - Qualquer alteração na URL invalida a assinatura.
-  - As respostas levam `nosniff`, `sandbox` e só aceitam tipo de imagem rasterizada.
-- **Upload pela API (base64):** passou a recusar conteúdo que não seja imagem. Antes, o nome `time().rand(1,50).png` podia colidir entre empresas.
-- **Telas:**
-  - As fotos internas (`images/index.tsx`), o portal e o recibo com assinatura usam o `url` assinado.
-  - O portal montava `/storage/orders/{order.id}` e por isso nem exibia as fotos corretamente.
-  - Na API (`/api/images/{n}`), cada foto agora traz o campo `url`.
-- **Arquivos antigos:**
-  - Fotos ainda não migradas continuam sendo lidas da pasta antiga, mas só quando o nome do arquivo é único entre todas as empresas.
-  - **Assinaturas antigas nunca são lidas da pasta compartilhada**, porque ela é ambígua entre empresas.
-- **Migração:** novo comando `php artisan vetoros:migrate-order-files`.
-  - Simula por padrão; só copia com `--execute`.
-  - Não apaga nem altera os originais, nunca sobrescreve arquivo já migrado e confere o SHA-256 de cada cópia.
-  - Assinatura só é atribuída quando **uma única** OS com aquele número tem `customer_signature_captured_at`. Fotos com nome repetido entre empresas ficam como "ambíguas".
-  - Gera relatório JSON em `storage/app/private`.
-
-### SEC-03 — Portal público da OS (A-01)
-
-- **Lista de campos permitidos:** o novo `PublicOrderPresenter` monta o retorno do acompanhamento, do recibo, do comprovante de pagamento e do comprovante fiscal.
-- **Não saem mais:**
-  - senha do aparelho, `manual_parts_cost`, observações e diagnóstico do técnico;
-  - notas de recuperação de feedback, motivos de pausa de follow-up;
-  - `tenant_id`, `user_id`, chave de acesso e as demais colunas do cliente (e-mail, nascimento, observações);
-  - custo e estoque das peças no recibo.
-- **Cliente e empresa:** a página de acompanhamento recebe do cliente só o nome. A empresa sai só com os campos que cada página exibe.
-- **Recibo:** continua identificando o cliente (nome, CPF/CNPJ, telefone, endereço), como o papel entregue no balcão.
-- **Chave de acesso:** sem mudança. Quando habilitada, bloqueia os dados até ser validada (coberto por teste).
-- **Correção da auditoria:** `service_cost` não é custo interno; é o **total cobrado do cliente** e continua visível. O custo interno real é o `manual_parts_cost`, que deixou de sair.
-
-### SEC-04 — Integridade financeira do PDV (A-04 e M-03)
-
-- **Total no servidor:** calculado pelo preço atual das peças. As linhas da mesma peça são somadas para conferir o estoque, e as peças são travadas em ordem de ID para evitar deadlock.
-  - Total enviado diferente do calculado (≥ R$ 0,01) dá 422, sem gravar venda nem mexer no estoque. Isso também pega preço desatualizado na tela.
-- **Desconto:** o PDV não tem regra de desconto, então qualquer `discount_amount` é recusado (`prohibited`). O valor pago continua limitado ao total do servidor.
-- **Cancelamento:** a venda é relida com `lockForUpdate` dentro da transação, e o status é verificado ali. Dois cancelamentos simultâneos, ou uma tela desatualizada, não devolvem o estoque duas vezes.
-
-### Alta prioridade
-
-- **Usuário inativo (A-02, M-02):**
-  - Não entra pela web nem pela API.
-  - A sessão web aberta cai na próxima requisição (`EnsureUserIsActive`).
-  - Os tokens Sanctum são **apagados** ao inativar, e um token antigo é recusado mesmo que a inativação tenha sido feita fora do sistema (`EnsureTenantApiUser`).
-  - Cadastros antigos com `status` nulo continuam ativos; só `status = 0` é inativo.
-- **Login da API (A-03):** limite de 5 tentativas por e-mail+IP por minuto (429), mais `throttle:20,1` por IP. O contador zera após login correto.
-- **Orçamentos (M-01):** novo gate `budgets.access` (permissão `budgets`) no CRUD web e no `BudgetsRequest`. Técnicos não criam, editam nem excluem. As consultas só de leitura usadas pelo app (`/api/orcamentos*`) foram mantidas.
-
-## 2. Arquivos modificados
-
-- **Novos:**
-  - `app/Support/{TenantRule,TenantWriteGuard,OrderFiles,PublicOrderPresenter}.php`
-  - `app/Http/Middleware/{EnforceTenantWrites,EnsureUserIsActive}.php`
-  - `app/Http/Controllers/OrderFileController.php`
-  - `app/Console/Commands/MigrateOrderFiles.php`
-  - `config/order_files.php`
-  - `phpstan.neon`, `phpstan-baseline.neon`
-  - `tests/Feature/Security/*` (6 arquivos)
-- **Alterados (segurança):**
-  - `app/Tenantable.php`, `bootstrap/app.php`, `app/Providers/AppServiceProvider.php`, `app/Models/User.php`, `app/Models/App/{Image,Order}.php`;
-  - `app/Support/OrderSignature.php`, `app/Services/SaleService.php`;
-  - controllers `App/{Budget,Service,Sale,User,Image,Order,FollowUp,MaintenanceContract,QualityIndicator}Controller`, `OsController`, `Admin/{Period,Feature,Branch}Controller`;
-  - requests `Budgets`, `Service`, `Order`, `PurchaseOrder`, `Schedule`, `CustomerEquipment`, `Auth/LoginRequest`;
-  - `EnsureTenantApiUser`, `routes/{web,api}.php`, `config/filesystems.php`, `.env.example`;
-  - `resources/js/pages/app/{images,serviceorders}/index.tsx`.
-- **Testes antigos ajustados:** `PermissionsTest` (2) e `TechnicianScheduleApiTest` (1). Eles exigiam o comportamento inseguro (arquivo em `public/storage/orders` e conteúdo não-imagem aceito) e agora verificam o disco privado.
-- **Dependências:**
-  - `composer.json`/`composer.lock`: só a inclusão de `larastan/larastan` ^3.0 (dev), mais `phpstan/phpstan` e `iamcal/sql-parser` como dependências dela. Nenhum pacote existente mudou de versão.
-  - `package-lock.json`: `npm audit fix` sem `--force` (somente atualizações compatíveis).
-  - O `yarn.lock` alterado pelo npm foi revertido; o deploy usa `npm ci`.
-
-## 3. Testes criados e executados
-
-- **Novos (`tests/Feature/Security`, 42 testes, 245 asserções):**
-  - `TenantIsolationTest` (7);
-  - `InactiveUserAndLoginThrottleTest` (8);
-  - `OrderFilesIsolationTest` (11), com duas empresas e **OS de mesmo número**;
-  - `PublicOrderPortalTest` (5);
-  - `MigrateOrderFilesCommandTest` (5);
-  - `SaleIntegrityTest` (6).
-- **Antes da correção:** todos os testes de reprodução falharam, pelo motivo da vulnerabilidade:
-  - orçamento gravado no tenant da vítima;
-  - total R$ 0,01 aceito;
-  - estoque devolvido em dobro;
-  - login de inativo aceito;
-  - ausência de 429.
-- **Suíte completa depois das correções:** **867 testes aprovados, 0 falhas**, 6.062 asserções (825 anteriores + 42 novos).
-  - Os avisos vêm só da ausência de `.env` neste ambiente; usei uma `APP_KEY` descartável na execução.
-- **PHPStan/Larastan nível 5 (`app/`):**
-  - os 615 erros já existentes foram registrados em `phpstan-baseline.neon`;
-  - os arquivos novos não acrescentam erros;
-  - a análise final terminou `[OK] No errors`.
-- **Frontend:** `tsc --noEmit` sem erros e `npm run build` concluído.
-- **Dependências:** `composer audit` sem vulnerabilidades; `npm audit` com **0** (antes eram 25, sendo 2 críticas).
-- **Pint:** aplicado só nos arquivos que estavam limpos antes. Ele mexeu apenas na ordem dos imports e nas linhas alteradas.
-  - `BudgetController`, `SaleController`, `ServiceController` e `UserController` já tinham pendências antigas de estilo e **não** foram reformatados, para não misturar mudança cosmética com a correção.
-- **ESLint/Prettier nos `.tsx` alterados:** Prettier ok; ESLint com a mesma contagem de antes (4 ocorrências já existentes em `serviceorders/index.tsx`).
-
-## 4. Evidências de correção
-
-- Orçamento com `tenant_id` da vítima fica na empresa do autor, e equipamento de outra empresa é recusado (`TenantIsolationTest`).
-- **OS 15 de duas empresas:**
-  - cada uma tem a própria assinatura e as próprias fotos;
-  - a assinatura de uma não aparece na outra;
-  - URL adulterada ou sem assinatura não entrega o arquivo;
-  - o upload grava fora de `public/` (`OrderFilesIsolationTest`).
-- O portal sem chave não contém senha, `manual_parts_cost` nem notas internas no JSON. O recibo não traz custo de peça (`PublicOrderPortalTest`).
-- Totais R$ 0,01 / R$ 199,00 / R$ 1.000,00 para itens de R$ 200,00 retornam 422 com estoque intacto. O cancelamento com instância desatualizada devolve o estoque uma única vez (`SaleIntegrityTest`).
-- Usuário inativo: login web recusado, API 403, sessão encerrada, tokens apagados e token antigo recusado. A 6ª tentativa errada retorna 429 (`InactiveUserAndLoginThrottleTest`).
-
-## 5. Pendentes
-
-- **Arquivos antigos ainda públicos:** `public/storage/orders` continua acessível até a migração e a retirada manual. É o risco residual mais importante (ver item 6).
-- **App mobile (vetor-atendimento):** não está neste repositório. Se ele monta a URL `/storage/orders/{número}/{arquivo}` em vez de usar o novo campo `url`, **as fotos novas não aparecerão no app**. Precisa ser verificado e, se for o caso, atualizado. A assinatura já volta como URL assinada em `customer_signature_url`.
-- **Fotos de agendamento** (`public/storage/schedules/{id}`): usam o ID global, então não colidem entre empresas, mas continuam públicas. Ficaram fora do escopo do SEC-02.
-- **`Model::unguard()` global:** a remoção, com revisão do `$fillable` de todos os models, fica como etapa própria.
-- **Expiração dos tokens Sanctum:** continua `null`. A revogação na inativação cobre o caso de desligamento, mas definir a expiração exige combinar o re-login com o app.
-- **Desconto no PDV:** não existe. Se o negócio quiser desconto, ele precisa de regra, limite por perfil e trilha de auditoria; hoje é recusado.
-- **Achados médios e baixos da auditoria não pedidos nesta etapa:**
-  - M-04: tabela `services` sem migration;
-  - M-05: agendamentos em UTC;
-  - B-01: rotas registradas duas vezes;
-  - B-02: `TenantSequence` O(n);
-  - limpeza de obsoletos;
-  - as 615 pendências antigas do PHPStan.
-- **PHPStan:** os 615 erros da baseline (relações sem tipo genérico, por exemplo) devem ser reduzidos aos poucos.
-
-## 6. Riscos de migração dos arquivos existentes
-
-- **Persistência:** o disco privado fica em `storage/app/private/order-files` (`ORDER_FILES_ROOT`). Em produção, **precisa estar num volume persistente**, como o `FISCAL_STORAGE_ROOT`. Sem isso, os uploads novos se perdem a cada deploy.
-- **Assinaturas antigas já sobrescritas não podem ser recuperadas.** Quando duas empresas colheram assinatura na OS de mesmo número, o arquivo da pasta antiga é de uma só delas e não há como saber qual. O comando lista esses casos como "ambíguos" e não os atribui. Até a revisão manual, essas OS aparecem sem assinatura, o que é preferível a mostrar a assinatura do cliente de outra empresa.
-- **Fotos com nome repetido** (uploads da API no mesmo segundo) também ficam como ambíguas.
-- **Remoção dos originais:** o comando não apaga nada. Retirar `public/storage/orders` do ar é uma ação destrutiva e manual, a ser autorizada depois da conferência do relatório (backup → `--execute` → conferência → retirada da pasta pública).
-- **Antes da migração:** as fotos antigas não-ambíguas continuam visíveis pela URL assinada, lidas da pasta antiga.
-
-## 7. Recomendações para homologação
-
-1. **Configurar o volume:** definir `ORDER_FILES_ROOT` num volume persistente e fazer backup de `public/storage/orders`.
-2. **Simular a migração:** rodar `php artisan vetoros:migrate-order-files` e revisar o relatório JSON, principalmente os "ambíguos".
-3. **Migrar:** rodar com `--execute`, conferir as contagens e testar a OS e o portal de duas empresas com OS de mesmo número.
-4. **Testar o app mobile:** login de usuário inativo (deve ser recusado), envio de foto, lista de fotos (campo `url`) e assinatura.
-5. **Testar o PDV:** venda normal; alteração de preço de uma peça com a tela aberta (deve pedir para atualizar); cancelamento.
-6. **Testar o portal:** com e sem chave de acesso, recibos (entrega, orçamento, checklist), comprovantes e fotos.
-7. **Retirar a pasta pública:** só depois da conferência, retirar `public/storage/orders` do servidor web, com autorização.
-
-## 8. Estado do Git
-
-Branch local, sem commit, push ou deploy.
-
-- **Arquivos rastreados alterados (47):**
-  - os desta tarefa (itens 1 e 2);
-  - os da EFI-TEST-01, preservados sem alteração: `EfiSettingsController`, `EfiPixClient`, `SaasPaymentService`, `efi.tsx`, `routes/admin-finance.php`;
-  - `correio.md` e `executed.md`.
-- **Não rastreados:**
-  - os novos desta tarefa;
-  - os da EFI-TEST-01 (controller, job, model, service, migration, modal e teste);
-  - `docs/audits/`.
-- Nenhuma migration nova nesta tarefa. A migration pendente continua sendo só a da EFI-TEST-01 (`2026_10_20_100000_create_efi_integration_tests_table.php`).
-
----
-
-# VETOROS-AUDIT-01 — Resumo da auditoria geral
-
-Data: 20/10/2026
-SHA-256 de `correio.md`: `dfdde47abc8be889ded155af140f924da7c3d86d0ed9010113507eb48aae81c5`
-Hash deste arquivo antes da atualização: `dd7447ac998dd6926c287d1d62fd0caa66025eb1dcf9749f2fcf648d0cf9f3e8`. O relatório da VETOROS-EFI-TEST-01 continua abaixo, porque ainda não foi commitado.
-Relatório integral: `docs/audits/VETOROS-AUDIT-01.md`.
-
-Diagnóstico apenas. Nenhum código de produção foi alterado. Não houve commit, push, deploy, migration nem chamada externa.
-
-## Achados principais
-
-- **Crítico C-01:** um usuário de uma empresa cria ou move Orçamentos para outra empresa.
-  - Causa: `Model::unguard()` global + `$request->all()` em `BudgetController.php:188/230`; o `Tenantable` aceita o `tenant_id` enviado.
-  - Reproduzido em teste.
-- **Crítico C-02:** assinaturas e fotos de OS ficam em `public/storage/orders/{order_number}`, e o número da OS é sequencial por empresa.
-  - A assinatura de uma empresa sobrescreve e aparece na OS de mesmo número de outra empresa.
-  - Os arquivos são públicos e enumeráveis.
-- **Alto A-01:** o portal público `/os/{token}` envia a senha do aparelho, custos e notas internas.
-  - Com a chave de acesso desligada (padrão), qualquer pessoa com o link vê tudo; com ela ligada, ainda vazam custos e notas internas.
-  - Reproduzido.
-- **Alto A-02:** usuário "Inativo" continua entrando na web e na API. Reproduzido.
-- **Alto A-03:** `/api/loginuser` sem limite de tentativas. Reproduzido.
-- **Alto A-04:** a venda no PDV aceita qualquer total enviado pelo navegador. R$ 200,00 em peças foram vendidos por R$ 0,01. Reproduzido.
-- **Médios:**
-  - Orçamentos sem autorização por perfil;
-  - tokens da API sem expiração;
-  - corrida no cancelamento de venda (estoque devolvido em dobro);
-  - módulo Serviços sem tabela `services`;
-  - agendamentos em UTC (mensagens às 05h–08h30 de Brasília);
-  - dependências npm vulneráveis.
-- **Confirmados sem problema:** webhooks (Efí, Spedy, WAHA), credenciais criptografadas, isolamento no route binding, Modo Suporte, travas entre fiscal e financeiro, validação de upload. A Efí é usada só nas assinaturas SaaS.
-
-## Verificações
-
-- **Suíte:** 825 testes aprovados, 0 falhas. Os avisos vêm só da falta de `.env`.
-- **Frontend:** `tsc` sem erros e build concluído.
-- **Qualidade:**
-  - Pint: 47 arquivos fora do padrão;
-  - ESLint: 453 problemas;
-  - Prettier: 2 arquivos.
-- **Dependências:** `composer audit` limpo; `npm audit` com 25 vulnerabilidades (2 críticas).
-- **Não executados:**
-  - PHPStan (não instalado);
-  - testes E2E e de navegador (sem `.env` nem banco);
-  - subagentes ECC (criação recusada na sessão).
-
-O plano de correção priorizado está na seção 9 do relatório integral.
-
----
-
 # VETOROS-EFI-TEST-01 — Resultado da implementação
 
 Data: 20/10/2026
@@ -343,105 +102,50 @@ Conclusão: dava para reutilizar clientes, credenciais, ambiente, tokenização 
 - **Migration:** não foi aplicada em nenhum banco de desenvolvimento ou produção; é preciso rodar `php artisan migrate` no deploy.
 - Nenhum commit, push ou deploy foi feito.
 
-# VETOROS-EQUIP-01 — Simplificação dos tipos de equipamento
+## Adendo — Auditoria na VPS (25/10/2026)
 
-Data: 23/10/2026
+**Status: não resolvido.** O cartão continua bloqueado; Pix e boleto estão funcionando em homologação.
 
-Removido o conceito de **Grupo** do cadastro de tipos de equipamento. Cadastro e edição agora usam só o nome, e o gráfico do dashboard continua configurável.
+### Verificações na VPS
 
-## Alterações
+- Migration `2026_10_20_100000_create_efi_integration_tests_table`: **aplicada** (status `Ran`). Nenhuma migration foi executada.
+- Ambiente Efí: `homologation`. Pix e Cobranças configurados. O identificador de conta (`efi_payee_code`) tem **14 caracteres alfanuméricos**.
+- Tabela `efi_integration_tests`: 2 registros, ambos de homologação. **Nenhum registro de cartão** e nenhum com `identificador_invalido`.
+- Auditoria `efi.integration_test_created`: 2 registros (25/10 00:05:32 e 00:20:12, horário do banco).
+- `storage/logs/laravel.log` e `docker logs` (72 h): nenhuma ocorrência de Efí ou de `identificador_invalido`.
+- Código no container (`vetoros:pull-5f7caf3`, iniciado em 24/10 21:14): tem o teste de integração, mas **não tem** o `identifierHint` do commit `e1a94898`.
 
-- **Backend:**
-  - `EquipmentRequest`: regra `kind` e atributo `grupo` removidos; a única regra é `equipment` obrigatório.
-  - `EquipmentController` (store/update): `kind` não é mais lido nem gravado.
-  - `Equipment`: constantes `KIND_*` e `kinds()` removidas.
-- **Frontend:**
-  - `equipments/create-equipment.tsx` e `equipments/edit-equipment.tsx`: campo Grupo removido; ficam Nome, "Adicionar ao gráfico do dashboard", Cancelar e Salvar.
-  - `equipments/index.tsx`: coluna Grupo removida da listagem.
-  - `orders/equipment-types-modal.tsx` (cadastro rápido na OS): seletor de Grupo removido do formulário de criação, do modo de edição e da tabela.
-  - `equipments/equipment-kinds.ts`: arquivo removido (sem outros usos).
-  - `orders/customer-equipment-field.tsx`: tipo `kind` removido (não era usado).
-- **Testes:** `tests/Feature/App/EquipmentControllerTest.php` reescrito com 4 casos:
-  - cadastro só com o nome;
-  - `kind` enviado pelo cliente é ignorado;
-  - nome obrigatório;
-  - edição altera só o nome e preserva o `kind` legado já gravado.
+### Resultados individuais
 
-## Dados e banco
+- **Pix:** pago em homologação. R$ 1,00, txid `VOTKRFAJ…`, situação Efí `CONCLUIDA`, pago em 25/10 00:05:32. Webhook recebido em 00:06:02.
+- **Boleto:** cobrança criada em homologação. R$ 5,00, vencimento 28/10/2026, `charge_id` 45055281, situação Efí `waiting`, webhook recebido em 00:20:19. Status local `pending`, que é o esperado enquanto o boleto não é pago. O `identificador_invalido` relatado para boleto **não foi reproduzido**: boleto não usa o identificador de conta, e não há registro nem log desse erro.
+- **Cartão:** **não concluído.** A falha ocorre na tokenização no navegador, antes de qualquer chamada ao VetorOS. Por isso não há registro nem log no servidor.
 
-- A coluna `equipment.kind` (nullable, migration `2026_09_17_150000`) **foi mantida**. Nenhum dado foi apagado, nenhuma migration nova foi criada.
-- Tipos antigos continuam com seu valor de `kind` no banco, sem exibição nem uso.
-- Relacionamentos com OS, orçamentos, checklists e equipamentos do cliente não foram alterados.
-- Remover a coluna exige migration própria e uma decisão separada; não foi feito aqui.
+### Causa raiz (comprovada)
 
-## Testes e verificações
+- A biblioteca `payment-token-efi` 3.4.1 (`node_modules/payment-token-efi/dist/payment-token-efi-cjs.min.js`) valida o identificador de conta localmente com `/^[a-zA-Z0-9]{32}$/`. Se o valor não bater, ela lança `identificador_invalido` ("Identificador de conta [...] inválido") **sem chamar a Efí**.
+- O `efi_payee_code` salvo tem 14 caracteres, então `EfiPay.CreditCard.setAccount(payee_code)` falha em `resources/js/pages/admin/finance/efi-test-modal.tsx` (linha ~142). O modal mostra o erro, e `generate()` retorna antes do POST.
+- **Origem:** SDK de tokenização (validação local). Não é a API da Efí nem o VetorOS no servidor.
+- Documentação Efí (https://dev.efipay.com.br/en/docs/api-cobrancas/cartao/): o identificador de conta vem de "API > Introdução > Identificador de conta". O exemplo da documentação tem 32 caracteres hexadecimais.
+- Não foi possível confirmar qual é o valor correto. Ele não foi exibido nem copiado durante a auditoria.
 
-- `php vendor/bin/phpunit` nos testes de equipamentos, equipamentos do cliente, OS/pedidos, eventos da OS e isolamento de tenant: **98 testes, 462 assertions, aprovados**.
-- `tsc --noEmit` no projeto inteiro: **sem erros**.
-- `npm run test:js`: **30/30 aprovados**.
-- Prettier nos arquivos alterados: sem pendências.
-- ESLint nos arquivos alterados: as 11 mensagens de erro e 3 avisos estão em linhas que não foram tocadas (ex.: `any` e `search`/`page` não usados em `create-equipment.tsx`, `edit-equipment.tsx` e `index.tsx`; avisos de `useEffect` no modal). A única linha adicionada é o grid do modal, sem novo problema.
-- Pint: o controller acusa `fully_qualified_strict_types` e `ordered_imports`. O mesmo arquivo no `HEAD` acusa as mesmas regras; não foi corrigido para não ampliar o escopo.
-- **Não executado:** testes de navegador (cadastro, edição e uso na OS pela tela). Não há `.env` nem banco configurados aqui para subir a aplicação. A cobertura automatizada cobre a API de cadastro/edição e a integração com OS.
-- `npm ci` instalou `node_modules` a partir do lockfile. Ele também alterou `yarn.lock`; a alteração foi revertida.
+### Correção aplicada
 
-## Pendências
+- **Nenhuma alteração de código nem de configuração.** O valor correto do identificador de conta não está disponível no VPS.
+- Para corrigir, é preciso copiar o identificador de 32 caracteres do painel Efí (API > Introdução > Identificador de conta), salvar em Efí Bank com a senha do RootAdmin e repetir o teste de cartão em homologação.
+- O mesmo `efi_payee_code` alimenta o checkout de cartão real (`SaasCheckoutController`). Ao trocar o valor, o checkout também deve ser verificado.
 
-- Testes de navegador do fluxo completo (criar "Notebook" só com o nome, usar na OS) devem ser feitos em homologação.
-- A documentação gerada em `public/documentation` e `public-old/documentation` não foi revisada e pode ainda citar Grupo.
-- Nenhum commit, push ou deploy foi feito.
+### Estado do VETOROS-EFI-FIX-01 (item 9)
 
----
+- O commit `e1a94898` existe no branch `fix/efi-identificador-invalido`, mas **não está implantado**. O diagnóstico por operação não está operacional no VPS.
+- O deploy não foi feito: não foi solicitado, e reiniciar os serviços não estava no escopo deste adendo.
 
-# VETOROS-WHATSAPP-TEMPLATES-01 — Variáveis financeiras nos templates WhatsApp
+### Testes
 
-Data: 2026-10-23
+- Nenhum código foi alterado, então os testes automatizados não foram reexecutados nesta rodada.
 
-## Alterações
+### Pendências
 
-- **Backend** (`app/Http/Controllers/App/OrderController.php`):
-  - `appendCommunicationFlags` passa a expor `whatsapp_values` em cada OS da listagem.
-  - Novo método `whatsappFinancialValues`: lê só os totais já persistidos. `total` = `service_cost` (total oficial). `services` = parcela de serviços de `OrderTotalsService::servicesShare` (serviços + acréscimo − desconto, rateados sobre as peças como no restante do sistema, inclusive a NFS-e). Não há cálculo novo.
-  - Quando a OS não tem valor (`service_cost` nulo) ou não tem valor de serviço (`service_value` nulo), o campo vai como `null`, não como zero.
-- **Frontend**:
-  - `resources/js/components/WhatsAppButtonProps.tsx`: nova prop `financialValues`. `buildMessage` substitui `{{ valor_orçamento }}` e `{{ valor_serviço }}` (e as grafias sem acento) por `formatBRL` (ex.: `R$ 1.250,00`). Se o template usa uma dessas variáveis e o valor falta, o botão fica desabilitado com o motivo "Defina o valor da OS para enviar esta mensagem." e `buildMessage` não gera texto. Nenhum placeholder literal chega ao cliente.
-  - `resources/js/pages/app/orders/index.tsx`: passa `financialValues={order.whatsapp_values}` ao botão.
-  - `resources/js/pages/app/whatsapp-message/index.tsx`: prévia do editor com `valor_orcamento` e `valor_servico`; a nota de variáveis documenta as duas novas. O editor não tem seletor de variáveis (é um campo de texto livre), então a lista disponível é essa nota.
-- **Templates padrão** não mudaram; templates existentes continuam iguais.
-
-## Decisões
-
-- `valor_orçamento` = total da OS (`service_cost`), que já inclui serviços, peças, desconto e acréscimo.
-- `valor_serviço` = serviços líquidos após desconto/acréscimo rateados, para que serviços + peças reproduzam o total. Se o desconto deve ficar fora desse rateio, o ajuste é só em `whatsappFinancialValues`.
-- Valor ausente é tratado como indefinido e bloqueia o envio, em vez de virar `R$ 0,00`.
-
-## Testes e verificações
-
-- `tests/Feature/App/OrderWhatsappFinancialValuesTest.php` (novo, 3 testes): OS só com serviços; OS com peças e desconto (serviços 961,54 e total 1.250,00); OS sem valor definido (`null`, não zero).
-- `tests/js/whatsapp-financial-values.test.ts` (novo, 6 testes): substituição com formato BRL; grafias sem acento; bloqueio sem valor (total ou serviços); template sem variáveis financeiras segue funcionando; nenhum `{{` restante.
-- Suítes relacionadas (Pest): OrderControllerTest, WhatsAppSendControllerTest, WhatsappMessageControllerTest, OrderCommunicationTest, OrderFinancialIntegrityTest, OrderBudgetVersioningTest, PermissionsTest, UserTenantIsolationTest, SharedInertiaPropsTest: **109 testes, 626 asserções, aprovados**.
-- `npm run test:js`: **36/36 aprovados**.
-- `tsc --noEmit`: sem erros. ESLint nos arquivos alterados: sem mensagens. Prettier: ajustado no editor, sem pendências. Pint nos arquivos PHP alterados: aprovado.
-- Suíte PHP completa (`vendor/bin/pest`): 879 aprovados e **8 falhas em `ReportControllerTest`**. Essas falhas também ocorrem sem nenhuma alteração desta tarefa (verificado com stash), então já existiam e não foram tratadas aqui.
-
-## Não executado
-
-- **Teste de navegador** (prévia e envio pela tela): não foi feito. A aplicação não está em execução neste ambiente (sem `.env` nem banco configurados, como registrado na VETOROS-EQUIP-01), e não há containers locais a criar. A cobertura é a automatizada descrita acima.
-- **Envio real via WAHA**: não foi testado contra um WAHA real. O texto é montado no navegador e enviado sem alteração pelo endpoint `orders.whatsapp.send`, como já era.
-
-## Pendências
-
-- Decisão a confirmar: uma OS salva sem valor grava `service_cost = 0`, e isso conta como valor definido, então a mensagem sai com `R$ 0,00`. Se zero deve ser tratado como ausente, a regra muda em `whatsappFinancialValues` (um campo a mais).
-- `WhatsappMessageTemplateService::render` (PHP) não tem chamadores e não substitui as novas variáveis. O envio real usa a montagem do navegador. Não foi alterado.
-- Sem commit, sem push e sem deploy. Deploy depende de autorização.
-
-## Deploy (2026-10-23, autorizado pelo usuário)
-
-- Snapshot de rollback: `vetoros:rollback-pre-whatsapp-tpl01` (imagem anterior `vetoros:waha-fix-1cea06d`, ID 21dcb02ec97d).
-- Build: `docker build -t vetoros:whatsapp-tpl01 gateway/vetoros` (working tree do submódulo; contém só esta tarefa sobre `1cea06da`).
-- `docker-compose.override.yml` (raiz): tag de imagem dos serviços `vetoros`, `vetoros-worker` e `vetoros-scheduler` trocada para `vetoros:whatsapp-tpl01`.
-- `docker compose up -d --no-deps --no-build vetoros vetoros-worker vetoros-scheduler`; `nginx -s reload`.
-- Verificação: três containers `healthy` na nova imagem; requisição via nginx retorna 200; bundle novo servido e código novo presente no container.
-- Migrations: nenhuma nova nesta tarefa.
-- Rollback, se necessário: trocar a tag no override para `vetoros:rollback-pre-whatsapp-tpl01` e rodar o mesmo `up -d --no-deps --no-build`.
-- Não feito: teste no navegador em produção; commit.
+1. Informar o identificador de 32 caracteres ou salvá-lo na tela Efí Bank; depois repetir o teste de cartão em homologação.
+2. Decidir se o `e1a94898` deve ser implantado.
+3. Opcional: validar `payee_code` com exatamente 32 caracteres alfanuméricos em `EfiSettingsController::update`. Hoje aceita qualquer valor alfanumérico de até 64. Isso exigiria ajustar as fixtures `abc123payee` em `tests/Concerns/FakesEfi.php` e `tests/Feature/Admin/EfiSaasPaymentsTest.php`.
