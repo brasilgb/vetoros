@@ -19,6 +19,8 @@ export default function CreatePlan() {
         description: '',
         value: '0.00',
         billing_months: '1',
+        is_active: true,
+        is_public: true,
     });
 
     const handleSlug = (slug: string) => {
@@ -91,6 +93,15 @@ export default function CreatePlan() {
                         </select>
                         {errors.billing_months && <div className="text-sm text-red-500">{errors.billing_months}</div>}
                     </div>
+
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
+                        Plano ativo
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={data.is_public} onChange={(e) => setData('is_public', e.target.checked)} />
+                        Disponível para contratação pelo cliente
+                    </label>
 
                     <DialogFooter className="gap-2">
                         <Button type="button" variant="outline" onClick={() => setOpen(false)}>

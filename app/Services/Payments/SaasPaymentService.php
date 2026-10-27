@@ -97,7 +97,7 @@ class SaasPaymentService
         }
 
         $plan = $planId ? Plan::query()->with('periods')->find($planId) : null;
-        if (! $plan || $plan->isTrial() || (float) $plan->value <= 0 || $plan->billingMonths() <= 0) {
+        if (! $plan || ! $plan->availableForSelfService()) {
             throw ValidationException::withMessages(['plan_id' => 'Selecione um plano pago válido.']);
         }
 
@@ -181,6 +181,8 @@ class SaasPaymentService
                 return $existing;
             }
 
+            $this->assertNoPendingPayment($target);
+
             $txid = 'VOS'.Str::upper(Str::random(29));
             $cob = $this->pix->createImmediateCharge($txid, $target->amount, $this->pixDebtor($target->tenant), self::PIX_EXPIRATION_SECONDS, $target->description);
             $qr = isset($cob['loc']['id']) ? $this->pix->qrCode($cob['loc']['id']) : [];
@@ -207,6 +209,8 @@ class SaasPaymentService
             if ($existing = $this->reusable($target, [SaasPaymentSetting::METHOD_BILLET])) {
                 return $existing;
             }
+
+            $this->assertNoPendingPayment($target);
 
             $expireAt = $target->dueDate->copy()->startOfDay();
             if ($expireAt->lt(now()->startOfDay())) {
@@ -525,6 +529,14 @@ class SaasPaymentService
 
     private function applyPaid(Payment $payment, string $amount, Carbon $paidAt): void
     {
+        if ($this->toCents($amount) !== $this->toCents((string) $payment->amount)) {
+            if (! str_starts_with((string) $payment->error, 'Divergência:')) {
+                $this->divergence($payment, 'Valor confirmado pela Efí difere do valor contratado.');
+            }
+
+            return;
+        }
+
         $applied = DB::transaction(function () use ($payment, $amount, $paidAt) {
             $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
             if (in_array($payment->status, [Payment::STATUS_PAID, Payment::STATUS_REFUNDED], true)) {
@@ -810,7 +822,19 @@ class SaasPaymentService
 
     private function locked(SaasPaymentTarget $target, callable $callback): mixed
     {
-        return Cache::lock($target->lockKey(), 30)->block(10, $callback);
+        return Cache::lock($target->lockKey(), 30)->block(10, function () use ($target, $callback) {
+            if ($target->plan) {
+                $other = Payment::query()->where('tenant_id', $target->tenant->id)
+                    ->whereNull('tenant_subscription_charge_id')->where('gateway', Payment::GATEWAY_EFI)
+                    ->where('status', Payment::STATUS_PENDING)->where('plan_id', '!=', $target->plan->id)
+                    ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->exists();
+                if ($other) {
+                    throw ValidationException::withMessages(['plan_id' => 'Há um pagamento de outro plano aguardando confirmação. Consulte ou aguarde o vencimento antes de trocar de plano.']);
+                }
+            }
+
+            return $callback();
+        });
     }
 
     /** Transação Efí pendente e válida do mesmo alvo e valor. `requirePix`: o boleto só serve se trouxer Pix (Bolix). */
@@ -839,6 +863,14 @@ class SaasPaymentService
             ->when($target->charge,
                 fn ($query) => $query->where('tenant_subscription_charge_id', $target->charge->id),
                 fn ($query) => $query->whereNull('tenant_subscription_charge_id')->where('plan_id', $target->plan->id));
+    }
+
+    private function assertNoPendingPayment(SaasPaymentTarget $target): void
+    {
+        if ($this->pendingFor($target)->where('gateway', Payment::GATEWAY_EFI)
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))->exists()) {
+            throw ValidationException::withMessages(['payment' => 'Já existe um pagamento aguardando confirmação. Consulte essa cobrança antes de gerar outra.']);
+        }
     }
 
     private function store(SaasPaymentTarget $target, string $method, string $providerId, string $reference, array $extra): Payment

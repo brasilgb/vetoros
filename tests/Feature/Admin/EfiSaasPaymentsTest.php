@@ -446,6 +446,79 @@ class EfiSaasPaymentsTest extends TestCase
         $this->assertSame($payment->payment_id, $this->tenant->last_payment_id);
     }
 
+    public function test_expired_courtesy_can_choose_public_paid_plan_without_back_billing(): void
+    {
+        $this->onlyPix();
+        $courtesy = Plan::factory()->create(['name' => 'Plano Cortesia', 'slug' => 'cortesia', 'value' => 0, 'billing_months' => 1]);
+        $private = Plan::factory()->create(['name' => 'Privado', 'value' => 50, 'is_public' => false]);
+        $inactive = Plan::factory()->create(['name' => 'Inativo', 'value' => 70, 'is_active' => false]);
+        $this->tenant->update(['plan_id' => $courtesy->id, 'expires_at' => '2026-10-01']);
+
+        $this->actingAs($this->tenantUser)->get(route('app.dashboard'))->assertRedirect(route('subscription.blocked'));
+        $this->get(route('subscription.blocked'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Subscription/Blocked')->where('courtesy_expired', true)->where('previous_plan_name', 'Plano Cortesia')
+            ->where('plans', fn ($plans) => collect($plans)->contains('id', $this->plan->id)
+                && ! collect($plans)->contains('id', $private->id)
+                && ! collect($plans)->contains('id', $inactive->id)
+                && ! collect($plans)->contains('id', $courtesy->id)));
+        $this->postJson(route('subscription.efi.pix'), ['plan_id' => $private->id])->assertUnprocessable();
+        $this->postJson(route('subscription.efi.pix'), ['plan_id' => $inactive->id])->assertUnprocessable();
+        $this->postJson(route('subscription.efi.pix'), ['plan_id' => $courtesy->id])->assertUnprocessable();
+
+        $payment = Payment::query()->findOrFail($this->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertOk()->json('id'));
+        $this->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertJson(['id' => $payment->id]);
+        $this->payCob($payment->payment_id, '89.90');
+        $this->pixWebhook($payment->payment_id)->assertOk();
+
+        $this->assertSame('2026-11-15', $this->tenant->refresh()->expires_at->toDateString());
+        $this->assertSame($this->plan->id, $this->tenant->plan_id);
+        $this->actingAs($this->tenantUser)->getJson(route('subscription.check_status', ['payment' => $payment->id]))->assertJson(['status' => 'active']);
+        $this->get(route('app.dashboard'))->assertOk();
+    }
+
+    public function test_pending_payment_prevents_switching_plan_and_is_visible_after_reload(): void
+    {
+        $this->onlyPix();
+        $other = Plan::factory()->create(['name' => 'Anual', 'value' => 899, 'billing_months' => 12]);
+        $this->tenant->update(['expires_at' => '2026-10-01']);
+        $paymentId = $this->actingAs($this->tenantUser)->postJson(route('subscription.efi.pix'), ['plan_id' => $other->id])->assertOk()->json('id');
+
+        $this->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertUnprocessable()->assertJsonValidationErrors('plan_id');
+        $this->get(route('subscription.blocked'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('pending_payment.id', $paymentId)->where('pending_plan_id', $other->id));
+        $other->update(['is_active' => false]);
+        $this->get(route('subscription.blocked'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('pending_payment.id', $paymentId)
+            ->where('plans', fn ($plans) => ! collect($plans)->contains('id', $other->id)));
+        $this->assertSame(1, Payment::query()->where('tenant_id', $this->tenant->id)->count());
+    }
+
+    public function test_partial_provider_payment_does_not_unlock_subscription(): void
+    {
+        $this->onlyPix();
+        $this->tenant->update(['expires_at' => '2026-10-01']);
+        $payment = Payment::query()->findOrFail($this->actingAs($this->tenantUser)->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertOk()->json('id'));
+        $this->payCob($payment->payment_id, '1.00');
+        $this->pixWebhook($payment->payment_id)->assertOk();
+
+        $this->assertSame(Payment::STATUS_PENDING, $payment->refresh()->status);
+        $this->assertSame(Tenant::SUBSCRIPTION_BLOCKED, $this->tenant->refresh()->subscriptionBucket());
+        $this->assertDatabaseHas('fiscal_admin_audits', ['action' => 'saas_payment.divergence', 'subject_id' => $payment->id]);
+    }
+
+    public function test_only_tenant_administrator_can_manage_subscription_payments(): void
+    {
+        $this->onlyPix();
+        $this->tenant->update(['expires_at' => '2026-10-01']);
+        $operator = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_OPERATOR]);
+
+        $this->actingAs($operator)->get(route('subscription.blocked'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('can_manage_subscription', false));
+        $this->postJson(route('subscription.efi.pix'), ['plan_id' => $this->plan->id])->assertForbidden();
+        $this->getJson(route('subscription.check_status'))->assertForbidden();
+        $this->assertSame(0, Payment::query()->where('tenant_id', $this->tenant->id)->count());
+    }
+
     /**
      * Transição (VETOR-SAAS-EFI-03): pagamento do provedor anterior ainda pendente e válido bloqueia
      * novas cobranças até expirar; não é recriado na Efí nem alterado (histórico preservado).

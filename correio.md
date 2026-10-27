@@ -1,121 +1,70 @@
-# VETOROS-DEPLOY-SEC-01 — Commit, Push e Deploy em Produção
+# VETOROS-EFI-RENEWAL-02.2 — Publicação e homologação da renovação
 
-## Objetivo
+**Objetivo:** concluir a publicação e homologação do fluxo de renovação Efí implementado na etapa 02.1, preservando integralmente as funcionalidades existentes e os dados operacionais.
 
-Publicar no servidor VPS as implementações VETOROS-SECURITY-FIX-01 e VETOROS-EFI-TEST-01, preservando integralmente os dados e permitindo homologação operacional diretamente no ambiente real.
+## 1. Recuperação do Git
 
-**Infraestrutura:** `/opt/infra-abrasil`
+- Auditar o checkout original e o clone temporário `/tmp/vetoros-renewal-publish-20261027`.
+- Identificar todas as alterações da etapa 02.1.
+- Resolver as permissões de escrita do Git sem comprometer o histórico.
+- Verificar o acesso SSH ao GitHub e a chave autorizada.
+- Criar commit com os arquivos efetivamente validados.
+- Sincronizar com `origin/main`, preservando alterações remotas.
+- Efetuar push sem `force`, salvo justificativa e autorização expressa.
+- Registrar o SHA publicado.
 
-**Autorização:** realizar commit, push, build, migrations necessárias e deploy. Não executar exclusões destrutivas, limpeza de arquivos antigos ou alterações de dados comerciais reais.
+## 2. Preparação e deploy
 
-## 1. Preparação local
+- Confirmar acesso autorizado à VPS.
+- Verificar backup válido do banco.
+- Confirmar que a migration de disponibilidade dos planos é compatível com os registros existentes.
+- Executar a migration antes de disponibilizar o novo código.
+- Publicar a versão validada.
+- Verificar logs, rotas, jobs, filas e funcionamento dos webhooks.
 
-1. Confirmar branch, alterações pendentes e diferenças contra `origin/main`.
-2. Incluir os arquivos das implementações de segurança, Efí Bank e auditoria.
-3. Verificar se há credenciais, certificados, tokens ou dados sensíveis nos arquivos que serão versionados.
-4. Executar os testes automatizados, análise estática e build.
-5. Verificar que a integração Efí existente permanece funcional.
-6. Criar commit descritivo:
-   `fix(vetoros): harden tenant security and add Efi payment tests`
-7. Executar push para `origin/main`, sem force push.
+Não executar containers locais.
 
-Interromper se houver falhas relevantes ou divergências inesperadas.
+## 3. Homologação funcional
 
-## 2. Preparação da VPS
+Testar o percurso completo:
 
-Acessar `/opt/infra-abrasil`.
+1. Tenant com assinatura vencida acessa o sistema.
+2. Visualiza a tela de bloqueio.
+3. Clica em Renovar assinatura.
+4. Seleciona um plano público e ativo.
+5. Confere valores, periodicidade e resumo.
+6. Clica em Prosseguir para pagamento.
+7. Visualiza os métodos Efí habilitados.
+8. Inicia o pagamento.
+9. Em caso de pagamento pendente, pode recuperar e consultar a cobrança posteriormente.
+10. Após confirmação confiável do pagamento, a assinatura é ativada e o acesso é restabelecido.
 
-Antes de publicar:
+Validar também isolamento entre tenants, autorização administrativa, webhook duplicado, plano desativado, falha de pagamento e ausência de cobrança retroativa após cortesia expirada.
 
-- Identificar o container VetorOS e o Compose efetivamente utilizados.
-- Confirmar branch e revisão atualmente implantada.
-- Verificar os volumes persistentes do banco e dos arquivos.
-- Realizar backup do banco e dos arquivos de OS, com verificação de integridade.
-- Confirmar espaço em disco.
-- Garantir persistência de `ORDER_FILES_ROOT`.
-- Preservar configurações e credenciais da Efí Bank, Spedy, WAHA e SMTP.
-- Garantir que o serviço anterior possa ser restaurado em caso de falha.
+## 4. Homologação visual
 
-Não sobrescrever arquivos `.env` de produção.
+Inspecionar no navegador desktop e mobile:
 
-## 3. Publicação
+- Tela de acesso suspenso.
+- Seleção de planos.
+- Resumo da contratação.
+- Modal de pagamento Efí.
+- Situação de pagamento pendente.
+- Confirmação e retorno ao dashboard.
 
-1. Atualizar o código a partir do commit publicado.
-2. Construir as imagens necessárias.
-3. Verificar previamente as migrations pendentes.
-4. Aplicar somente migrations conhecidas e compatíveis, incluindo `create_efi_integration_tests_table`.
-5. Publicar a versão atualizada do VetorOS.
-6. Executar os ajustes de cache do Laravel conforme a configuração existente.
-7. Verificar logs, health checks, conexões e funcionamento da aplicação.
+Manter a identidade visual padronizada do VetorOS, com interface simples e sem configurações técnicas desnecessárias para o cliente.
 
-Não executar comandos que recriem volumes de banco ou removam arquivos persistentes.
+## 5. Critérios de conclusão
 
-## 4. Arquivos antigos das OS
+Somente considerar a tarefa concluída quando:
 
-Executar inicialmente:
+- Commit e push estiverem confirmados.
+- Migration e deploy tiverem sido executados com sucesso.
+- Testes automatizados permanecerem aprovados.
+- Fluxo em navegador estiver homologado.
+- A conciliação Efí tiver sido comprovada com segurança, sem simular pagamentos reais.
+- Nenhum tenant existente tiver perdido dados, permissões ou funcionalidades.
 
-`php artisan vetoros:migrate-order-files`
+Caso não haja acesso à VPS ou credenciais Efí autorizadas, documentar o bloqueio real e não declarar homologação concluída.
 
-Analisar o relatório JSON da simulação.
-
-Após confirmar backup, configuração persistente e ausência de conflitos impeditivos, executar:
-
-`php artisan vetoros:migrate-order-files --execute`
-
-Verificar quantidades, checksums e arquivos ambíguos.
-
-**Não remover `public/storage/orders` nesta execução.** Registrar os riscos residuais e reservar a retirada pública para depois da homologação.
-
-## 5. Homologação no servidor
-
-Validar os seguintes fluxos:
-
-- Login e painel administrativo.
-- RootAdmin e acesso às empresas.
-- Isolamento entre tenants.
-- Cadastro e consulta de clientes.
-- Criação, consulta e edição de ordens de serviço.
-- Fotos, assinaturas e recibos de OS.
-- Portal público de acompanhamento, com e sem chave.
-- Orçamentos e permissões de técnicos.
-- Estoque, vendas, PDV e cancelamentos.
-- Financeiro e contratos SaaS.
-- Integração Efí Bank e abertura do modal de pagamentos de teste.
-- Acesso por dispositivos móveis.
-
-Usar registros de teste identificáveis e evitar alterações em dados comerciais de clientes reais.
-
-Não realizar cobrança financeira real antes de uma autorização específica para o valor e o método.
-
-## 6. Critérios de aprovação
-
-Considerar o deploy concluído somente quando:
-
-- O commit publicado corresponder ao código implantado.
-- Containers e serviços estiverem saudáveis.
-- Migrations necessárias estiverem aplicadas.
-- Banco e arquivos persistentes estiverem preservados.
-- Login, OS, portal público e PDV estiverem funcionais.
-- Isolamento entre empresas estiver validado.
-- O RootAdmin conseguir abrir o modal Efí.
-- Não houver erros críticos novos nos logs.
-
-Se houver falha crítica, interromper a homologação e executar o rollback previsto, sem eliminar os registros necessários à investigação.
-
-## 7. Relatório final
-
-Atualizar `executed.md` com:
-
-- Hash do commit e resultado do push.
-- Revisão anterior e revisão publicada.
-- Containers atualizados.
-- Migrations executadas.
-- Resultado dos backups.
-- Resultado da migração de arquivos.
-- Testes funcionais realizados.
-- Evidências dos testes Efí.
-- Erros encontrados e correções.
-- Pendências e riscos residuais.
-- Status final: PUBLICADO E HOMOLOGADO, PUBLICADO COM PENDÊNCIAS ou ROLLBACK EXECUTADO.
-
-**Não declarar homologação completa apenas porque os containers iniciaram.**
+Gerar relatório em `docs/VETOROS-EFI-RENEWAL-02.2.md` e atualizar `executed.md`, com evidências, commits, testes e pendências.

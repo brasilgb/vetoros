@@ -58,7 +58,7 @@ class PublicPlanCatalog
             ->whereIn('billing_months', array_keys(self::PERIODICITIES))
             ->orderBy('id')
             ->get()
-            ->reject(fn (Plan $plan) => $plan->isTrial() || $plan->isCourtesy())
+            ->reject(fn (Plan $plan) => ! $plan->availableForSelfService())
             ->unique('billing_months')
             ->keyBy('billing_months');
     }
