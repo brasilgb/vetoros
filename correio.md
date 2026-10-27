@@ -1,70 +1,71 @@
-# VETOROS-EFI-RENEWAL-02.2 — Publicação e homologação da renovação
+# VETOROS-EFI-RENEWAL-02.4 — Diagnóstico e correção definitiva
 
-**Objetivo:** concluir a publicação e homologação do fluxo de renovação Efí implementado na etapa 02.1, preservando integralmente as funcionalidades existentes e os dados operacionais.
+**Situação confirmada:** o código atualizado já recebeu commit e push. Não tratar ausência de commit ou push como causa presumida.
 
-## 1. Recuperação do Git
+A tela real do tenant Sigma Operating Software continua sem a opção de renovar a assinatura, apesar da implementação da VETOROS-EFI-RENEWAL-02.1.
 
-- Auditar o checkout original e o clone temporário `/tmp/vetoros-renewal-publish-20261027`.
-- Identificar todas as alterações da etapa 02.1.
-- Resolver as permissões de escrita do Git sem comprometer o histórico.
-- Verificar o acesso SSH ao GitHub e a chave autorizada.
-- Criar commit com os arquivos efetivamente validados.
-- Sincronizar com `origin/main`, preservando alterações remotas.
-- Efetuar push sem `force`, salvo justificativa e autorização expressa.
-- Registrar o SHA publicado.
+## 1. Encontrar a causa
 
-## 2. Preparação e deploy
+Rastrear o fluxo completo desde a rota de acesso suspenso até a renderização do componente.
 
-- Confirmar acesso autorizado à VPS.
-- Verificar backup válido do banco.
-- Confirmar que a migration de disponibilidade dos planos é compatível com os registros existentes.
-- Executar a migration antes de disponibilizar o novo código.
-- Publicar a versão validada.
-- Verificar logs, rotas, jobs, filas e funcionamento dos webhooks.
+Verificar:
 
-Não executar containers locais.
+- Middleware de bloqueio de assinaturas.
+- Controller responsável pela tela suspensa.
+- Props enviadas pelo backend.
+- Componente React/Inertia efetivamente renderizado.
+- Condições de exibição do botão Renovar assinatura.
+- Permissões do administrador do tenant.
+- Endpoint de consulta dos planos.
+- Filtros do catálogo de planos.
+- Rotas e permissões do checkout Efí.
+- Diferença entre cortesia expirada e assinatura paga vencida.
 
-## 3. Homologação funcional
+Utilizar logs e testes direcionados para identificar exatamente onde o fluxo deixa de funcionar.
 
-Testar o percurso completo:
+Não simplesmente criar outro botão sem localizar a causa.
 
-1. Tenant com assinatura vencida acessa o sistema.
-2. Visualiza a tela de bloqueio.
-3. Clica em Renovar assinatura.
-4. Seleciona um plano público e ativo.
-5. Confere valores, periodicidade e resumo.
-6. Clica em Prosseguir para pagamento.
-7. Visualiza os métodos Efí habilitados.
-8. Inicia o pagamento.
-9. Em caso de pagamento pendente, pode recuperar e consultar a cobrança posteriormente.
-10. Após confirmação confiável do pagamento, a assinatura é ativada e o acesso é restabelecido.
+## 2. Corrigir
 
-Validar também isolamento entre tenants, autorização administrativa, webhook duplicado, plano desativado, falha de pagamento e ausência de cobrança retroativa após cortesia expirada.
+O administrador do tenant com cortesia expirada ou assinatura vencida deve conseguir:
 
-## 4. Homologação visual
+1. Visualizar Renovar assinatura.
+2. Abrir a seleção de planos.
+3. Selecionar um plano válido.
+4. Visualizar o resumo.
+5. Prosseguir para pagamento.
+6. Escolher o método Efí habilitado.
+7. Efetuar ou acompanhar o pagamento.
 
-Inspecionar no navegador desktop e mobile:
+As rotas necessárias devem permanecer acessíveis mesmo com a assinatura suspensa, sem liberar os módulos protegidos antes da confirmação financeira.
 
-- Tela de acesso suspenso.
-- Seleção de planos.
-- Resumo da contratação.
-- Modal de pagamento Efí.
-- Situação de pagamento pendente.
-- Confirmação e retorno ao dashboard.
+## 3. Testes obrigatórios
 
-Manter a identidade visual padronizada do VetorOS, com interface simples e sem configurações técnicas desnecessárias para o cliente.
+Reproduzir o cenário:
 
-## 5. Critérios de conclusão
+- Tenant: Sigma Operating Software.
+- Plano anterior: Cortesia.
+- Situação: Bloqueada.
+- Vencimento: 23/10/2026.
+- Carência encerrada: 25/10/2026.
 
-Somente considerar a tarefa concluída quando:
+Testar o fluxo com um administrador desse tenant e com um usuário sem permissão administrativa.
 
-- Commit e push estiverem confirmados.
-- Migration e deploy tiverem sido executados com sucesso.
-- Testes automatizados permanecerem aprovados.
-- Fluxo em navegador estiver homologado.
-- A conciliação Efí tiver sido comprovada com segurança, sem simular pagamentos reais.
-- Nenhum tenant existente tiver perdido dados, permissões ou funcionalidades.
+Verificar respostas HTTP, dados retornados, erros do navegador e renderização da interface.
 
-Caso não haja acesso à VPS ou credenciais Efí autorizadas, documentar o bloqueio real e não declarar homologação concluída.
+Não modificar artificialmente o estado financeiro real do tenant.
 
-Gerar relatório em `docs/VETOROS-EFI-RENEWAL-02.2.md` e atualizar `executed.md`, com evidências, commits, testes e pendências.
+## 4. Critério de conclusão
+
+Não encerrar a atividade somente com PHPUnit, TypeScript ou build aprovados.
+
+Comprovar visualmente que o administrador consegue:
+
+**Acesso suspenso → Renovar assinatura → Escolher plano → Prosseguir para pagamento → Modal Efí.**
+
+Apresentar a causa raiz encontrada, os arquivos corrigidos e evidências da navegação.
+
+Preservar dados e funcionalidades existentes. Não executar containers locais.
+
+Registrar o resultado em `docs/VETOROS-EFI-RENEWAL-02.4.md` e atualizar `executed.md`.
+

@@ -129,7 +129,7 @@ class SaasCheckoutController extends Controller
     /** O titular pode cancelar a recorrência no cartão; as próximas competências voltam a ter boleto/Pix. */
     public function cancelRecurring(Request $request): JsonResponse
     {
-        abort_unless($request->user()?->isAdministrator(), 403);
+        abort_unless($request->user()?->canManageSubscription(), 403);
         $request->validate(['confirm' => 'accepted']);
         $authorization = SaasRecurringAuthorization::activeFor((int) auth()->user()->tenant_id);
         if (! $authorization) {
@@ -148,7 +148,7 @@ class SaasCheckoutController extends Controller
     /** Situação de uma transação do próprio tenant (para a tela acompanhar; quem libera é a conciliação). */
     public function status(Payment $payment): JsonResponse
     {
-        abort_unless(auth()->user()?->isAdministrator(), 403);
+        abort_unless(auth()->user()?->canManageSubscription(), 403);
         abort_unless((int) $payment->tenant_id === (int) auth()->user()->tenant_id, 404);
 
         return response()->json(self::present($payment));
@@ -160,7 +160,7 @@ class SaasCheckoutController extends Controller
      */
     public function refresh(Payment $payment): JsonResponse
     {
-        abort_unless(auth()->user()?->isAdministrator(), 403);
+        abort_unless(auth()->user()?->canManageSubscription(), 403);
         abort_unless((int) $payment->tenant_id === (int) auth()->user()->tenant_id && $payment->isEfi(), 404);
 
         try {
@@ -205,7 +205,7 @@ class SaasCheckoutController extends Controller
 
     private function respond(callable $action): JsonResponse
     {
-        abort_unless(auth()->user()?->isAdministrator(), 403);
+        abort_unless(auth()->user()?->canManageSubscription(), 403);
         $tenant = auth()->user()->tenant;
         if (! $tenant) {
             return response()->json(['error' => 'Tenant não encontrado para o usuário autenticado.'], 422);

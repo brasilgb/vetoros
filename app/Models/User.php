@@ -150,6 +150,12 @@ class User extends Authenticatable
         return $this->roles === self::ROLE_ADMIN;
     }
 
+    /** Quem pode renovar e pagar a assinatura da empresa: administrador da empresa ou root. */
+    public function canManageSubscription(): bool
+    {
+        return $this->isAdministrator() || $this->isRoot();
+    }
+
     public function isOperator(): bool
     {
         return $this->roles === self::ROLE_OPERATOR;
