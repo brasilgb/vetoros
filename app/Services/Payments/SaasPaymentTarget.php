@@ -60,7 +60,7 @@ final class SaasPaymentTarget
     {
         return $this->charge
             ? 'saas-payment:charge:'.$this->charge->id
-            : 'saas-payment:plan:'.$this->tenant->id.':'.$this->plan->id;
+            : 'saas-payment:plan:'.$this->tenant->id;
     }
 
     public function intervalMonths(): int

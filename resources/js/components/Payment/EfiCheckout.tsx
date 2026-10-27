@@ -283,11 +283,7 @@ export default function EfiCheckout({
             <div className="space-y-4 text-center">
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3" role="status" aria-live="polite">
                     <p className="font-medium text-amber-900">
-                        {isBillet
-                            ? 'Boleto gerado: aguardando compensação.'
-                            : isCard
-                              ? 'Pagamento no cartão em análise.'
-                              : 'Pix gerado: aguardando pagamento.'}
+                        Aguardando pagamento · {isBillet ? 'boleto gerado, aguardando compensação.' : isCard ? 'cartão em análise.' : 'Pix gerado.'}
                     </p>
                     <p className="text-sm text-amber-800">A liberação é automática quando o banco confirmar. Não é preciso enviar comprovante.</p>
                     {!isBillet && result.expires_at && <p className="mt-1 text-xs text-amber-800">Válido até {formatDateTime(result.expires_at)}.</p>}

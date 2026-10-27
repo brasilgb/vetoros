@@ -66,6 +66,8 @@ class SubscriptionController extends Controller
             return response()->json(['status' => 'unavailable'], 404);
         }
 
+        abort_unless($request->user()->isAdministrator(), 403);
+
         $tenant->refresh();
         $access = $tenant->subscriptionBucket();
         $openCharge = app(SaasContractService::class)->openChargeFor($tenant);
@@ -116,14 +118,18 @@ class SubscriptionController extends Controller
         $checkout = SaasCheckoutController::props($tenant);
         $plans = $tenant->hasCustomContract()
             ? collect()
-            : Plan::query()->with('periods')->get()->filter(fn (Plan $plan) => ! $plan->isTrial() && (float) $plan->value > 0)->values();
+            : Plan::query()->with('periods.features')->where('is_active', true)->where('is_public', true)->get()
+                ->filter(fn (Plan $plan) => $plan->availableForSelfService())->values();
 
         // Alvo atual para mostrar a transação Efí pendente depois de recarregar a página.
         $pending = null;
         if ($charge) {
             $pending = self::pendingPayment(SaasPaymentTarget::forCharge($charge));
-        } elseif ($tenant->plan_id && $plans->contains('id', $tenant->plan_id)) {
-            $pending = self::pendingPayment(SaasPaymentTarget::forPlan($tenant, $plans->firstWhere('id', $tenant->plan_id)));
+        } else {
+            $pending = Payment::query()->where('tenant_id', $tenant->id)->where('gateway', Payment::GATEWAY_EFI)
+                ->whereNull('tenant_subscription_charge_id')->where('status', Payment::STATUS_PENDING)
+                ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                ->latest('id')->first();
         }
 
         return [
@@ -136,7 +142,10 @@ class SubscriptionController extends Controller
                 'value' => number_format((float) $plan->value, 2, '.', ''),
                 'billing_months' => $plan->billingMonths(),
                 'current' => (int) $plan->id === (int) $tenant->plan_id,
+                'features' => $plan->preferredPeriod()?->features->pluck('name')->values()->all() ?? [],
             ])->values(),
+            'previous_plan_name' => $tenant->plan?->name,
+            'courtesy_expired' => $tenant->plan?->isCourtesy() && $tenant->subscriptionBucket() === Tenant::SUBSCRIPTION_BLOCKED,
             'charge' => $charge ? [
                 'contract_number' => $charge->contract->contract_number,
                 'amount' => (string) $charge->amount,
@@ -149,6 +158,8 @@ class SubscriptionController extends Controller
             'active' => $tenant->subscriptionBucket() !== Tenant::SUBSCRIPTION_BLOCKED,
             'checkout' => $checkout,
             'pending_payment' => $pending ? SaasCheckoutController::present($pending) : null,
+            'pending_plan_id' => $pending?->plan_id,
+            'can_manage_subscription' => auth()->user()?->isAdministrator() ?? false,
         ];
     }
 

@@ -63,6 +63,7 @@ export default function PlansIndex({ plans }: any) {
                                 <TableHead>Descrição</TableHead>
                                 <TableHead>Valor</TableHead>
                                 <TableHead>Ciclo</TableHead>
+                                <TableHead>Contratação</TableHead>
                                 <TableHead>Cadastro</TableHead>
                                 <TableHead></TableHead>
                             </TableRow>
@@ -77,6 +78,7 @@ export default function PlansIndex({ plans }: any) {
                                         <TableCell>{plan.description}</TableCell>
                                         <TableCell>{formatBRL(plan.value)}</TableCell>
                                         <TableCell>{formatBillingCycle(plan.billing_months)}</TableCell>
+                                        <TableCell>{!plan.is_active ? 'Inativo' : plan.is_public ? 'Público' : 'Privado'}</TableCell>
                                         <TableCell>{moment(plan.created_at).format('DD/MM/YYYY')}</TableCell>
                                         <TableCell className="flex justify-end gap-2">
                                             <EditPlan plan={plan} />
@@ -86,7 +88,7 @@ export default function PlansIndex({ plans }: any) {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="flex h-16 w-full items-center justify-center">
+                                    <TableCell colSpan={9} className="flex h-16 w-full items-center justify-center">
                                         Não há dados a serem mostrados no momento.
                                     </TableCell>
                                 </TableRow>
@@ -94,7 +96,7 @@ export default function PlansIndex({ plans }: any) {
                         </TableBody>
                         <TableFooter>
                             <TableRow>
-                                <TableCell colSpan={8}>
+                                <TableCell colSpan={9}>
                                     <AppPagination data={plans} />
                                 </TableCell>
                             </TableRow>

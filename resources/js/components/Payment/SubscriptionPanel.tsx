@@ -1,10 +1,19 @@
 import EfiCheckout, { type Checkout, type CheckoutResult } from '@/components/Payment/EfiCheckout';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatBRL } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import moment from 'moment';
 import { useState } from 'react';
 
-export type SubscriptionPlan = { id: number; name: string; description: string | null; value: string; billing_months: number; current: boolean };
+export type SubscriptionPlan = {
+    id: number;
+    name: string;
+    description: string | null;
+    value: string;
+    billing_months: number;
+    current: boolean;
+    features: string[];
+};
 export type SubscriptionCharge = {
     contract_number: string;
     amount: string;
@@ -31,6 +40,10 @@ export type SubscriptionData = {
     status: SubscriptionStatus;
     checkout: Checkout;
     pending_payment?: CheckoutResult | null;
+    pending_plan_id?: number | null;
+    previous_plan_name?: string | null;
+    courtesy_expired?: boolean;
+    can_manage_subscription?: boolean;
 };
 
 const date = (value: string | null) => (value ? moment(value).format('DD/MM/YYYY') : '-');
@@ -63,11 +76,13 @@ export default function SubscriptionPanel({
     const { plans, charge, status, checkout, pending_payment } = data;
     const current = plans.find((plan) => plan.current) ?? null;
     const [selectedPlan, setSelectedPlan] = useState<number | null>(current?.id ?? (plans.length === 1 ? plans[0].id : null));
-    const unavailable = checkout.methods.length === 0;
+    const [checkoutOpen, setCheckoutOpen] = useState(Boolean(pending_payment));
+    const unavailable = checkout.methods.length === 0 && !pending_payment;
     const isCustom = status.billing_mode === 'custom';
     const blocked = status.state === 'blocked';
     const selected = plans.find((plan) => plan.id === selectedPlan) ?? null;
-    const payable = isCustom ? Boolean(charge) : plans.length > 0;
+    const pendingPlan = plans.find((plan) => plan.id === data.pending_plan_id) ?? null;
+    const payable = isCustom ? Boolean(charge) : plans.length > 0 || Boolean(pending_payment);
 
     return (
         <div className="space-y-4 text-sm">
@@ -95,6 +110,22 @@ export default function SubscriptionPanel({
                 </section>
             )}
             {!showStatus && status.reason && <p className="text-muted-foreground">{status.reason}</p>}
+
+            {data.previous_plan_name && !current && !isCustom && (
+                <p className="text-muted-foreground">
+                    Plano anterior: <strong>{data.previous_plan_name}</strong>.
+                </p>
+            )}
+            {data.courtesy_expired && (
+                <p className="rounded-md border p-3">
+                    A cortesia terminou. A nova assinatura começa após a confirmação do pagamento, sem cobrança pelo período da cortesia.
+                </p>
+            )}
+            {pending_payment && pendingPlan && selectedPlan !== pendingPlan.id && (
+                <p role="status" className="rounded-md border p-3">
+                    Há um pagamento do plano {pendingPlan.name} aguardando confirmação. Consulte esse pagamento antes de trocar de plano.
+                </p>
+            )}
 
             {charge && (
                 <section aria-labelledby="subscription-charge" className="rounded-lg border p-4">
@@ -146,6 +177,9 @@ export default function SubscriptionPanel({
                                         {periodicityLabel(plan.billing_months)}
                                         {plan.description ? ` · ${plan.description}` : ''}
                                     </span>
+                                    {plan.features.length > 0 && (
+                                        <span className="text-muted-foreground block text-xs">Benefícios e limites: {plan.features.join(' · ')}</span>
+                                    )}
                                 </span>
                             </span>
                             <span className="font-bold whitespace-nowrap">{formatBRL(plan.value)}</span>
@@ -160,7 +194,12 @@ export default function SubscriptionPanel({
                 </p>
             )}
 
+            {payable && data.can_manage_subscription === false && (
+                <p className="rounded-md border p-3">Peça ao administrador da empresa para concluir a renovação.</p>
+            )}
+
             {payable &&
+                data.can_manage_subscription !== false &&
                 (unavailable ? (
                     <p
                         role="status"
@@ -168,21 +207,43 @@ export default function SubscriptionPanel({
                     >
                         {checkout.unavailable_message ?? 'Pagamento online indisponível no momento. Fale com o atendimento da ABrasil Sistemas.'}
                     </p>
-                ) : isCustom ? (
-                    <EfiCheckout checkout={checkout} initialResult={pending_payment} onConfirmed={onConfirmed} />
-                ) : selected ? (
+                ) : isCustom || selected || pending_payment ? (
                     <div className="space-y-2">
-                        <p className="text-muted-foreground">
-                            Pagar {selected.name} ({periodicityLabel(selected.billing_months).toLowerCase()}):{' '}
-                            <strong className="text-foreground">{formatBRL(selected.value)}</strong>
-                        </p>
-                        <EfiCheckout
-                            key={selected.id}
-                            checkout={checkout}
-                            planId={selected.id}
-                            initialResult={selected.current ? pending_payment : null}
-                            onConfirmed={onConfirmed}
-                        />
+                        {isCustom || selected ? (
+                            <p className="text-muted-foreground">
+                                Resumo da contratação:{' '}
+                                {isCustom
+                                    ? 'cobrança do contrato'
+                                    : `${selected?.name} (${periodicityLabel(selected!.billing_months).toLowerCase()})`}
+                                , <strong className="text-foreground">{formatBRL(isCustom ? charge!.amount : selected!.value)}</strong>.
+                            </p>
+                        ) : (
+                            <p className="text-muted-foreground">Consulte a cobrança pendente antes de escolher outro plano.</p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setCheckoutOpen(true)}
+                            className="bg-primary text-primary-foreground w-full rounded-md px-4 py-2 font-medium"
+                        >
+                            {pending_payment ? 'Aguardando pagamento · consultar novamente' : 'Prosseguir para pagamento'}
+                        </button>
+                        <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+                            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                                <DialogHeader>
+                                    <DialogTitle>Pagamento Efí · {isCustom ? 'contrato' : (selected?.name ?? 'cobrança pendente')}</DialogTitle>
+                                </DialogHeader>
+                                <EfiCheckout
+                                    key={isCustom ? 'contract' : (selected?.id ?? 'pending')}
+                                    checkout={checkout}
+                                    planId={isCustom ? null : selected?.id}
+                                    initialResult={pending_payment}
+                                    onConfirmed={() => {
+                                        setCheckoutOpen(false);
+                                        onConfirmed();
+                                    }}
+                                />
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 ) : (
                     <p className="text-muted-foreground">Selecione a renovação para ver os meios de pagamento.</p>

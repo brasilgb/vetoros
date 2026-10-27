@@ -18,6 +18,7 @@ const titles: Record<SubscriptionStatus['state'], string> = {
 export default function Blocked(props: SubscriptionData) {
     const { tenant, status } = props;
     const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+    const [showRenewal, setShowRenewal] = useState(false);
     const isCustom = status.billing_mode === 'custom';
     const blocked = status.state === 'blocked';
 
@@ -44,7 +45,20 @@ export default function Blocked(props: SubscriptionData) {
 
             <main className="mt-6 sm:mx-auto sm:w-full sm:max-w-lg">
                 <div className="bg-card px-4 py-6 shadow sm:rounded-lg sm:px-8">
-                    <SubscriptionPanel data={props} onConfirmed={() => setPaymentConfirmed(true)} />
+                    {blocked && !showRenewal ? (
+                        <div className="space-y-4 text-center">
+                            <p className="text-muted-foreground">{status.reason}</p>
+                            <button
+                                type="button"
+                                onClick={() => setShowRenewal(true)}
+                                className="bg-primary text-primary-foreground w-full rounded-md px-4 py-3 font-semibold"
+                            >
+                                Renovar assinatura
+                            </button>
+                        </div>
+                    ) : (
+                        <SubscriptionPanel data={props} onConfirmed={() => setPaymentConfirmed(true)} />
+                    )}
                 </div>
 
                 <div className="mt-6 flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-center">

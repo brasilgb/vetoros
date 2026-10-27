@@ -28,6 +28,8 @@ class PlanRequest extends FormRequest
             'description' => 'required|string|max:500',
             'value' => 'required|numeric|min:0',
             'billing_months' => 'required|integer|in:1,3,6,12,14',
+            'is_active' => 'sometimes|boolean',
+            'is_public' => 'sometimes|boolean',
         ];
     }
 

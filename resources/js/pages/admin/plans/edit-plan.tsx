@@ -17,6 +17,8 @@ interface Plan {
     description: string;
     value: string;
     billing_months: number;
+    is_active: boolean;
+    is_public: boolean;
 }
 
 interface EditPlanProps {
@@ -32,6 +34,8 @@ export default function EditPlan({ plan }: EditPlanProps) {
         description: plan.description,
         value: plan.value,
         billing_months: String(plan.billing_months ?? 1),
+        is_active: plan.is_active,
+        is_public: plan.is_public,
     });
 
     const handleSlug = (slug: string) => {
@@ -67,6 +71,15 @@ export default function EditPlan({ plan }: EditPlanProps) {
                         <Input type="text" id="name" value={data.name} onChange={(e) => handleSlug(e.target.value)} />
                         {errors.name && <div className="text-sm text-red-500">{errors.name}</div>}
                     </div>
+
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} />
+                        Plano ativo
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={data.is_public} onChange={(e) => setData('is_public', e.target.checked)} />
+                        Disponível para contratação pelo cliente
+                    </label>
 
                     <div className="grid gap-2">
                         <Label htmlFor="slug">Slug</Label>
