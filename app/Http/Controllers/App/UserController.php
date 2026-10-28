@@ -5,14 +5,19 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Models\App\Company;
+use App\Models\App\Order;
 use App\Models\App\OrderTechnicianAssignment;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\OrderTechnicianAssignmentService;
+use App\Support\OrderActor;
+use App\Support\OrderStatus;
 use App\Support\TenantSequence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -188,7 +193,7 @@ class UserController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UserRequest $request, User $user): RedirectResponse
+    public function update(UserRequest $request, User $user, OrderTechnicianAssignmentService $assignments): RedirectResponse
     {
         $this->authorize('update', $user);
 
@@ -202,11 +207,32 @@ class UserController extends Controller
         $data['can_view_all_orders'] = $this->resolveTechnicianMasterFlag(Auth::user(), $data, $user);
         $data['commission_percentage'] = $this->resolveCommissionPercentage($data);
         $data['avatar'] = $this->storeAvatar($request, $user);
-        Model::reguard();
-        $user->update($data);
-        Model::unguard();
+        DB::transaction(function () use ($user, $data, $assignments): void {
+            Model::reguard();
+            $user->update($data);
+            Model::unguard();
+
+            if ($user->wasChanged('status') && ! $user->isActive()) {
+                $this->releaseOpenOrders($user, $assignments);
+            }
+        });
 
         return redirect()->route('app.users.show', ['user' => $user->id])->with('success', 'Usuário editado com sucesso');
+    }
+
+    /**
+     * Libera as OS em aberto de um técnico inativado: ficam sem responsável até um novo técnico
+     * ser escolhido ou direcionado por administrador/root.
+     */
+    private function releaseOpenOrders(User $technician, OrderTechnicianAssignmentService $assignments): void
+    {
+        $actor = OrderActor::userOrSystem(Auth::user());
+
+        Order::query()
+            ->where('user_id', $technician->id)
+            ->whereNotIn('service_status', [OrderStatus::CANCELLED, OrderStatus::SERVICE_NOT_EXECUTED, OrderStatus::DELIVERED])
+            ->get()
+            ->each(fn (Order $order) => $assignments->assign($order, null, $actor, 'Técnico inativado'));
     }
 
     /**

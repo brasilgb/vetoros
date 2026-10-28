@@ -620,71 +620,77 @@ export default function Orders({ orders, whats, feedback, search, status, filter
                                                         </Link>
                                                     </Button>
 
-                                                    {canManageOrders && (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    size="icon"
-                                                                    variant="outline"
-                                                                    title="Mais ações"
-                                                                    aria-label={`Mais ações da ordem ${order.order_number}`}
-                                                                >
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-56">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="outline"
+                                                                title="Mais ações"
+                                                                aria-label={`Mais ações da ordem ${order.order_number}`}
+                                                            >
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-56">
+                                                            {canManageOrders && (
                                                                 <DropdownMenuItem asChild>
                                                                     <a target="_blank" href={route('os.token', order?.tracking_token)}>
                                                                         <LinkIcon />
                                                                         Acompanhamento público
                                                                     </a>
                                                                 </DropdownMenuItem>
+                                                            )}
+                                                            {canManageOrders && (
                                                                 <DropdownMenuItem onSelect={() => setReceiptOrderId(order.id)}>
                                                                     <Printer />
                                                                     Imprimir recibo
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem asChild>
-                                                                    <Link href={route('app.images.index', { or: order.id })}>
-                                                                        <ImageUp />
-                                                                        Imagens
-                                                                        {imagesCount > 0 && (
-                                                                            <Badge variant="secondary" className="ml-auto">
-                                                                                {imagesCount}
-                                                                            </Badge>
-                                                                        )}
-                                                                    </Link>
+                                                            )}
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={route('app.images.index', { or: order.id })}>
+                                                                    <ImageUp />
+                                                                    Imagens
+                                                                    {imagesCount > 0 && (
+                                                                        <Badge variant="secondary" className="ml-auto">
+                                                                            {imagesCount}
+                                                                        </Badge>
+                                                                    )}
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            {canManageOrders && hasBudgetFollowUp && order.can_send_budget_follow_up && (
+                                                                <DropdownMenuItem onSelect={() => handleBudgetFollowUp(order.id)}>
+                                                                    <Mail />
+                                                                    Cobrar orçamento
                                                                 </DropdownMenuItem>
-                                                                {hasBudgetFollowUp && order.can_send_budget_follow_up && (
-                                                                    <DropdownMenuItem onSelect={() => handleBudgetFollowUp(order.id)}>
-                                                                        <Mail />
-                                                                        Cobrar orçamento
+                                                            )}
+                                                            {canIssueServiceInvoice &&
+                                                                ORDER_STATUSES_READY_FOR_INVOICE.includes(Number(order.service_status)) &&
+                                                                canIssueInvoiceWithValue && (
+                                                                    <DropdownMenuItem
+                                                                        onSelect={() => {
+                                                                            setSelectedInvoiceOrder(order);
+                                                                            setOpenInvoiceModal(true);
+                                                                        }}
+                                                                    >
+                                                                        <FileTextIcon />
+                                                                        Emitir NFSe
                                                                     </DropdownMenuItem>
                                                                 )}
-                                                                {canIssueServiceInvoice &&
-                                                                    ORDER_STATUSES_READY_FOR_INVOICE.includes(Number(order.service_status)) &&
-                                                                    canIssueInvoiceWithValue && (
-                                                                        <DropdownMenuItem
-                                                                            onSelect={() => {
-                                                                                setSelectedInvoiceOrder(order);
-                                                                                setOpenInvoiceModal(true);
-                                                                            }}
-                                                                        >
-                                                                            <FileTextIcon />
-                                                                            Emitir NFSe
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem
-                                                                    variant="destructive"
-                                                                    onSelect={() => setDeleteOrder({ id: order.id, number: order.order_number })}
-                                                                >
-                                                                    <Trash2 />
-                                                                    Excluir OS
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    )}
+                                                            {canManageOrders && (
+                                                                <>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        variant="destructive"
+                                                                        onSelect={() => setDeleteOrder({ id: order.id, number: order.order_number })}
+                                                                    >
+                                                                        <Trash2 />
+                                                                        Excluir OS
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
