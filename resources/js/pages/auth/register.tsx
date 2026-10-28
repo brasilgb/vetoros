@@ -147,17 +147,6 @@ export default function Register({ initialData = {} }: { initialData?: Partial<P
                                 maxLength={15}
                             />
                             <InputError message={errors.phone} />
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="phone_is_whatsapp"
-                                    checked={phoneIsWhatsapp}
-                                    onCheckedChange={(checked) => togglePhoneIsWhatsapp(checked === true)}
-                                    disabled={processing}
-                                />
-                                <Label htmlFor="phone_is_whatsapp" className="cursor-pointer font-normal">
-                                    Telefone também é WhatsApp
-                                </Label>
-                            </div>
                         </div>
 
                         <div className="grid gap-2">
@@ -174,6 +163,17 @@ export default function Register({ initialData = {} }: { initialData?: Partial<P
                             />
                             <InputError message={errors.whatsapp} />
                         </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            id="phone_is_whatsapp"
+                            checked={phoneIsWhatsapp}
+                            onCheckedChange={(checked) => togglePhoneIsWhatsapp(checked === true)}
+                            disabled={processing}
+                        />
+                        <Label htmlFor="phone_is_whatsapp" className="cursor-pointer font-normal">
+                            Telefone também é WhatsApp
+                        </Label>
                     </div>
                     <div className="grid gap-6">
                         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
