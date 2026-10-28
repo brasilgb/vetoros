@@ -38,6 +38,22 @@ export default function Register({ initialData = {} }: { initialData?: Partial<P
         accepted_terms: false,
     });
 
+    // Quando marcado, o WhatsApp acompanha o telefone (sem máscara, como o telefone enviado).
+    const [phoneIsWhatsapp, setPhoneIsWhatsapp] = useState(false);
+
+    const handlePhoneChange = (value: string) => {
+        setData((currentData) => ({
+            ...currentData,
+            phone: value,
+            ...(phoneIsWhatsapp ? { whatsapp: unMask(value) ?? '' } : {}),
+        }));
+    };
+
+    const togglePhoneIsWhatsapp = (checked: boolean) => {
+        setPhoneIsWhatsapp(checked);
+        if (checked) setData('whatsapp', unMask(data.phone) ?? '');
+    };
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
@@ -126,11 +142,22 @@ export default function Register({ initialData = {} }: { initialData?: Partial<P
                                 tabIndex={4}
                                 autoComplete="phone"
                                 value={maskPhone(data.phone)}
-                                onChange={(e) => setData('phone', e.target.value)}
+                                onChange={(e) => handlePhoneChange(e.target.value)}
                                 disabled={processing}
                                 maxLength={15}
                             />
                             <InputError message={errors.phone} />
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="phone_is_whatsapp"
+                                    checked={phoneIsWhatsapp}
+                                    onCheckedChange={(checked) => togglePhoneIsWhatsapp(checked === true)}
+                                    disabled={processing}
+                                />
+                                <Label htmlFor="phone_is_whatsapp" className="cursor-pointer font-normal">
+                                    Telefone também é WhatsApp
+                                </Label>
+                            </div>
                         </div>
 
                         <div className="grid gap-2">
@@ -142,7 +169,7 @@ export default function Register({ initialData = {} }: { initialData?: Partial<P
                                 autoComplete="whatsapp"
                                 value={maskPhone(data.whatsapp)}
                                 onChange={(e) => setData('whatsapp', e.target.value)}
-                                disabled={processing}
+                                disabled={processing || phoneIsWhatsapp}
                                 maxLength={15}
                             />
                             <InputError message={errors.whatsapp} />
