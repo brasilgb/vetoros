@@ -7,6 +7,7 @@ use App\Tenantable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class FiscalDocument extends Model
@@ -61,6 +62,11 @@ class FiscalDocument extends Model
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(FiscalDocumentAttempt::class, 'fiscal_document_id');
     }
 
     /**

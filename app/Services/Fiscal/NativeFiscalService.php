@@ -7,6 +7,7 @@ use App\Jobs\StoreFiscalDocumentFiles;
 use App\Models\App\AccountReceivable;
 use App\Models\App\Company;
 use App\Models\App\FiscalDocument;
+use App\Models\App\FiscalDocumentAttempt;
 use App\Models\App\FiscalDocumentDelivery;
 use App\Models\App\FiscalSetting;
 use App\Models\App\MaintenanceContractLog;
@@ -227,12 +228,12 @@ class NativeFiscalService
      * Ignora regressões: um evento antigo de "processando" não desfaz uma
      * autorização ou um cancelamento já registrados.
      */
-    public function applyInvoice(FiscalDocument $document, array $invoice): FiscalDocument
+    public function applyInvoice(FiscalDocument $document, array $invoice, string $action = FiscalDocumentAttempt::ACTION_SYNC): FiscalDocument
     {
         $providerStatus = (string) ($invoice['status'] ?? '');
         $status = SpedyInvoiceState::localStatus($providerStatus);
 
-        return DB::transaction(function () use ($document, $invoice, $status) {
+        return DB::transaction(function () use ($document, $invoice, $status, $providerStatus, $action) {
             $document = FiscalDocument::query()->withoutGlobalScopes()->lockForUpdate()->findOrFail($document->id);
 
             if ($status === null || SpedyInvoiceState::isRegression($document->status, $status)) {
@@ -242,6 +243,8 @@ class NativeFiscalService
             $previousStatus = $document->status;
 
             $document->forceFill(SpedyInvoiceState::attributes($document, $invoice, $status))->save();
+
+            $this->recordAttempt($document, $action, $providerStatus, $invoice['processingDetail'] ?? null);
 
             $this->syncDocumentable($document);
 
@@ -330,6 +333,7 @@ class NativeFiscalService
             $payload = $buildPayload($setting, $document->integration_id);
         } catch (FiscalValidationException $exception) {
             $document->forceFill(['status' => FiscalDocument::STATUS_FAILED, 'error_message' => $exception->getMessage()])->save();
+            $this->recordAttempt($document, FiscalDocumentAttempt::ACTION_SEND, null, null, $userId);
 
             throw $exception;
         }
@@ -345,6 +349,7 @@ class NativeFiscalService
                 'status' => $exception->isTransient() ? FiscalDocument::STATUS_PROCESSING : FiscalDocument::STATUS_FAILED,
                 'error_message' => $exception->getMessage(),
             ])->save();
+            $this->recordAttempt($document, FiscalDocumentAttempt::ACTION_SEND, null, null, $userId, $exception->getMessage());
 
             if (! $exception->isTransient()) {
                 throw $exception;
@@ -357,7 +362,27 @@ class NativeFiscalService
 
         $document->forceFill(['provider_reference' => $invoice['id'] ?? $document->provider_reference])->save();
 
-        return $this->applyInvoice($document, $invoice);
+        return $this->applyInvoice($document, $invoice, FiscalDocumentAttempt::ACTION_SEND);
+    }
+
+    /**
+     * Grava uma linha no histórico da nota. A mensagem é a mesma que a tela mostra, já sem
+     * dados sensíveis (SpedyInvoiceState::rejectionMessage e mensagens do SpedyException).
+     */
+    private function recordAttempt(FiscalDocument $document, string $action, ?string $providerStatus, ?array $detail, ?int $userId = null, ?string $message = null): void
+    {
+        $code = trim((string) ($detail['code'] ?? '')) ?: null;
+
+        FiscalDocumentAttempt::query()->create([
+            'tenant_id' => $document->tenant_id,
+            'fiscal_document_id' => $document->id,
+            'action' => $action,
+            'status' => $document->status,
+            'provider_status' => $providerStatus ?: null,
+            'error_code' => $code,
+            'message' => $message ?? ($document->error_message ? mb_substr((string) $document->error_message, 0, 1000) : null),
+            'user_id' => $userId,
+        ]);
     }
 
     private function clientFor(FiscalDocument $document): SpedyClient

@@ -11,8 +11,19 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Ban, ExternalLink, FileText, Plus, ReceiptText, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Ban, ExternalLink, Eye, FileText, Plus, ReceiptText, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+
+type FiscalAttempt = {
+    id: number;
+    action: 'send' | 'sync';
+    status: string;
+    provider_status?: string | null;
+    error_code?: string | null;
+    message?: string | null;
+    user?: string | null;
+    created_at?: string | null;
+};
 
 type FiscalDocument = {
     id: number;
@@ -23,6 +34,7 @@ type FiscalDocument = {
     environment?: string | null;
     number?: string | null;
     series?: string | null;
+    access_key?: string | null;
     status: string;
     error_message?: string | null;
     pdf_url?: string | null;
@@ -31,6 +43,7 @@ type FiscalDocument = {
     created_at?: string | null;
     can_refresh?: boolean;
     can_cancel?: boolean;
+    attempts?: FiscalAttempt[];
     standalone?: {
         id: number;
         customer?: string | null;
@@ -72,6 +85,18 @@ const statusLabels: Record<string, { label: string; variant: 'default' | 'second
     failed: { label: 'Falhou', variant: 'destructive' },
 };
 
+const attemptActionLabels: Record<string, string> = {
+    send: 'Envio à Spedy',
+    sync: 'Atualização de status',
+};
+
+/** Ambiente da nota: somente produção é emissão real; qualquer outro valor é homologação/simulação. */
+function environmentLabel(environment?: string | null) {
+    if (!environment) return '-';
+
+    return environment === 'production' ? 'Produção' : 'Homologação (simulação)';
+}
+
 function sourceLabel(document: FiscalDocument) {
     if (document.provider === 'spedy') {
         return document.environment === 'production' ? 'Emissão automática' : 'Emissão automática (homologação)';
@@ -93,6 +118,9 @@ export default function FiscalDocuments({ documents = [], standalone }: { docume
     const [cancelling, setCancelling] = useState<FiscalDocument | null>(null);
     const [emitting, setEmitting] = useState(false);
     const [discarding, setDiscarding] = useState<FiscalDocument | null>(null);
+    // Guarda só o id: assim o diálogo mostra o histórico atualizado após refresh/reenvio.
+    const [detailingId, setDetailingId] = useState<number | null>(null);
+    const detailing = documents.find((document) => document.id === detailingId) ?? null;
     const { data, setData, post, processing, errors, reset } = useForm({ reason: '' });
 
     const refresh = (document: FiscalDocument) => {
@@ -196,6 +224,14 @@ export default function FiscalDocuments({ documents = [], standalone }: { docume
                                                 </TableCell>
                                                 <TableCell className="min-w-[180px]">
                                                     <div className="flex flex-wrap justify-end gap-2">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="outline"
+                                                            title="Ver detalhes"
+                                                            onClick={() => setDetailingId(document.id)}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
                                                         {document.can_refresh && (
                                                             <Button
                                                                 size="icon"
@@ -286,6 +322,78 @@ export default function FiscalDocuments({ documents = [], standalone }: { docume
             </div>
 
             <StandaloneInvoiceDialog open={emitting} onOpenChange={setEmitting} options={standalone} />
+
+            <Dialog open={detailing !== null} onOpenChange={(open) => !open && setDetailingId(null)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Nota {detailing?.type.toUpperCase()} {detailing?.number ? `nº ${detailing.number}` : '(sem número)'}
+                        </DialogTitle>
+                        <DialogDescription>{detailing ? sourceLabel(detailing) : ''}</DialogDescription>
+                    </DialogHeader>
+
+                    {detailing && (
+                        <div className="space-y-4 text-sm">
+                            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <dt className="text-muted-foreground">Situação</dt>
+                                <dd>
+                                    <Badge variant={(statusLabels[detailing.status] ?? { variant: 'secondary' as const }).variant}>
+                                        {(statusLabels[detailing.status] ?? { label: detailing.status }).label}
+                                    </Badge>
+                                </dd>
+                                <dt className="text-muted-foreground">Ambiente</dt>
+                                <dd>{environmentLabel(detailing.environment)}</dd>
+                                <dt className="text-muted-foreground">Série</dt>
+                                <dd>{detailing.series || '-'}</dd>
+                                <dt className="text-muted-foreground">Número</dt>
+                                <dd>{detailing.number || '-'}</dd>
+                                <dt className="text-muted-foreground">Chave de acesso</dt>
+                                <dd className="font-mono text-xs break-all">{detailing.access_key || '-'}</dd>
+                                <dt className="text-muted-foreground">Emissão</dt>
+                                <dd>{detailing.issued_at ? new Date(detailing.issued_at).toLocaleString('pt-BR') : '-'}</dd>
+                            </dl>
+
+                            {detailing.error_message && (
+                                <p className="border-destructive/40 bg-destructive/5 text-destructive rounded-md border p-3">
+                                    {detailing.error_message}
+                                </p>
+                            )}
+
+                            <div>
+                                <h3 className="mb-2 font-medium">Histórico de tentativas</h3>
+                                {(detailing.attempts ?? []).length > 0 ? (
+                                    <ul className="divide-y rounded-md border">
+                                        {(detailing.attempts ?? []).map((attempt) => (
+                                            <li key={attempt.id} className="space-y-1 p-3">
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <span className="font-medium">{attemptActionLabels[attempt.action] ?? attempt.action}</span>
+                                                    <span className="text-muted-foreground text-xs">
+                                                        {attempt.created_at ? new Date(attempt.created_at).toLocaleString('pt-BR') : ''}
+                                                        {attempt.user ? ` · ${attempt.user}` : ''}
+                                                    </span>
+                                                </div>
+                                                <p className="text-muted-foreground text-xs">
+                                                    {(statusLabels[attempt.status] ?? { label: attempt.status }).label}
+                                                    {attempt.provider_status ? ` (Spedy: ${attempt.provider_status})` : ''}
+                                                </p>
+                                                {attempt.message && <p className="text-destructive text-xs break-words">{attempt.message}</p>}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-muted-foreground">Nenhuma tentativa registrada.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDetailingId(null)}>
+                            Fechar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={discarding !== null} onOpenChange={(open) => !open && setDiscarding(null)}>
                 <DialogContent>

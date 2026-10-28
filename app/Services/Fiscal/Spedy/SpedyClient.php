@@ -268,6 +268,8 @@ class SpedyClient
 
         Log::warning('Spedy: requisição recusada', ['path' => $path, 'status' => $status, 'errors' => $errors]);
 
+        $friendly = SpedyInvoiceState::friendlyMessage(implode(' ', $errors));
+
         $message = match (true) {
             $status === 401 => 'Chave de API da Spedy inválida ou revogada. Confira a integração no RootAdmin.',
             $status === 403 => 'Acesso negado pela Spedy: chave de outro ambiente ou plano/permissão insuficiente. Contate o suporte.',
@@ -275,6 +277,7 @@ class SpedyClient
             $status === 429 => 'Muitas solicitações ao serviço de emissão fiscal. Aguarde alguns segundos e tente novamente.',
             $status >= 500 => 'O serviço de emissão fiscal está indisponível no momento. Tente novamente em instantes.',
             $certificateRequest => 'Certificado recusado pelo emissor. Confira o arquivo A1 e a senha; se o problema persistir, contate o suporte.',
+            $friendly !== null => $friendly,
             $errors !== [] => 'Dados recusados pelo serviço de emissão fiscal: '.implode(' ', array_slice($errors, 0, 5)),
             default => 'Solicitação recusada pelo serviço de emissão fiscal.',
         };

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\App\FiscalDocument;
+use App\Models\App\FiscalDocumentAttempt;
 use App\Models\App\FiscalSetting;
 use App\Models\App\Other;
 use App\Models\App\StandaloneInvoice;
@@ -49,7 +50,15 @@ class FiscalDocumentController extends Controller
             ->get()
             ->keyBy('id');
 
-        $documents = $documents->map(function (FiscalDocument $document) use ($standalone) {
+        // Histórico de tentativas (mais recentes primeiro, até 10 por nota) em uma única consulta.
+        $attempts = FiscalDocumentAttempt::query()
+            ->with('user:id,name')
+            ->whereIn('fiscal_document_id', $documents->pluck('id'))
+            ->latest('id')
+            ->get()
+            ->groupBy('fiscal_document_id');
+
+        $documents = $documents->map(function (FiscalDocument $document) use ($standalone, $attempts) {
             $native = $document->isNative();
             $hasFile = $native && in_array($document->status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED], true);
             $invoice = $document->documentable_type === StandaloneInvoice::class ? $standalone->get($document->documentable_id) : null;
@@ -61,6 +70,16 @@ class FiscalDocumentController extends Controller
                 'xml_url' => $hasFile ? route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'xml']) : $document->xml_url,
                 'can_refresh' => $native && in_array($document->status, [...FiscalDocument::PENDING_STATUSES, FiscalDocument::STATUS_REJECTED], true),
                 'can_cancel' => $native && $document->status === FiscalDocument::STATUS_AUTHORIZED,
+                'attempts' => $attempts->get($document->id, collect())->take(10)->map(fn (FiscalDocumentAttempt $attempt) => [
+                    'id' => $attempt->id,
+                    'action' => $attempt->action,
+                    'status' => $attempt->status,
+                    'provider_status' => $attempt->provider_status,
+                    'error_code' => $attempt->error_code,
+                    'message' => $attempt->message,
+                    'user' => $attempt->user?->name,
+                    'created_at' => $attempt->created_at?->toIso8601String(),
+                ])->values()->all(),
                 'standalone' => $invoice ? [
                     'id' => $invoice->id,
                     'customer' => $invoice->customer?->name,

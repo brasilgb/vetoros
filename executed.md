@@ -1,35 +1,30 @@
-# VETOROS-EFI-RENEWAL-02.4 — resultado da execução
+# VETOROS-FISCAL-AVULSA-01 — resultado da execução
 
-Data: 27/10/2026
-SHA-256 de `correio.md`: `09c143cce2fc96f72ab23676f1bac0c624dfa2bcf74145b4f62fb73e5f079cd5`
-
-`correio.md` difere da versão commitada (02.2). Este arquivo foi limpo e substituído pelo resultado da etapa 02.4. O histórico anterior permanece no Git (commit `630893bc`).
+Data: 28/10/2026
 
 ## Resultado
 
-**Causa raiz encontrada. Correção depende de preço dos planos, decisão comercial pendente.** A tela de renovação funciona; não há planos disponíveis para renovação porque todos os planos públicos estão cadastrados com valor R$ 0,00 e sem período. Nenhum preço foi definido e nenhum dado financeiro do tenant foi alterado.
+**Parcial.** Concluídos: SPD005 com mensagem amigável, histórico de tentativas, visualização detalhada da nota e testes de regressão do payload. **Não concluído:** correção do E1235 (`nDPS = 0`). O VetorOS não envia número à Spedy, então o zero é gerado do lado da Spedy. Falta a Spedy confirmar o campo e a regra de numeração da DPS antes de qualquer alteração de numeração. Nenhuma chamada real à Spedy foi feita e nenhuma nota foi emitida.
 
 ## Evidências
 
-- Tenant Sigma Operating Software: plano Cortesia, vencimento 23/10/2026, carência até 25/10/2026, situação `blocked`.
-- Consulta somente leitura em produção (`php artisan tinker` no container `infra-abrasil-vetoros-1`): os 7 planos (Trial, Cortesia, Mensal, Trimestral, Semestral, Anual, Cobrança Presencial) têm `value = 0.00` e nenhum período. Nenhum passa em `Plan::availableForSelfService()`.
-- Fluxo: `Subscription/Blocked` mostra "Renovar assinatura" → `SubscriptionPanel` recebe `plans = []` → mostra "Fale com o atendimento".
-- Efí Bank: homologada em 19/10/2026, `efi_payee_code` com 32 caracteres, métodos Pix, boleto, cartão e cartão recorrente habilitados.
-- Build em produção (`vetoros:deploy-630893bc`) contém o botão "Renovar assinatura".
-- Teste novo `tests/Feature/App/SubscriptionCourtesyRenewalTest.php`: 2 casos, ambos aprovados. Um com plano precificado (lista o plano e os métodos Efí); outro com planos a R$ 0,00 (reproduz o estado de produção).
-- Testes: `SubscriptionCourtesyRenewalTest`, `SubscriptionFlowTest` e `EfiSaasPaymentsTest`: **45 aprovados, 653 asserções**. Pint sem alertas.
+- `php artisan test` (suíte completa): **904 aprovados, 6389 asserções**.
+- `tests/Feature/App/StandaloneInvoiceTest.php`: 22 aprovados (4 novos).
+- Pint sem alertas nos PHP alterados; Prettier e ESLint sem erros no TSX alterado; `tsc` sem erros nas páginas fiscal e de pedidos.
 
 ## Alterações
 
-- Novo: `tests/Feature/App/SubscriptionCourtesyRenewalTest.php`.
-- Novo: `docs/VETOROS-EFI-RENEWAL-02.4.md` (relatório detalhado).
-- Nenhuma alteração de código de produção. Nenhuma migration, deploy ou commit.
+- SPD005: `app/Services/Fiscal/Spedy/SpedyInvoiceState.php` e `SpedyClient.php`.
+- Histórico de tentativas: migration `2026_10_28_100000_create_fiscal_document_attempts_table.php`, modelo `FiscalDocumentAttempt`, registro em `NativeFiscalService.php`, `attempts` na listagem (`FiscalDocumentController.php`).
+- Tela: diálogo "Ver detalhes" em `resources/js/pages/app/fiscal-documents/index.tsx`.
+- Testes: `tests/Feature/App/StandaloneInvoiceTest.php`.
+- Relatório: `docs/VETOROS-FISCAL-AVULSA-01.md`.
 
 ## Pendências
 
-1. Definir valor e período dos planos públicos no RootAdmin. Sem isso, empresas bloqueadas não conseguem renovar pelo sistema. Depois disso a renovação aparece sem alteração de código.
-2. Homologação visual não realizada: depende do item 1. Percorrer em navegador: acesso suspenso → Renovar assinatura → escolher plano → prosseguir para pagamento → modal Efí.
-3. Decidir se a tela de bloqueio deve explicar ao administrador o motivo quando não há plano disponível (hoje mostra apenas "Fale com o atendimento").
-4. Commit e push das alterações (teste novo, relatório e executed.md) aguardam autorização.
+1. Perguntar à Spedy o campo e a regra de numeração da DPS (NFS-e nacional) e o significado de E1235 e SPD005. Sem isso não há numeração a implementar com segurança.
+2. Implementar numeração persistida depois da resposta, sem reiniciar sequências existentes.
+3. Rodar o cenário de homologação de `docs/homologacao-fiscal-avulsa.md` no sandbox da Spedy.
+4. Commit e push: ver a mensagem de entrega.
 
-Relatório detalhado: `docs/VETOROS-EFI-RENEWAL-02.4.md`.
+Relatório detalhado: `docs/VETOROS-FISCAL-AVULSA-01.md`.

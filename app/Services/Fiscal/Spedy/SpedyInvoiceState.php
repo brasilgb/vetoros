@@ -85,7 +85,24 @@ class SpedyInvoiceState
         $message = trim((string) ($detail['message'] ?? ''));
         $code = trim((string) ($detail['code'] ?? ''));
 
+        if ($friendly = self::friendlyMessage($code.' '.$message)) {
+            return mb_substr(trim(($code !== '' ? "[{$code}] " : '').$friendly), 0, 1000);
+        }
+
         return mb_substr(trim(($code !== '' ? "[{$code}] " : '').($message ?: 'Nota recusada pela autoridade fiscal.')), 0, 1000);
+    }
+
+    /**
+     * Mensagem amigável para erros conhecidos da Spedy. SPD005: o serviço de NFS-e não está
+     * disponível para o município/ambiente configurados (comum na simulação). Não troca de ambiente.
+     */
+    public static function friendlyMessage(string $text): ?string
+    {
+        if (str_contains($text, 'SPD005')) {
+            return 'A emissão de NFS-e não está disponível para o município e o ambiente configurados. Confira o código IBGE do município e o ambiente nas configurações fiscais; nenhuma troca para produção é feita automaticamente.';
+        }
+
+        return null;
     }
 
     /** Guarda somente o necessário para suporte; nada de dados pessoais completos. */
