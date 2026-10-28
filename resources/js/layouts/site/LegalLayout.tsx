@@ -1,5 +1,4 @@
 import { BrandHorizontalLogo } from '@/components/brand-logo';
-import { CookieConsent, CookiePreferencesButton } from '@/pages/site/components/cookie-consent';
 import { Link } from '@inertiajs/react';
 
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
@@ -26,7 +25,6 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
                     <nav aria-label="Informações legais" className="mb-5 flex justify-center gap-6 sm:justify-end">
                         <Link href="/privacidade">Privacidade</Link>
                         <Link href="/termos">Termos</Link>
-                        <CookiePreferencesButton />
                     </nav>
                     <div className="flex flex-col items-center gap-3 border-t border-border pt-5 text-center sm:flex-row sm:justify-between sm:text-left">
                         <p>© {new Date().getFullYear()} {productName}. Todos os direitos reservados.</p>
@@ -35,7 +33,6 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
                 </div>
             </footer>
 
-            <CookieConsent />
         </div>
     );
 }

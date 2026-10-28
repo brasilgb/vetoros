@@ -10,6 +10,8 @@
     $metaSiteName = $meta['siteName'] ?? 'VetorOS';
     $metaRobots = $meta['robots'] ?? 'index, follow, max-image-preview:large';
     $isPublicSite = str_starts_with((string) data_get($page, 'component', ''), 'site/');
+    // O chat de vendas aparece só na landing page, nunca em planos, termos ou privacidade.
+    $isLandingPage = data_get($page, 'component') === 'site/home/index';
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
@@ -145,7 +147,7 @@
 
     @inertia
 
-    @if ($isPublicSite && preg_match('/^[A-Za-z0-9]{48}$/', (string) config('services.vetorchat.widget_key')) && str_starts_with((string) config('services.vetorchat.script_url'), 'https://'))
+    @if ($isLandingPage && preg_match('/^[A-Za-z0-9]{48}$/', (string) config('services.vetorchat.widget_key')) && str_starts_with((string) config('services.vetorchat.script_url'), 'https://'))
         <script src="{{ config('services.vetorchat.script_url') }}" data-widget-key="{{ config('services.vetorchat.widget_key') }}" data-product="vetoros" async></script>
     @endif
 
