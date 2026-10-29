@@ -306,6 +306,9 @@ class SpedyClient
             }
         }
 
-        return array_values(array_unique(array_map(fn (string $m) => mb_substr(trim($m), 0, 300), $messages)));
+        return array_values(array_unique(array_map(
+            fn (string $m) => mb_substr(SpedyMessageTranslator::translate($m), 0, 300),
+            $messages,
+        )));
     }
 }

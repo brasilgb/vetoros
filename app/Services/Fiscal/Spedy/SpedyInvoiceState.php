@@ -83,6 +83,7 @@ class SpedyInvoiceState
     public static function rejectionMessage(array $detail): string
     {
         $message = trim((string) ($detail['message'] ?? ''));
+        $message = $message !== '' ? SpedyMessageTranslator::translate($message) : '';
         $code = trim((string) ($detail['code'] ?? ''));
 
         if ($friendly = self::friendlyMessage($code.' '.$message)) {
