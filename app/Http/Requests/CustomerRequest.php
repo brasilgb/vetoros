@@ -34,6 +34,8 @@ class CustomerRequest extends FormRequest
             'cpfcnpj' => ['required', 'string', 'max:18'],
             // 'email'  => ($this->getMethod() == 'POST') ? 'required|unique:customers' : 'required|unique:customers,email,' . $this->customer->id,
             'phone' => ['required', 'string', 'max:20'],
+            // WhatsApp é opcional, mas quando preenchido precisa ser um número com DDD (10 ou 11 dígitos).
+            'whatsapp' => ['nullable', 'digits_between:10,11'],
             'zipcode' => ['nullable', 'string', 'max:20'],
             'state' => ['nullable', 'string', 'size:2'],
             'city' => ['nullable', 'string', 'max:50'],
@@ -49,6 +51,7 @@ class CustomerRequest extends FormRequest
         return [
             'name' => 'nome',
             'phone' => 'telefone',
+            'whatsapp' => 'WhatsApp',
             'cpfcnpj' => 'CPF/CNPJ',
             'zipcode' => 'CEP',
             'state' => 'UF',

@@ -2,7 +2,6 @@ import { toastSuccess } from '@/components/app-toast-messages';
 import { DatePicker } from '@/components/date-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,19 +25,6 @@ export default function CustomerForm({ initialData }: { initialData?: Customer }
     const [duplicateCustomers, setDuplicateCustomers] = useState<DuplicateCustomer[]>([]);
 
     const { data, setData, post, processing, reset, setError, clearErrors, errors, put } = useForm<Customer>(initialData || ({} as Customer));
-
-    // Quando marcado, o WhatsApp acompanha o telefone; na edição, já vem marcado se os dois forem iguais.
-    const [phoneIsWhatsapp, setPhoneIsWhatsapp] = useState(() => !!initialData?.phone && initialData.phone === initialData.whatsapp);
-
-    const handlePhoneChange = (value: string) => {
-        setData('phone', value);
-        if (phoneIsWhatsapp) setData('whatsapp', value);
-    };
-
-    const togglePhoneIsWhatsapp = (checked: boolean) => {
-        setPhoneIsWhatsapp(checked);
-        if (checked) setData('whatsapp', data.phone ?? '');
-    };
 
     const handleCreate = () => {
         post(route('app.customers.store'), {
@@ -290,20 +276,10 @@ export default function CustomerForm({ initialData }: { initialData?: Customer }
                                 type="text"
                                 id="phone"
                                 value={maskPhone(data.phone)}
-                                onChange={(e) => handlePhoneChange(unMask(e.target.value) ?? '')}
+                                onChange={(e) => setData('phone', unMask(e.target.value) ?? '')}
                                 maxLength={15}
                             />
                             {errors.phone && <div className="text-sm text-red-500">{errors.phone}</div>}
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="phone_is_whatsapp"
-                                    checked={phoneIsWhatsapp}
-                                    onCheckedChange={(v) => togglePhoneIsWhatsapp(v === true)}
-                                />
-                                <Label htmlFor="phone_is_whatsapp" className="cursor-pointer font-normal">
-                                    Telefone também é WhatsApp
-                                </Label>
-                            </div>
                         </div>
 
                         <div className="grid gap-2">
@@ -313,9 +289,9 @@ export default function CustomerForm({ initialData }: { initialData?: Customer }
                                 id="whatsapp"
                                 value={maskPhone(data.whatsapp)}
                                 onChange={(e) => setData('whatsapp', unMask(e.target.value) ?? '')}
-                                disabled={phoneIsWhatsapp}
                                 maxLength={15}
                             />
+                            {errors.whatsapp && <div className="text-sm text-red-500">{errors.whatsapp}</div>}
                         </div>
 
                         <div className="grid gap-2 md:col-span-2">

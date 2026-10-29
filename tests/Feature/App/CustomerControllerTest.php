@@ -99,6 +99,32 @@ class CustomerControllerTest extends TestCase
         ]);
     }
 
+    public function test_it_rejects_whatsapp_that_is_not_a_full_phone_number(): void
+    {
+        $response = $this->post(route('app.customers.store'), [
+            'name' => 'Cliente Sem WhatsApp',
+            'cpfcnpj' => '97755150097',
+            'phone' => '51999999999',
+            'whatsapp' => '0000000',
+        ]);
+
+        $response->assertSessionHasErrors('whatsapp');
+        $this->assertDatabaseMissing('customers', ['name' => 'Cliente Sem WhatsApp']);
+    }
+
+    public function test_it_accepts_customer_without_whatsapp(): void
+    {
+        $response = $this->post(route('app.customers.store'), [
+            'name' => 'Cliente Só Telefone',
+            'cpfcnpj' => '97755150097',
+            'phone' => '51999999999',
+            'whatsapp' => null,
+        ]);
+
+        $response->assertSessionDoesntHaveErrors('whatsapp');
+        $this->assertDatabaseHas('customers', ['name' => 'Cliente Só Telefone']);
+    }
+
     public function test_show_exposes_equipments_as_top_level_prop_not_nested_in_customer(): void
     {
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
