@@ -147,6 +147,29 @@ class WhatsAppSendControllerTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'http://waha.test/api/sendText' && $request['chatId'] === '5551999999999@c.us');
     }
 
+    public function test_customer_whatsapp_send_falls_back_to_phone_when_whatsapp_is_missing(): void
+    {
+        $this->connectedSession();
+
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create([
+            'whatsapp' => null,
+            'phone' => '51999999999',
+        ]);
+
+        Http::fake([
+            'waha.test/api/contacts/check-exists*' => Http::response(['numberExists' => true, 'chatId' => '5551999999999@c.us']),
+            'waha.test/api/sendText' => Http::response(['id' => 'true_5551999999999@c.us_ABC']),
+        ]);
+
+        $response = $this->post(route('app.customers.whatsapp.send', $customer), [
+            'message' => 'Bom dia!',
+        ]);
+
+        $response->assertSessionHas('success');
+
+        Http::assertSent(fn ($request) => $request->url() === 'http://waha.test/api/sendText' && $request['chatId'] === '5551999999999@c.us');
+    }
+
     public function test_customer_whatsapp_send_fails_with_friendly_error_when_disconnected(): void
     {
         $customer = Customer::factory()->forTenant($this->tenant->id)->create(['whatsapp' => '51999999999']);

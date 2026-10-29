@@ -21,7 +21,7 @@ import { buildMessage } from '@/components/WhatsAppButtonProps';
 import AppLayout from '@/layouts/app-layout';
 import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
-import { maskCpfCnpj, maskPhone, normalizeWhatsappPhone, unMask } from '@/Utils/mask';
+import { isValidWhatsappPhone, maskCpfCnpj, maskPhone, unMask } from '@/Utils/mask';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Calendar, Edit, Loader2, MoreHorizontal, Plus, Send, Trash2, Upload, Users2, Wrench } from 'lucide-react';
 import moment from 'moment';
@@ -60,6 +60,9 @@ export default function Customers({ customers, search, pending, whats }: any) {
     const [sendingWhatsappId, setSendingWhatsappId] = useState<number | null>(null);
     const [selectedWhatsappOption, setSelectedWhatsappOption] = useState<Record<number, string>>({});
     const canManageCustomers = auth?.permissions?.includes('customers');
+
+    // Mesma regra do backend: usa o WhatsApp do cliente e, se ele não for válido, o telefone.
+    const whatsappNumberFor = (customer: any): string => (isValidWhatsappPhone(customer.whatsapp) ? customer.whatsapp : customer.phone);
 
     const whatsappOptionsFor = (customer: any): CustomerWhatsappOption[] => [
         DEFAULT_WHATSAPP_OPTION,
@@ -184,7 +187,7 @@ export default function Customers({ customers, search, pending, whats }: any) {
                                                             className="bg-green-500 text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
                                                             title="Enviar WhatsApp"
                                                             aria-label={`Enviar WhatsApp para ${customer.name}`}
-                                                            disabled={!normalizeWhatsappPhone(customer.whatsapp) || sendingWhatsappId === customer.id}
+                                                            disabled={!isValidWhatsappPhone(whatsappNumberFor(customer)) || sendingWhatsappId === customer.id}
                                                         >
                                                             {sendingWhatsappId === customer.id ? (
                                                                 <Loader2 className="h-4 w-4 animate-spin" />

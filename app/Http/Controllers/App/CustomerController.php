@@ -13,6 +13,7 @@ use App\Services\OrderCommunicationContextService;
 use App\Services\WhatsAppService;
 use App\Support\OrderStatus;
 use App\Support\TenantSequence;
+use App\Support\WhatsAppPhone;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -635,7 +636,8 @@ class CustomerController extends Controller
     }
 
     /**
-     * Envia, via WAHA, uma mensagem de WhatsApp para o telefone cadastrado do cliente.
+     * Envia, via WAHA, uma mensagem de WhatsApp para o WhatsApp do cliente. Se ele não tiver
+     * um número válido, usa o telefone cadastrado como alternativa.
      */
     public function sendWhatsapp(Request $request, Customer $customer, WhatsAppService $whatsAppService): RedirectResponse
     {
@@ -645,8 +647,10 @@ class CustomerController extends Controller
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
+        $number = WhatsAppPhone::isValid($customer->whatsapp) ? $customer->whatsapp : $customer->phone;
+
         try {
-            $whatsAppService->sendText((int) $customer->tenant_id, $customer->whatsapp, $validated['message']);
+            $whatsAppService->sendText((int) $customer->tenant_id, $number, $validated['message']);
         } catch (WhatsAppException $exception) {
             return back()->with('error', $exception->getMessage());
         }

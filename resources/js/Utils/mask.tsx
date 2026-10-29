@@ -36,6 +36,11 @@ function normalizeWhatsappPhone(value: unknown): string {
     return digits;
 }
 
+// Espelha `WhatsAppPhone::isValid()` do backend: com prefixo 55, precisa de pelo menos 12 dígitos.
+function isValidWhatsappPhone(value: unknown): boolean {
+    return normalizeWhatsappPhone(value).length >= 12;
+}
+
 function maskDate(value: string): string {
     const digits = onlyDigits(value).slice(0, 8);
     if (!digits) return '';
@@ -109,4 +114,4 @@ function createSlug(title: string): string {
     return '';
 }
 
-export { createSlug, maskCep, maskCnpj, maskCpfCnpj, maskDate, maskPhone, maskWhatsApp, normalizeWhatsappPhone, unMasCpfCnpj, unMask };
+export { createSlug, isValidWhatsappPhone, maskCep, maskCnpj, maskCpfCnpj, maskDate, maskPhone, maskWhatsApp, normalizeWhatsappPhone, unMasCpfCnpj, unMask };
