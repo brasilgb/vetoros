@@ -87,6 +87,28 @@ class SpedyCompanyService
     }
 
     /**
+     * Define o próximo número da DPS na Spedy e, só depois da confirmação dela, grava o número
+     * localmente. Chamado apenas quando o tenant altera a numeração: as sincronizações comuns não
+     * enviam nextNumber, para não fazer a Spedy reutilizar um número já emitido.
+     */
+    public function syncNfseNumbering(FiscalSetting $setting, int $nextNumber): FiscalSetting
+    {
+        if (! $setting->isRegisteredOnSpedy()) {
+            throw new SpedyException('A empresa emissora ainda não foi cadastrada pela administração.');
+        }
+
+        SpedyClient::forOwner()
+            ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting, $nextNumber));
+
+        $setting->forceFill([
+            'nfse_next_number' => $nextNumber,
+            'nfse_numbering_synced_at' => now(),
+        ])->save();
+
+        return $setting;
+    }
+
+    /**
      * O certificado e a senha vão direto para a Spedy e não são guardados no
      * VetorOS; guardamos apenas titular e validade para alertas.
      */

@@ -40,6 +40,9 @@ type FiscalSettingProps = {
     default_nfe_series?: string | null;
     default_nfce_series?: string | null;
     default_nfse_series?: string | null;
+    nfse_next_number?: number | null;
+    nfse_numbering_synced_at?: string | null;
+    nfse_has_issued: boolean;
     nfce_csc_id?: string | null;
     nfce_csc_set: boolean;
     nfe_allowed: boolean;
@@ -122,6 +125,8 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, certi
         default_nfe_series: setting.default_nfe_series ?? '',
         default_nfce_series: setting.default_nfce_series ?? '',
         default_nfse_series: setting.default_nfse_series ?? '',
+        nfse_next_number: String(setting.nfse_next_number ?? ''),
+        confirm_nfse_sequence_change: false,
         nfce_csc_id: setting.nfce_csc_id ?? '',
         nfce_csc: '',
         // Sem valores tributários pré-preenchidos: devem vir da contabilidade.
@@ -150,7 +155,7 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, certi
 
         put(route('app.fiscal-settings.update'), {
             preserveScroll: true,
-            onSuccess: () => setData((current) => ({ ...current, nfce_csc: '', tax_settings_confirmed: false })),
+            onSuccess: () => setData((current) => ({ ...current, nfce_csc: '', tax_settings_confirmed: false, confirm_nfse_sequence_change: false })),
         });
     };
 
@@ -532,7 +537,46 @@ export default function FiscalSettings({ platformAvailable, tenantAllowed, certi
                                 error={errors.default_nfse_series}
                                 onChange={(v) => setData('default_nfse_series', v)}
                             />
+                            <Field
+                                id="nfse_next_number"
+                                label="Próximo número da DPS/RPS"
+                                type="number"
+                                value={data.nfse_next_number}
+                                error={errors.nfse_next_number}
+                                onChange={(v) => setData('nfse_next_number', v)}
+                            />
                         </div>
+                        <div className="text-muted-foreground grid gap-1 text-sm">
+                            <p>
+                                Situação:{' '}
+                                <span className="text-foreground font-medium">
+                                    {setting.nfse_next_number ? 'configurada na Spedy' : 'não configurada'}
+                                </span>
+                                . Empresa já emitiu NFS-e:{' '}
+                                <span className="text-foreground font-medium">{setting.nfse_has_issued ? 'sim' : 'não'}</span>. Última sincronização
+                                da numeração: {setting.nfse_numbering_synced_at ?? 'nunca'}.
+                            </p>
+                            <p>
+                                A partir do número informado, a Spedy controla a sequência da DPS. O VetorOS não incrementa números nem reutiliza
+                                valores já enviados.
+                            </p>
+                        </div>
+                        {setting.nfse_next_number ? (
+                            <div className="flex items-start gap-3 rounded-2xl border p-4">
+                                <Checkbox
+                                    id="confirm_nfse_sequence_change"
+                                    checked={data.confirm_nfse_sequence_change}
+                                    onCheckedChange={(checked) => setData('confirm_nfse_sequence_change', checked === true)}
+                                />
+                                <div className="grid gap-1">
+                                    <Label htmlFor="confirm_nfse_sequence_change">Confirmo a alteração da numeração da NFS-e</Label>
+                                    <p className="text-muted-foreground text-sm">
+                                        Alterar o número substitui a sequência atual na Spedy. Informe um número que ainda não tenha sido emitido,
+                                        senão a nota pode ser duplicada.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : null}
                         <div className="grid gap-2 md:max-w-sm">
                             <Label htmlFor="nfse_taxation_type">Tipo de tributação da NFS-e</Label>
                             <Select value={data.nfse_taxation_type} onValueChange={(value) => setData('nfse_taxation_type', value)}>
