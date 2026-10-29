@@ -304,6 +304,12 @@ class NativeFiscalService
                 ->latest('id')
                 ->first();
 
+            // E0014: a DPS já virou NFS-e na Receita. Reenviar geraria nota duplicada; a situação
+            // precisa ser consultada na Spedy antes de qualquer nova tentativa.
+            if ($retry && SpedyInvoiceState::hasNumberingConflict($retry->error_message)) {
+                throw new FiscalEmissionException('A DPS desta nota já originou uma NFS-e na Receita (erro E0014). O reenvio foi bloqueado para não duplicar a nota: consulte a situação na Spedy antes de tentar de novo.');
+            }
+
             $attributes = [
                 'status' => FiscalDocument::STATUS_PROCESSING,
                 'provider_status' => null,

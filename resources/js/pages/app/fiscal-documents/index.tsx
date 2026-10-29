@@ -37,6 +37,7 @@ type FiscalDocument = {
     access_key?: string | null;
     status: string;
     error_message?: string | null;
+    dps?: { number?: number | null; series?: string | null } | null;
     pdf_url?: string | null;
     xml_url?: string | null;
     issued_at?: string | null;
@@ -210,7 +211,15 @@ export default function FiscalDocuments({ documents = [], standalone }: { docume
                                                             </p>
                                                         )}
                                                 </TableCell>
-                                                <TableCell>{document.number || '-'}</TableCell>
+                                                <TableCell>
+                                                    {document.number || '-'}
+                                                    {!document.number && document.dps?.number && (
+                                                        <p className="text-muted-foreground text-xs">
+                                                            DPS {document.dps.number}
+                                                            {document.dps.series ? ` · série ${document.dps.series}` : ''}
+                                                        </p>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>
                                                     <Badge variant={status.variant}>{status.label}</Badge>
                                                     {document.error_message && (

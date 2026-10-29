@@ -36,9 +36,26 @@ class SpedyInvoiceState
         FiscalDocument::STATUS_CANCELLED => 5,
     ];
 
+    /** E0014: a DPS (série, número, município e CNPJ) já originou uma NFS-e; reenviar duplicaria a nota. */
+    public const CODE_NUMBERING_CONFLICT = 'E0014';
+
+    /** E0010: a série da DPS não pertence à faixa exigida para o canal de API/webservice. */
+    public const CODE_SERIES_RANGE = 'E0010';
+
     public static function localStatus(?string $providerStatus): ?string
     {
         return self::STATUS_MAP[(string) $providerStatus] ?? null;
+    }
+
+    /** Código de erro no início da mensagem gravada, ex.: "[E0014] ...". */
+    public static function errorCode(?string $message): ?string
+    {
+        return preg_match('/^\[(\w+)\]/', (string) $message, $matches) === 1 ? $matches[1] : null;
+    }
+
+    public static function hasNumberingConflict(?string $message): bool
+    {
+        return self::errorCode($message) === self::CODE_NUMBERING_CONFLICT;
     }
 
     /** Evento antigo fora de ordem não desfaz autorização/cancelamento; rejeitada → processando é reenvio. */
@@ -96,11 +113,20 @@ class SpedyInvoiceState
     /**
      * Mensagem amigável para erros conhecidos da Spedy. SPD005: o serviço de NFS-e não está
      * disponível para o município/ambiente configurados (comum na simulação). Não troca de ambiente.
+     * E0014: a DPS já virou NFS-e; reenviar duplicaria a nota. E0010: a série não serve ao canal de API.
      */
     public static function friendlyMessage(string $text): ?string
     {
         if (str_contains($text, 'SPD005')) {
             return 'A emissão de NFS-e não está disponível para o município e o ambiente configurados. Confira o código IBGE do município e o ambiente nas configurações fiscais; nenhuma troca para produção é feita automaticamente.';
+        }
+
+        if (str_contains($text, self::CODE_NUMBERING_CONFLICT)) {
+            return 'Esta DPS (série e número) já originou uma NFS-e na Receita. Não reenvie: consulte a situação na Spedy antes de qualquer nova tentativa, para não duplicar a nota.';
+        }
+
+        if (str_contains($text, self::CODE_SERIES_RANGE)) {
+            return 'A série enviada não é a exigida para o canal de API/webservice. Ajuste a série de NFS-e nas configurações fiscais; nenhuma série é trocada automaticamente.';
         }
 
         return null;
@@ -117,6 +143,7 @@ class SpedyInvoiceState
             'number' => $invoice['number'] ?? null,
             'series' => $invoice['series'] ?? null,
             'accessKey' => $invoice['accessKey'] ?? null,
+            'rps' => $invoice['rps'] ?? null,
             'amount' => $invoice['amount'] ?? null,
             'authorization' => $invoice['authorization'] ?? null,
             'processingDetail' => $invoice['processingDetail'] ?? null,

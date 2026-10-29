@@ -10,6 +10,7 @@ use App\Models\App\Other;
 use App\Models\App\StandaloneInvoice;
 use App\Services\Fiscal\NativeFiscalService;
 use App\Services\Fiscal\Spedy\SpedyClient;
+use App\Services\Fiscal\Spedy\SpedyInvoiceState;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -38,6 +39,7 @@ class FiscalDocumentController extends Controller
                 'pdf_url',
                 'xml_url',
                 'error_message',
+                'response_payload',
                 'issued_at',
                 'cancelled_at',
                 'created_at',
@@ -63,9 +65,12 @@ class FiscalDocumentController extends Controller
             $hasFile = $native && in_array($document->status, [FiscalDocument::STATUS_AUTHORIZED, FiscalDocument::STATUS_CANCELLED], true);
             $invoice = $document->documentable_type === StandaloneInvoice::class ? $standalone->get($document->documentable_id) : null;
             $retryable = in_array($document->status, [FiscalDocument::STATUS_REJECTED, FiscalDocument::STATUS_FAILED], true);
+            // E0014: a DPS já existe na Receita; reprocessar ou descartar a solicitação deixaria a nota sem registro local.
+            $numberingConflict = SpedyInvoiceState::hasNumberingConflict($document->error_message);
 
             return [
                 ...$document->only(['id', 'documentable_type', 'documentable_id', 'type', 'provider', 'environment', 'number', 'series', 'access_key', 'status', 'error_message', 'issued_at', 'cancelled_at', 'created_at']),
+                'dps' => $document->response_payload['rps'] ?? null,
                 'pdf_url' => $hasFile ? route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'pdf']) : $document->pdf_url,
                 'xml_url' => $hasFile ? route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'xml']) : $document->xml_url,
                 'can_refresh' => $native && in_array($document->status, [...FiscalDocument::PENDING_STATUSES, FiscalDocument::STATUS_REJECTED], true),
@@ -87,8 +92,8 @@ class FiscalDocumentController extends Controller
                     'discarded' => $invoice->isDiscarded(),
                     'finance_mode' => $invoice->finance_mode,
                     'receivable_status' => $invoice->receivable?->status,
-                    'can_reprocess' => $retryable && ! $invoice->isDiscarded(),
-                    'can_discard' => $retryable && ! $invoice->isDiscarded(),
+                    'can_reprocess' => $retryable && ! $numberingConflict && ! $invoice->isDiscarded(),
+                    'can_discard' => $retryable && ! $numberingConflict && ! $invoice->isDiscarded(),
                 ] : null,
             ];
         });
