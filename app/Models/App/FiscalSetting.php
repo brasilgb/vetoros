@@ -41,6 +41,8 @@ class FiscalSetting extends Model
             'nfce_allowed' => 'boolean',
             'nfse_allowed' => 'boolean',
             'production_released_at' => 'datetime',
+            'nfse_next_number' => 'integer',
+            'nfse_numbering_synced_at' => 'datetime',
             'nfse_simple_option' => 'integer',
             'nfse_special_tax_regime' => 'integer',
             'default_iss_rate' => 'decimal:4',

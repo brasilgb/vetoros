@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\App\FiscalDocument;
 use App\Models\App\FiscalSetting;
 use App\Models\Tenant;
 use App\Services\Fiscal\NativeFiscalService;
@@ -86,6 +87,12 @@ class FiscalSettingController extends Controller
                 'default_nfe_series' => $setting->default_nfe_series,
                 'default_nfce_series' => $setting->default_nfce_series,
                 'default_nfse_series' => $setting->default_nfse_series,
+                'nfse_next_number' => $setting->nfse_next_number,
+                'nfse_numbering_synced_at' => $setting->nfse_numbering_synced_at?->format('d/m/Y H:i'),
+                'nfse_has_issued' => FiscalDocument::query()
+                    ->where('type', SpedyClient::MODEL_NFSE)
+                    ->whereIn('status', FiscalDocument::BLOCKING_STATUSES)
+                    ->exists(),
                 'nfce_csc_id' => $setting->nfce_csc_id,
                 'nfce_csc_set' => filled($setting->nfce_csc),
                 'default_commercial_unit' => $setting->default_commercial_unit,
@@ -128,6 +135,8 @@ class FiscalSettingController extends Controller
             'default_nfe_series' => ['nullable', 'regex:/^\d{1,3}$/'],
             'default_nfce_series' => ['nullable', 'regex:/^\d{1,3}$/'],
             'default_nfse_series' => 'nullable|string|max:20',
+            'nfse_next_number' => 'nullable|integer|min:1|max:999999999999',
+            'confirm_nfse_sequence_change' => 'boolean',
             'nfce_csc_id' => ['nullable', 'regex:/^\d{1,6}$/'],
             'nfce_csc' => 'nullable|string|max:64',
             'default_commercial_unit' => 'nullable|string|max:6',
@@ -146,10 +155,35 @@ class FiscalSettingController extends Controller
             unset($data['nfce_csc']);
         }
 
+        $nextNfseNumber = $data['nfse_next_number'] ?? null;
+        $confirmSequenceChange = (bool) ($data['confirm_nfse_sequence_change'] ?? false);
+        unset($data['nfse_next_number'], $data['confirm_nfse_sequence_change']);
+
         $setting = $this->setting();
 
         if ($data['emission_environment'] === FiscalSetting::ENVIRONMENT_PRODUCTION && $setting->production_released_at === null) {
             return back()->withErrors(['emission_environment' => 'A emissão em produção depende da aprovação da administração após a homologação.']);
+        }
+
+        $seriesChanged = (($data['default_nfse_series'] ?? $setting->default_nfse_series) ?: null) !== ($setting->default_nfse_series ?: null);
+
+        // A numeração pertence à série: trocar de série sem informar o próximo número deixaria a Spedy sem sequência.
+        if ($seriesChanged && filled($nextNfseNumber) === false && $setting->nfse_next_number !== null) {
+            return back()->withErrors(['nfse_next_number' => 'Informe o próximo número da nova série.']);
+        }
+
+        $sequenceChanged = filled($nextNfseNumber) && ((int) $nextNfseNumber !== $setting->nfse_next_number || $seriesChanged);
+
+        if ($sequenceChanged) {
+            abort_unless(auth()->user()->isRoot() || auth()->user()->isAdministrator(), 403);
+
+            if (! $setting->isRegisteredOnSpedy()) {
+                return back()->withErrors(['nfse_next_number' => 'A administração precisa cadastrar a empresa emissora antes de definir a numeração.']);
+            }
+
+            if ($setting->nfse_next_number !== null && ! $confirmSequenceChange) {
+                return back()->withErrors(['nfse_next_number' => 'Confirme a alteração: ela substitui a numeração atual da NFS-e na Spedy e pode duplicar um número já emitido.']);
+            }
         }
 
         $confirmed = (bool) ($data['tax_settings_confirmed'] ?? false);
@@ -178,6 +212,12 @@ class FiscalSettingController extends Controller
         }
 
         try {
+            if ($sequenceChanged) {
+                $this->companies->syncNfseNumbering($setting, (int) $nextNfseNumber);
+
+                return back()->with('success', 'Configurações fiscais salvas e numeração da NFS-e definida no emissor.');
+            }
+
             // Só as configurações de emissão; o cadastro da empresa é comandado pelo RootAdmin.
             $this->companies->syncSettings($setting);
         } catch (SpedyException $exception) {

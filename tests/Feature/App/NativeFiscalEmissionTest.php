@@ -773,6 +773,145 @@ class NativeFiscalEmissionTest extends TestCase
         }
     }
 
+    public function test_first_nfse_numbering_is_sent_to_spedy_and_stored(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000']);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload(['nfse_next_number' => 42]))
+            ->assertSessionHas('success');
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+        $this->assertNotNull($setting->nfse_numbering_synced_at);
+        Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings')
+            && $request['serviceInvoice']['nextNumber'] === 42
+            && $request['serviceInvoice']['series'] === '70000');
+    }
+
+    public function test_routine_settings_sync_never_resends_the_next_number(): void
+    {
+        $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([]))
+            ->assertSessionHas('success');
+
+        Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings'));
+        Http::assertNotSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings')
+            && array_key_exists('nextNumber', $request['serviceInvoice'] ?? []));
+    }
+
+    public function test_changing_a_configured_nfse_number_requires_confirmation(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload(['nfse_next_number' => 50]))
+            ->assertSessionHasErrors('nfse_next_number');
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+        Http::assertNotSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings'));
+    }
+
+    public function test_confirmed_nfse_number_change_is_sent_to_spedy(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
+            'nfse_next_number' => 50,
+            'confirm_nfse_sequence_change' => true,
+        ]))->assertSessionHas('success');
+
+        $this->assertSame(50, $setting->refresh()->nfse_next_number);
+        Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings')
+            && $request['serviceInvoice']['nextNumber'] === 50);
+    }
+
+    public function test_spedy_rejection_keeps_the_previous_nfse_number(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['message' => 'Número inválido'], 422),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
+            'nfse_next_number' => 50,
+            'confirm_nfse_sequence_change' => true,
+        ]))->assertSessionHas('error');
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+    }
+
+    public function test_changing_the_nfse_series_without_a_new_number_is_refused(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload(['default_nfse_series' => '70001']))
+            ->assertSessionHasErrors('nfse_next_number');
+
+        $this->assertSame('70000', $setting->refresh()->default_nfse_series);
+    }
+
+    public function test_operator_cannot_change_the_nfse_numbering(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000']);
+        $this->user->update(['roles' => User::ROLE_OPERATOR]);
+        Http::fake();
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload(['nfse_next_number' => 42]))
+            ->assertSessionMissing('success');
+
+        $this->assertNull($setting->refresh()->nfse_next_number);
+        Http::assertNothingSent();
+    }
+
+    public function test_nfse_numbering_status_is_shown_on_the_settings_page(): void
+    {
+        $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        $this->withoutVite();
+
+        $this->get(route('app.fiscal-settings.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('app/fiscal-settings/index')
+                ->where('setting.nfse_next_number', 42)
+                ->where('setting.nfse_has_issued', false));
+    }
+
+    /** @param array<string, mixed> $extra */
+    private function nfseSettingsPayload(array $extra): array
+    {
+        return [
+            'company_tax_regime' => '1',
+            'emission_environment' => 'homologation',
+            'nfe_enabled' => false,
+            'nfce_enabled' => false,
+            'nfse_enabled' => true,
+            'default_nfse_series' => '70000',
+            'default_commercial_unit' => 'UN',
+            'default_icms_origin' => '0',
+            'default_icms_situation' => '102',
+            'default_pis_situation' => '49',
+            'default_cofins_situation' => '49',
+            'nfse_taxation_type' => 'taxationInMunicipality',
+            ...$extra,
+        ];
+    }
+
     private function fiscalSetting(array $overrides = []): FiscalSetting
     {
         return FiscalSetting::query()->updateOrCreate(['tenant_id' => $this->tenant->id], [

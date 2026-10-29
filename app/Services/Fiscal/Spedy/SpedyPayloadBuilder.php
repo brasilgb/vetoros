@@ -113,7 +113,11 @@ class SpedyPayloadBuilder
         ], fn ($value) => $value !== null);
     }
 
-    public function companySettings(FiscalSetting $setting): array
+    /**
+     * $nextNumber só é enviado quando o tenant define a numeração da DPS. Nas demais sincronizações
+     * a Spedy continua a própria contagem: reenviar um número antigo faria a série voltar atrás.
+     */
+    public function companySettings(FiscalSetting $setting, ?int $nextNumber = null): array
     {
         $production = $setting->isProductionEnvironment();
         $sefazEnvironment = $production ? 'production' : 'development';
@@ -149,6 +153,10 @@ class SpedyPayloadBuilder
                 'issueType' => $setting->nfse_mode === 'municipal' ? 'normal' : 'annfs',
             ]),
         ];
+
+        if ($nextNumber !== null) {
+            $settings['serviceInvoice']['nextNumber'] = $nextNumber;
+        }
 
         $settings['consumerInvoice'] = array_filter([
             'series' => $setting->default_nfce_series ?: '1',
