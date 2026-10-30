@@ -28,6 +28,7 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -778,7 +779,7 @@ class NativeFiscalEmissionTest extends TestCase
         $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000']);
         Http::fake([
             self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
-            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 42]]),
         ]);
 
         $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload(['nfse_next_number' => 42]))
@@ -827,7 +828,7 @@ class NativeFiscalEmissionTest extends TestCase
         $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
         Http::fake([
             self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
-            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 50]]),
         ]);
 
         $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
@@ -838,6 +839,51 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertSame(50, $setting->refresh()->nfse_next_number);
         Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings')
             && $request['serviceInvoice']['nextNumber'] === 50);
+    }
+
+    /**
+     * nDPS = 0 na NFS-e: a Spedy respondeu outro número (ou nenhum) ao pedido de numeração.
+     * O VetorOS não pode gravar 50 como próximo número enquanto o emissor usa outro.
+     */
+    public function test_numbering_change_is_not_stored_when_spedy_does_not_confirm_the_number(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 0]]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
+            'nfse_next_number' => 50,
+            'confirm_nfse_sequence_change' => true,
+        ]))->assertSessionHas('error');
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+        $this->assertNull($setting->nfse_numbering_synced_at);
+    }
+
+    /**
+     * Sincronização comum não envia nextNumber. Se a Spedy responder outro número, o VetorOS avisa
+     * e mantém o registro local, sem reenviar nem alterar a numeração.
+     */
+    public function test_routine_sync_logs_when_spedy_reports_another_next_number(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Log::spy();
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 0]]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([]))
+            ->assertSessionHas('success');
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context) => $message === 'Numeração da DPS divergente da Spedy.'
+                && $context['local_next_number'] === 42
+                && $context['spedy_next_number'] === 0)
+            ->once();
     }
 
     public function test_spedy_rejection_keeps_the_previous_nfse_number(): void

@@ -9,6 +9,7 @@ use App\Services\Fiscal\FiscalValidationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Cadastro do tenant como empresa emissora na conta Spedy da plataforma.
@@ -80,8 +81,10 @@ class SpedyCompanyService
             throw new SpedyException('A empresa emissora ainda não foi cadastrada pela administração.');
         }
 
-        SpedyClient::forOwner()
+        $response = SpedyClient::forOwner()
             ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
+
+        $this->logNumberingDivergence($setting, $response);
 
         return $setting;
     }
@@ -90,6 +93,9 @@ class SpedyCompanyService
      * Define o próximo número da DPS na Spedy e, só depois da confirmação dela, grava o número
      * localmente. Chamado apenas quando o tenant altera a numeração: as sincronizações comuns não
      * enviam nextNumber, para não fazer a Spedy reutilizar um número já emitido.
+     *
+     * A confirmação é o próprio número na resposta do PUT (CompanySettingsDto.serviceInvoice.nextNumber):
+     * um 2xx sem esse número, ou com outro, não prova que a Spedy vai usar o número informado.
      */
     public function syncNfseNumbering(FiscalSetting $setting, int $nextNumber): FiscalSetting
     {
@@ -97,8 +103,12 @@ class SpedyCompanyService
             throw new SpedyException('A empresa emissora ainda não foi cadastrada pela administração.');
         }
 
-        SpedyClient::forOwner()
+        $response = SpedyClient::forOwner()
             ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting, $nextNumber));
+
+        if ($this->spedyNextNumber($response) !== $nextNumber) {
+            throw new SpedyException('O emissor não confirmou o próximo número da DPS. A numeração não foi alterada no VetorOS; consulte a Spedy antes de tentar de novo.');
+        }
 
         $setting->forceFill([
             'nfse_next_number' => $nextNumber,
@@ -106,6 +116,39 @@ class SpedyCompanyService
         ])->save();
 
         return $setting;
+    }
+
+    /**
+     * Número da DPS que a Spedy devolveu na resposta do PUT de configurações, ou null se não veio.
+     */
+    private function spedyNextNumber(array $response): ?int
+    {
+        $number = data_get($response, 'serviceInvoice.nextNumber');
+
+        return is_numeric($number) ? (int) $number : null;
+    }
+
+    /**
+     * Sincronização comum não envia a numeração. Se a Spedy responder outro número que o gravado
+     * localmente, o registro fica para diagnóstico: a emissão usa o número da Spedy, não o daqui.
+     */
+    private function logNumberingDivergence(FiscalSetting $setting, array $response): void
+    {
+        if ($setting->nfse_next_number === null) {
+            return;
+        }
+
+        $spedyNumber = $this->spedyNextNumber($response);
+
+        if ($spedyNumber === $setting->nfse_next_number) {
+            return;
+        }
+
+        Log::warning('Numeração da DPS divergente da Spedy.', [
+            'tenant_id' => $setting->tenant_id,
+            'local_next_number' => $setting->nfse_next_number,
+            'spedy_next_number' => $spedyNumber,
+        ]);
     }
 
     /**
