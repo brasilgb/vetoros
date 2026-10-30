@@ -107,7 +107,7 @@ class SpedyCompanyService
             ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting, $nextNumber));
 
         if ($this->spedyNextNumber($response) !== $nextNumber) {
-            throw new SpedyException('O emissor não confirmou o próximo número da DPS. A numeração não foi alterada no VetorOS; consulte a Spedy antes de tentar de novo.');
+            throw new SpedyException('A Spedy não confirmou o próximo número da DPS na resposta. O número não foi gravado no VetorOS, mas a Spedy pode ter aplicado a alteração: consulte a numeração na Spedy antes de tentar de novo.');
         }
 
         $setting->forceFill([

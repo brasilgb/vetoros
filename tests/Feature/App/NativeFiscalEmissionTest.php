@@ -856,7 +856,7 @@ class NativeFiscalEmissionTest extends TestCase
         $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
             'nfse_next_number' => 50,
             'confirm_nfse_sequence_change' => true,
-        ]))->assertSessionHas('error');
+        ]))->assertSessionHas('error', fn (string $message) => str_contains($message, 'pode ter aplicado a alteração'));
 
         $this->assertSame(42, $setting->refresh()->nfse_next_number);
         $this->assertNull($setting->nfse_numbering_synced_at);
