@@ -374,7 +374,7 @@ class SpedyPayloadBuilder
             'total' => array_filter([
                 'invoiceAmount' => $invoiceAmount,
                 'discountUnconditionedAmount' => $unconditionedDiscount > 0 ? $unconditionedDiscount : null,
-                'issRate' => (float) $setting->default_iss_rate,
+                ...$this->serviceIssRate($setting, (float) $setting->default_iss_rate),
             ], fn ($value) => $value !== null),
         ];
 
@@ -440,7 +440,7 @@ class SpedyPayloadBuilder
             'receiver' => $this->receiver($customer, withAddress: filled($customer->zipcode) && filled($customer->street)),
             'total' => [
                 'invoiceAmount' => $amount,
-                'issRate' => (float) $setting->default_iss_rate,
+                ...$this->serviceIssRate($setting, (float) $setting->default_iss_rate),
             ],
         ];
 
@@ -494,7 +494,7 @@ class SpedyPayloadBuilder
             'receiver' => $this->receiver($customer, withAddress: filled($customer->zipcode) && filled($customer->street)),
             'total' => [
                 'invoiceAmount' => $amount,
-                'issRate' => (float) $issRate,
+                ...$this->serviceIssRate($setting, (float) $issRate),
             ],
         ];
 
@@ -506,6 +506,13 @@ class SpedyPayloadBuilder
     }
 
     /** Configurações obrigatórias de qualquer NFS-e (sem valores presumidos). */
+    /** E0617: no ambiente nacional, regime normal não permite informar alíquota na DPS. */
+    private function serviceIssRate(FiscalSetting $setting, float $rate): array
+    {
+        return $setting->nfse_mode === 'national' && (string) $setting->company_tax_regime === '3'
+            ? [] : ['issRate' => $rate];
+    }
+
     private function nfseSettingProblems(FiscalSetting $setting): array
     {
         $problems = [];

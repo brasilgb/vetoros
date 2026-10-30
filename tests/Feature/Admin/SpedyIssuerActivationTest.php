@@ -65,6 +65,33 @@ class SpedyIssuerActivationTest extends TestCase
         return $this->actingAs($this->root)->post(route('admin.fiscal.companies.register', $this->tenant));
     }
 
+    public function test_numbering_diagnostic_reads_remote_counter_without_writing_configuration(): void
+    {
+        $this->setting(['provider' => FiscalSetting::PROVIDER_SPEDY, 'registration_status' => FiscalSetting::REGISTRATION_REGISTERED,
+            'spedy_company_id' => 'co-1', 'api_token' => 'issuer-key', 'spedy_environment' => 'sandbox', 'nfse_next_number' => 10]);
+        Http::fake([self::SANDBOX.'/companies/co-1/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 23]])]);
+
+        $this->actingAs($this->root)->post(route('admin.fiscal.companies.check-numbering', $this->tenant))->assertSessionHas('success');
+
+        $this->assertSame(23, $this->fresh()->nfse_spedy_next_number);
+        $this->assertSame(10, $this->fresh()->nfse_next_number);
+        Http::assertSentCount(1);
+        Http::assertSent(fn (HttpRequest $request) => $request->method() === 'GET' && $request->hasHeader('X-Api-Key', 'env-owner-key'));
+    }
+
+    public function test_missing_remote_counter_does_not_refresh_historical_observation(): void
+    {
+        $old = now()->subDay()->startOfSecond();
+        $this->setting(['provider' => FiscalSetting::PROVIDER_SPEDY, 'registration_status' => FiscalSetting::REGISTRATION_REGISTERED,
+            'spedy_company_id' => 'co-1', 'api_token' => 'issuer-key', 'spedy_environment' => 'sandbox',
+            'nfse_spedy_next_number' => 0, 'nfse_spedy_checked_at' => $old]);
+        Http::fake([self::SANDBOX.'/companies/co-1/settings' => Http::response(['serviceInvoice' => ['nextNumber' => null]])]);
+
+        $this->actingAs($this->root)->post(route('admin.fiscal.companies.check-numbering', $this->tenant))->assertSessionHas('error');
+        $this->assertSame(0, $this->fresh()->nfse_spedy_next_number);
+        $this->assertTrue($old->equalTo($this->fresh()->nfse_spedy_checked_at));
+    }
+
     public function test_registration_links_issuer_to_current_environment_and_releases_certificate_field(): void
     {
         $this->setting();

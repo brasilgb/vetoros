@@ -44,8 +44,9 @@ class SpedyCompanyService
                 SpedyClient::forOwner()->updateCompany($setting->spedy_company_id, $payload);
             }
 
-            SpedyClient::forOwner()
+            $response = SpedyClient::forOwner()
                 ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
+            $this->recordSpedyNumbering($setting, $response);
         } catch (SpedyException|FiscalValidationException $exception) {
             $linked = filled($setting->spedy_company_id) && filled($setting->api_token) && ! $setting->hasEnvironmentMismatch();
 
@@ -84,7 +85,25 @@ class SpedyCompanyService
         $response = SpedyClient::forOwner()
             ->updateCompanySettings($setting->spedy_company_id, $this->payloads->companySettings($setting));
 
+        $this->recordSpedyNumbering($setting, $response);
         $this->logNumberingDivergence($setting, $response);
+
+        return $setting;
+    }
+
+    /** Atualiza o diagnóstico somente por leitura; nunca envia nextNumber. */
+    public function checkNfseNumbering(FiscalSetting $setting): FiscalSetting
+    {
+        if (! $setting->isRegisteredOnSpedy()) {
+            throw new SpedyException('Empresa ainda não cadastrada no ambiente atual da Spedy.');
+        }
+
+        $response = SpedyClient::forOwner()->getCompanySettings($setting->spedy_company_id);
+        if ($this->spedyNextNumber($response) === null) {
+            throw new SpedyException('A Spedy não informou o contador atual da DPS. O último valor conhecido permanece histórico.');
+        }
+
+        $this->recordSpedyNumbering($setting, $response);
 
         return $setting;
     }
@@ -115,6 +134,8 @@ class SpedyCompanyService
             'nfse_numbering_synced_at' => now(),
         ])->save();
 
+        $this->recordSpedyNumbering($setting, $response);
+
         return $setting;
     }
 
@@ -125,7 +146,25 @@ class SpedyCompanyService
     {
         $number = data_get($response, 'serviceInvoice.nextNumber');
 
-        return is_numeric($number) ? (int) $number : null;
+        return filter_var($number, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) !== false && $number !== null ? (int) $number : null;
+    }
+
+    /**
+     * Guarda o número que a Spedy informou e quando. Um PUT sem número na resposta não apaga o último
+     * valor conhecido: fica nulo só quando ainda não havia nenhum. O bloqueio por zero depende disso.
+     */
+    private function recordSpedyNumbering(FiscalSetting $setting, array $response): void
+    {
+        $spedyNumber = $this->spedyNextNumber($response);
+
+        if ($spedyNumber === null) {
+            return;
+        }
+
+        $setting->forceFill([
+            'nfse_spedy_next_number' => $spedyNumber,
+            'nfse_spedy_checked_at' => now(),
+        ])->save();
     }
 
     /**

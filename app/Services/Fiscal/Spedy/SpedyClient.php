@@ -145,6 +145,12 @@ class SpedyClient
         return $this->send('put', "companies/{$companyId}", $payload);
     }
 
+    /** Consulta documentada, sem modificar a configuração ou a numeração fiscal. */
+    public function getCompanySettings(string $companyId): array
+    {
+        return $this->send('get', "companies/{$companyId}/settings");
+    }
+
     public function updateCompanySettings(string $companyId, array $payload): array
     {
         return $this->send('put', "companies/{$companyId}/settings", $payload);

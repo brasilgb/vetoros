@@ -71,6 +71,14 @@ class FiscalCompanyController extends Controller
                 'environment_mismatch' => $setting->hasEnvironmentMismatch(),
                 'last_synced_at' => $setting->last_synced_at?->toIso8601String(),
                 'registration_error' => $setting->registration_error,
+                // Diagnóstico da numeração da NFS-e: o que o VetorOS gravou e o que a Spedy informou por último.
+                'nfse_numbering' => [
+                    'series' => $setting->default_nfse_series,
+                    'local_next_number' => $setting->nfse_next_number,
+                    'spedy_next_number' => $setting->nfse_spedy_next_number,
+                    'numbering_synced_at' => $setting->nfse_numbering_synced_at?->toIso8601String(),
+                    'spedy_checked_at' => $setting->nfse_spedy_checked_at?->toIso8601String(),
+                ],
                 'registered_at' => $setting->registered_at?->toIso8601String(),
                 'certificate_subject' => $setting->certificate_subject,
                 'certificate_expires_at' => $setting->certificate_expires_at?->toIso8601String(),
@@ -205,6 +213,19 @@ class FiscalCompanyController extends Controller
         FiscalAdminAudit::record('company.checked', $tenant->id, $setting, ['active_certificate' => $active !== null]);
 
         return back()->with('success', $active ? 'Cadastro confirmado na Spedy; certificado ativo até '.Carbon::parse($active['expirationAt'])->format('d/m/Y').'.' : 'Cadastro confirmado na Spedy, sem certificado ativo.');
+    }
+
+    public function checkNumbering(Tenant $tenant): RedirectResponse
+    {
+        try {
+            $this->companies->checkNfseNumbering($this->setting($tenant));
+        } catch (SpedyException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        FiscalAdminAudit::record('company.numbering_checked', $tenant->id, $this->setting($tenant));
+
+        return back()->with('success', 'Contador da DPS consultado na Spedy. O valor é um retrato do momento da consulta.');
     }
 
     private function setting(Tenant $tenant): FiscalSetting
