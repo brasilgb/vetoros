@@ -111,7 +111,11 @@ class OrderRequest extends FormRequest
             'delivery_forecast_reason' => 'nullable|string|max:500',
             'budget_valid_until' => 'nullable|date',
 
-            'user_id' => ['nullable', TenantRule::exists('users')],
+            'user_id' => [
+                Rule::requiredIf((int) $this->service_status !== OrderStatus::OPEN),
+                'nullable',
+                TenantRule::exists('users'),
+            ],
             'schedule_id' => ['nullable', TenantRule::exists('schedules')],
             'delivery_date' => 'nullable|date',
             'delivery_forecast' => 'required|date',

@@ -269,7 +269,7 @@ class ScheduleController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        return back()->with('success', 'Mensagem enviada pelo WhatsApp com sucesso.');
+        return back()->with('success', 'Mensagem encaminhada ao WhatsApp. Acompanhe o status de entrega.');
     }
 
     /**

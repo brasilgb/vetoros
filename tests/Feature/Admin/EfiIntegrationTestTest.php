@@ -8,8 +8,11 @@ use App\Models\Admin\SaasPaymentSetting;
 use App\Models\App\Payment;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Payments\Efi\EfiException;
+use GuzzleHttp\Psr7\Response as PsrResponse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
+use Illuminate\Http\Client\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
@@ -209,5 +212,32 @@ class EfiIntegrationTestTest extends TestCase
             ->missing('integration_test.recent.0.raw_response'));
 
         $this->assertSame($calls, count(Http::recorded()));
+    }
+
+    public function test_invalid_identifier_error_identifies_endpoint_without_echoing_provider_data(): void
+    {
+        $response = new HttpResponse(new PsrResponse(400, ['Content-Type' => 'application/json'], json_encode([
+            'nome' => 'identificador_invalido', 'mensagem' => 'Client_Secret_sensitive',
+        ])));
+
+        $billet = EfiException::fromResponse('emitir boleto', $response);
+        $card = EfiException::fromResponse('cobrar cartão', $response);
+
+        $this->assertStringContainsString('identificador_invalido', $billet->getMessage());
+        $this->assertStringContainsString('API de Emissão', $billet->getMessage());
+        $this->assertStringContainsString('tokenização do cartão', $card->getMessage());
+        $this->assertStringNotContainsString('Client_Secret_sensitive', $billet->getMessage().$card->getMessage());
+    }
+
+    public function test_settings_checks_distinguish_missing_card_identifier_from_billet_and_pix(): void
+    {
+        SaasPaymentSetting::current()->forceFill(['efi_payee_code' => null, 'last_connection_test_at' => null])->save();
+
+        $this->actingAs($this->root)->get(route('admin.finance.efi'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('admin/finance/efi')
+            ->where('settings.checks.authentication', 'API Cobranças: autenticação ainda não testada neste ambiente.')
+            ->where('settings.checks.card', 'Cartão: informe o Identificador de conta em API > Introdução na Efí.')
+            ->where('settings.checks.billet', 'Boleto: teste a conexão da API Cobranças e confirme a habilitação da API de Emissão.')
+            ->where('settings.checks.pix', 'Pix: teste a conexão da API Pix.'));
     }
 }

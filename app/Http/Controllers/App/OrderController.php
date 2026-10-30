@@ -1505,7 +1505,7 @@ class OrderController extends Controller
 
         $this->orderMessageService->recordSent($order, OrderMessage::CHANNEL_WHATSAPP, $sent['chat_id'], $template, 'waha', $sent['response'], $this->currentUser()?->id);
 
-        return back()->with('success', 'Mensagem enviada pelo WhatsApp com sucesso.');
+        return back()->with('success', 'Mensagem encaminhada ao WhatsApp. Acompanhe o status de entrega.');
     }
 
     public function markFeedback(Order $order)

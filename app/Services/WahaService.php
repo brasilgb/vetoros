@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Log;
  */
 class WahaService
 {
+    private const CHECK_EXISTS_TIMEOUT_SECONDS = 10;
+
     private function client(): PendingRequest
     {
         $baseUrl = config('services.waha.base_url');
@@ -150,10 +152,18 @@ class WahaService
      */
     public function resolveChatId(string $sessionName, string $phone): ?string
     {
-        $response = $this->client()->get('/api/contacts/check-exists', [
-            'session' => $sessionName,
-            'phone' => $phone,
-        ]);
+        try {
+            $response = $this->client()
+                ->timeout(self::CHECK_EXISTS_TIMEOUT_SECONDS)
+                ->get('/api/contacts/check-exists', [
+                    'session' => $sessionName,
+                    'phone' => $phone,
+                ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Falha de comunicação com o WAHA ao checar o número.', ['session' => $sessionName, 'error' => $exception->getMessage()]);
+
+            throw WhatsAppException::unavailable();
+        }
 
         if (! $response->successful()) {
             Log::warning('WAHA retornou erro ao checar existência do número.', [

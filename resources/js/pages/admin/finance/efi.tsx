@@ -28,6 +28,7 @@ type Settings = {
     last_connection_test_at: string | null;
     last_connection_ok: boolean | null;
     last_connection_message: string | null;
+    checks: { authentication: string; billet: string; card: string; pix: string };
     pix_webhook_registered_at: string | null;
     last_pix_notification_at: string | null;
     last_charges_notification_at: string | null;
@@ -164,6 +165,13 @@ export default function EfiSettings({ settings, method_options, errors_log, lega
                             {settings.last_connection_ok === false && <Badge variant="destructive">falhou</Badge>}
                         </p>
                         {settings.last_connection_message && <p className="text-muted-foreground text-xs">{settings.last_connection_message}</p>}
+                        <div className="space-y-1 rounded-md border p-3 text-xs">
+                            <p className="font-medium">Verificações da integração</p>
+                            <p>{settings.checks.authentication}</p>
+                            <p>{settings.checks.billet}</p>
+                            <p>{settings.checks.card}</p>
+                            <p>{settings.checks.pix}</p>
+                        </div>
                         <p>Webhook Pix cadastrado: {dateTime(settings.pix_webhook_registered_at)}</p>
                         <p>Última notificação Pix: {dateTime(settings.last_pix_notification_at)}</p>
                         <p>Última notificação Cobranças: {dateTime(settings.last_charges_notification_at)}</p>
@@ -318,6 +326,10 @@ export default function EfiSettings({ settings, method_options, errors_log, lega
                             <div className="grid gap-2">
                                 <Label htmlFor="payee_code">Identificador de conta (tokenização do cartão)</Label>
                                 <Input id="payee_code" value={form.data.payee_code} onChange={(e) => form.setData('payee_code', e.target.value)} />
+                                <p className="text-muted-foreground text-xs">
+                                    Copie de API &gt; Introdução &gt; Identificador de conta na Efí. É diferente do nome da aplicação e do Client ID;
+                                    o boleto não usa este campo.
+                                </p>
                                 <InputError message={form.errors.payee_code} />
                             </div>
                             <div className="grid gap-2 md:col-span-2">

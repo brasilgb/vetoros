@@ -28,6 +28,15 @@ class EfiException extends RuntimeException
         }
 
         $status = $response->status();
+        $code = is_array($body) ? ($body['nome'] ?? $body['error'] ?? null) : null;
+        if ($status === 400 && ($code === 'identificador_invalido' || (is_string($detail) && str_contains($detail, 'identificador_invalido')))) {
+            $hint = $operation === 'cobrar cartão'
+                ? 'Confira o Identificador de conta da Efí usado na tokenização do cartão e o ambiente das credenciais da API Cobranças.'
+                : 'Confira as credenciais, o ambiente e a habilitação da API de Emissão de cobranças na aplicação Efí.';
+
+            return new self("Efí ({$operation}): HTTP 400 - identificador_invalido. {$hint}", $status);
+        }
+
         $message = "Efí ({$operation}): HTTP {$status}".($detail ? ' - '.mb_substr((string) $detail, 0, 300) : '');
 
         return new self($message, $status, $status === 429 || $status >= 500);

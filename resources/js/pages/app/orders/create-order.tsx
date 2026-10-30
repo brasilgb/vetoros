@@ -1,3 +1,4 @@
+import { toastWarning } from '@/components/app-toast-messages';
 import AsyncResourceSelect from '@/components/async-resource-select';
 import { DatePicker } from '@/components/date-picker';
 import { Icon } from '@/components/icon';
@@ -9,12 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { focusFirstInvalidField } from '@/lib/form-errors';
 import { BreadcrumbItem, OptionType, SharedData } from '@/types';
 import { statusOrcamento } from '@/Utils/dataSelect';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { AlertTriangle, ArrowLeft, Printer, Save, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Select from 'react-select';
 import CustomerEquipmentField from './customer-equipment-field';
 import OrderPreBudgetFields from './order-pre-budget-fields';
@@ -106,9 +108,18 @@ export default function CreateOrder({
         observations: '',
     });
 
+    const formRef = useRef<HTMLFormElement>(null);
+
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        post(route('app.orders.store'));
+        post(route('app.orders.store'), {
+            preserveScroll: true,
+            onError: (validationErrors) => {
+                toastWarning('Revise os campos destacados', `${Object.keys(validationErrors).length} campo(s) precisam de correção.`);
+                // Espera o erro ser renderizado no campo antes de focar.
+                requestAnimationFrame(() => focusFirstInvalidField(formRef.current));
+            },
+        });
     };
 
     useEffect(() => {
@@ -165,7 +176,7 @@ export default function CreateOrder({
 
             <div className="p-4">
                 <div className="rounded-lg border p-2">
-                    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
+                    <form ref={formRef} onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
                         {flash?.label_print && (
                             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/30">
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

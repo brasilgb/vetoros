@@ -14,26 +14,26 @@ class WhatsAppException extends RuntimeException
 {
     public static function notConnected(): self
     {
-        return new self('O WhatsApp desta empresa está desconectado. Reconecte-o nas configurações.');
+        return new self('O WhatsApp da empresa está desconectado.');
     }
 
     public static function unavailable(): self
     {
-        return new self('Serviço de WhatsApp temporariamente indisponível. Tente novamente em instantes.');
+        return new self('Não foi possível enviar a mensagem. Tente novamente.');
     }
 
     public static function invalidPhone(): self
     {
-        return new self('Número de WhatsApp inválido.');
+        return new self('Confira o número de WhatsApp cadastrado para este cliente.');
     }
 
     public static function notOnWhatsapp(): self
     {
-        return new self('Este número não possui WhatsApp ativo. Confira o número e tente novamente.');
+        return new self('Não foi possível confirmar uma conta WhatsApp neste número.');
     }
 
     public static function sendFailed(): self
     {
-        return new self('Falha ao enviar a mensagem pelo WhatsApp. Tente novamente.');
+        return new self('Não foi possível enviar a mensagem. Tente novamente.');
     }
 }

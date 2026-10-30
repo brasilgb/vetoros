@@ -20,7 +20,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { statusAgenda } from '@/Utils/dataSelect';
-import { normalizeWhatsappPhone } from '@/Utils/mask';
+import { isValidWhatsappPhone } from '@/Utils/mask';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -576,7 +576,7 @@ export default function Schedules({ schedules, search, status, tab, whats }: any
                                                                     }
                                                                     aria-label={`Enviar WhatsApp para ${schedule.user?.name}`}
                                                                     disabled={
-                                                                        !normalizeWhatsappPhone(schedule.user?.whatsapp) ||
+                                                                        !isValidWhatsappPhone(schedule.user?.whatsapp) ||
                                                                         sendingWhatsappId === schedule.id
                                                                     }
                                                                     onClick={() =>

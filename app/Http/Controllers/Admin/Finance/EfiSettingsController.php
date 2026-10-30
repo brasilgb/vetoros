@@ -53,6 +53,7 @@ class EfiSettingsController extends Controller
                 'last_connection_test_at' => $settings->last_connection_test_at?->toIso8601String(),
                 'last_connection_ok' => $settings->last_connection_ok,
                 'last_connection_message' => $settings->last_connection_message,
+                'checks' => $this->configurationChecks($settings),
                 'pix_webhook_registered_at' => $settings->efi_pix_webhook_registered_at?->toIso8601String(),
                 'last_pix_notification_at' => $settings->last_pix_notification_at?->toIso8601String(),
                 'last_charges_notification_at' => $settings->last_charges_notification_at?->toIso8601String(),
@@ -139,6 +140,11 @@ class EfiSettingsController extends Controller
             if (array_intersect(array_keys($changes), ['environment', 'charges_client_id', 'charges_client_secret', 'pix_client_id', 'pix_client_secret', 'pix_key']) !== []) {
                 $settings->efi_homologated_at = null;
                 $settings->efi_homologated_by = null;
+            }
+            if (array_intersect(array_keys($changes), ['environment', 'charges_client_id', 'charges_client_secret', 'pix_client_id', 'pix_client_secret']) !== []) {
+                $settings->last_connection_test_at = null;
+                $settings->last_connection_ok = null;
+                $settings->last_connection_message = null;
             }
 
             $settings->save();
@@ -328,5 +334,30 @@ class EfiSettingsController extends Controller
             ->map(fn (FiscalAdminAudit $audit) => ['at' => $audit->created_at?->toIso8601String(), 'source' => $audit->action, 'message' => $audit->data['error'] ?? $audit->data['message'] ?? null]);
 
         return $events->concat($payments)->concat($audits)->sortByDesc('at')->take(15)->values()->all();
+    }
+
+    /** OAuth is checked only by the explicit connection test; configuration checks make no API calls. */
+    private function configurationChecks(SaasPaymentSetting $settings): array
+    {
+        $message = (string) $settings->last_connection_message;
+        $chargesAuth = $settings->last_connection_test_at && str_contains($message, 'Cobranças: ok');
+        $pixAuth = $settings->last_connection_test_at && str_contains($message, 'Pix: ok');
+
+        return [
+            'authentication' => $settings->last_connection_test_at
+                ? ($chargesAuth ? 'API Cobranças: OAuth confirmado.' : 'API Cobranças: autenticação falhou; confira Client ID, Client Secret, ambiente e escopo da API de Emissão.')
+                : 'API Cobranças: autenticação ainda não testada neste ambiente.',
+            'billet' => ! $settings->chargesConfigured()
+                ? 'Boleto: informe Client ID e Client Secret da API Cobranças.'
+                : ($chargesAuth ? 'Boleto: credenciais autenticadas; emissão ainda precisa ser testada em homologação.' : 'Boleto: teste a conexão da API Cobranças e confirme a habilitação da API de Emissão.'),
+            'card' => ! $settings->chargesConfigured()
+                ? 'Cartão: informe Client ID e Client Secret da API Cobranças.'
+                : (! filled($settings->efi_payee_code)
+                    ? 'Cartão: informe o Identificador de conta em API > Introdução na Efí.'
+                    : ($chargesAuth ? 'Cartão: credenciais autenticadas; confirme o Identificador de conta e teste a tokenização em homologação.' : 'Cartão: teste a conexão da API Cobranças e confirme o Identificador de conta da Efí.')),
+            'pix' => ! $settings->pixConfigured()
+                ? 'Pix: confira Client ID, Client Secret, certificado e chave Pix.'
+                : ($pixAuth ? 'Pix: OAuth confirmado; confira o webhook antes de cobrar.' : 'Pix: teste a conexão da API Pix.'),
+        ];
     }
 }
