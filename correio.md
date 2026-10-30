@@ -1,71 +1,28 @@
-# VETOROS-EFI-RENEWAL-02.4 — Diagnóstico e correção definitiva
+# VETOROS-NFSE-09.4 — Finalização operacional
 
-**Situação confirmada:** o código atualizado já recebeu commit e push. Não tratar ausência de commit ou push como causa presumida.
+Continuar a VETOROS-NFSE-09.3, preservando todas as alterações realizadas.
 
-A tela real do tenant Sigma Operating Software continua sem a opção de renovar a assinatura, apesar da implementação da VETOROS-EFI-RENEWAL-02.1.
+**Objetivo:** colocar em funcionamento o diagnóstico da numeração e resolver a origem do erro E1235.
 
-## 1. Encontrar a causa
+### Execução
 
-Rastrear o fluxo completo desde a rota de acesso suspenso até a renderização do componente.
+1. Revisar e testar as alterações não commitadas da VETOROS-NFSE-09.3.
+2. Verificar se a Spedy permite consultar o contador DPS atual pela API, sem alterar configurações.
+3. Utilizar as credenciais já existentes no backend, sem expô-las em logs.
+4. Se a consulta não existir ou exigir outro tipo de autenticação, registrar a limitação claramente. Não inventar endpoints.
+5. Identificar por que a Spedy está utilizando `nDPS = 0` apesar da configuração local.
+6. Corrigir a sincronização que provoca o problema, caso a causa seja comprovada.
+7. Garantir que informações antigas do contador não sejam apresentadas como situação atual.
+8. Revisar também o erro E0617 do Simples Nacional, independentemente da numeração.
+9. Validar a interface do rootAdmin no navegador.
+10. Executar testes completos, commit e push seguro das alterações.
+11. Preparar backup, migration e deploy na VPS, respeitando a configuração existente.
+12. Registrar tudo no `executed.md`, substituindo integralmente o conteúdo anterior.
 
-Verificar:
+### Restrições
 
-- Middleware de bloqueio de assinaturas.
-- Controller responsável pela tela suspensa.
-- Props enviadas pelo backend.
-- Componente React/Inertia efetivamente renderizado.
-- Condições de exibição do botão Renovar assinatura.
-- Permissões do administrador do tenant.
-- Endpoint de consulta dos planos.
-- Filtros do catálogo de planos.
-- Rotas e permissões do checkout Efí.
-- Diferença entre cortesia expirada e assinatura paga vencida.
+Não alterar a numeração fiscal da empresa nem realizar emissões reais sem autorização específica.
 
-Utilizar logs e testes direcionados para identificar exatamente onde o fluxo deixa de funcionar.
+Não considerar o erro resolvido até confirmar a causa e validar a correção.
 
-Não simplesmente criar outro botão sem localizar a causa.
-
-## 2. Corrigir
-
-O administrador do tenant com cortesia expirada ou assinatura vencida deve conseguir:
-
-1. Visualizar Renovar assinatura.
-2. Abrir a seleção de planos.
-3. Selecionar um plano válido.
-4. Visualizar o resumo.
-5. Prosseguir para pagamento.
-6. Escolher o método Efí habilitado.
-7. Efetuar ou acompanhar o pagamento.
-
-As rotas necessárias devem permanecer acessíveis mesmo com a assinatura suspensa, sem liberar os módulos protegidos antes da confirmação financeira.
-
-## 3. Testes obrigatórios
-
-Reproduzir o cenário:
-
-- Tenant: Sigma Operating Software.
-- Plano anterior: Cortesia.
-- Situação: Bloqueada.
-- Vencimento: 23/10/2026.
-- Carência encerrada: 25/10/2026.
-
-Testar o fluxo com um administrador desse tenant e com um usuário sem permissão administrativa.
-
-Verificar respostas HTTP, dados retornados, erros do navegador e renderização da interface.
-
-Não modificar artificialmente o estado financeiro real do tenant.
-
-## 4. Critério de conclusão
-
-Não encerrar a atividade somente com PHPUnit, TypeScript ou build aprovados.
-
-Comprovar visualmente que o administrador consegue:
-
-**Acesso suspenso → Renovar assinatura → Escolher plano → Prosseguir para pagamento → Modal Efí.**
-
-Apresentar a causa raiz encontrada, os arquivos corrigidos e evidências da navegação.
-
-Preservar dados e funcionalidades existentes. Não executar containers locais.
-
-Registrar o resultado em `docs/VETOROS-EFI-RENEWAL-02.4.md` e atualizar `executed.md`.
-
+**Importante:** a configuração fiscal deve ser administrada pelo VetorOS durante a operação normal, sem exigir ajustes manuais a cada nota.
