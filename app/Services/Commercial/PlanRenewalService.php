@@ -6,6 +6,7 @@ use App\Jobs\EmitSaasPaymentInvoice;
 use App\Models\Admin\Plan;
 use App\Models\App\Payment;
 use App\Models\Tenant;
+use App\Services\LeadsIntegration\LeadsIntegrationEvents;
 use App\Services\SubscriptionInvoiceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -86,6 +87,9 @@ class PlanRenewalService
         if (! $tenant) {
             return;
         }
+
+        // Pagamento aplicado: a assinatura está ativa (VetorLeads). Falha ali não afeta a renovação.
+        app(LeadsIntegrationEvents::class)->subscriptionActivated($tenant);
 
         if ($tenant->saas_invoice_enabled) {
             EmitSaasPaymentInvoice::dispatch($record->id);

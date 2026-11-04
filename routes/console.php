@@ -9,6 +9,11 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// Acompanhamento com o VetorLeads: teste vencido sem contratação (idempotente).
+Schedule::command('vetoros:leads-integration-expire-trials')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('vetoros:send-payment-followups')
     ->dailyAt('09:00')
     ->withoutOverlapping();

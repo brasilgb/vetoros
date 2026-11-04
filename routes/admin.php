@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FeatureController;
 use App\Http\Controllers\Admin\FiscalDocumentController;
 use App\Http\Controllers\Admin\HelpTopicController;
+use App\Http\Controllers\Admin\LeadsIntegrationController;
 use App\Http\Controllers\Admin\PeriodController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\ReportController;
@@ -54,4 +55,11 @@ Route::resource('/plans', PlanController::class);
 Route::resource('/features', FeatureController::class);
 Route::resource('/periods', PeriodController::class);
 Route::resource('/settings', SettingController::class);
+
+Route::prefix('/leads-integration')->name('leads-integration.')->group(function () {
+    Route::get('/', [LeadsIntegrationController::class, 'index'])->name('index');
+    Route::patch('/', [LeadsIntegrationController::class, 'update'])->name('update');
+    Route::post('/test', [LeadsIntegrationController::class, 'test'])->middleware('throttle:5,1')->name('test');
+    Route::post('/retry', [LeadsIntegrationController::class, 'retry'])->name('retry');
+});
 Route::resource('/users', UserController::class);

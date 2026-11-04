@@ -15,6 +15,7 @@ import {
     FileChartColumn,
     FileTextIcon,
     HandCoins,
+    Handshake,
     LayoutGrid,
     Lightbulb,
     MessageCircle,
@@ -368,16 +369,25 @@ const mainAdminItems = [
         active: 'admin.users.*',
     },
     {
-        title: 'Configurações',
+        title: 'Manual de ajuda',
+        href: route('admin.help-topics.index'),
+        icon: BookOpenText,
+        active: 'admin.help-topics.*',
+    },
+];
+
+const mainAdminSettingsItems: NavItem[] = [
+    {
+        title: 'Geral',
         href: route('admin.settings.index'),
         icon: Cog,
         active: 'admin.settings.*',
     },
     {
-        title: 'Manual de ajuda',
-        href: route('admin.help-topics.index'),
-        icon: BookOpenText,
-        active: 'admin.help-topics.*',
+        title: 'Acompanhamento VetorLeads',
+        href: route('admin.leads-integration.index'),
+        icon: Handshake,
+        active: 'admin.leads-integration.*',
     },
 ];
 
@@ -421,4 +431,4 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
-export { footerNavItems, mainAdminAdjustmentItems, mainAdminItems, mainConfItems, mainNavGroups, mainNavItems, mainPlansItems, mainUserItems };
+export { footerNavItems, mainAdminAdjustmentItems, mainAdminItems, mainAdminSettingsItems, mainConfItems, mainNavGroups, mainNavItems, mainPlansItems, mainUserItems };

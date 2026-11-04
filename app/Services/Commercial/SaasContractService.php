@@ -18,6 +18,7 @@ use App\Models\App\FiscalDocument;
 use App\Models\App\Payment;
 use App\Models\Tenant;
 use App\Services\Fiscal\SaasInvoiceService;
+use App\Services\LeadsIntegration\LeadsIntegrationEvents;
 use App\Services\Payments\SaasPaymentService;
 use App\Support\Fiscal\FiscalDocumentLinks;
 use Illuminate\Support\Carbon;
@@ -393,6 +394,11 @@ class SaasContractService
             ])->save();
 
             $this->syncCoverage($charge->contract);
+
+            $tenant = Tenant::query()->find($charge->tenant_id);
+            if ($tenant) {
+                app(LeadsIntegrationEvents::class)->subscriptionActivated($tenant);
+            }
 
             FiscalAdminAudit::record('commercial.charge_paid', $charge->tenant_id, $charge, [
                 'method' => $method,

@@ -8,6 +8,7 @@ use App\Models\Admin\Plan;
 use App\Models\App\Company;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\LeadsIntegration\LeadsIntegrationEvents;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,9 @@ class RegisteredUserController extends Controller
 {
     public function create(Request $request): Response
     {
+        // Link de indicação do VetorLeads (?ref=) fica na sessão até o cadastro concluir.
+        $this->referralCodeFor($request);
+
         return Inertia::render('auth/register', [
             'initialData' => array_filter($request->only(['name', 'email', 'whatsapp'])),
         ]);
@@ -46,7 +50,9 @@ class RegisteredUserController extends Controller
             'accepted_terms.accepted' => 'Você precisa aceitar os Termos de Uso para criar sua conta.',
         ]);
 
-        $user = DB::transaction(function () use ($request) {
+        $referralCode = $this->referralCodeFor($request);
+
+        $user = DB::transaction(function () use ($request, $referralCode) {
             $trialPlan = Plan::query()
                 ->with('periods')
                 ->get()
@@ -65,7 +71,11 @@ class RegisteredUserController extends Controller
                 'period_id' => $trialPeriod?->id,
                 'subscription_status' => 'active',
                 'expires_at' => now()->addDays(14),
+                'leads_referral_code' => $referralCode,
             ]);
+
+            // Acompanhamento com o VetorLeads: não bloqueia o cadastro (falhas são só registradas em log).
+            app(LeadsIntegrationEvents::class)->tenantRegistered($tenant);
 
             Company::create([
                 'tenant_id' => $tenant->id,
@@ -88,6 +98,8 @@ class RegisteredUserController extends Controller
                 'tenant_id' => $tenant->id,
             ]);
         });
+
+        $request->session()->forget('leads_referral_code');
 
         event(new Registered($user));
 
@@ -116,5 +128,26 @@ class RegisteredUserController extends Controller
                 'message',
                 'Conta criada com sucesso! Você possui 14 dias de acesso grátis para testes.'
             );
+    }
+
+    /**
+     * Link de indicação do VetorLeads (?ref=): guarda o código na sessão até o cadastro concluir.
+     * Código desconhecido ou já usado por outra conta é descartado (o cadastro segue normalmente).
+     */
+    private function referralCodeFor(Request $request): ?string
+    {
+        $ref = $request->query('ref');
+
+        if (is_string($ref) && preg_match(LeadsIntegrationEvents::REFERRAL_PATTERN, $ref) === 1) {
+            $request->session()->put('leads_referral_code', $ref);
+        }
+
+        $code = $request->session()->get('leads_referral_code');
+
+        if (! is_string($code) || preg_match(LeadsIntegrationEvents::REFERRAL_PATTERN, $code) !== 1) {
+            return null;
+        }
+
+        return Tenant::query()->where('leads_referral_code', $code)->exists() ? null : $code;
     }
 }

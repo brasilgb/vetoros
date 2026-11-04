@@ -11,6 +11,7 @@ use App\Models\Admin\Plan;
 use App\Models\App\Other;
 use App\Models\App\Payment;
 use App\Models\Tenant;
+use App\Services\LeadsIntegration\LeadsIntegrationEvents;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -412,6 +413,11 @@ class TenantController extends Controller
         }
 
         $tenant->update($data);
+
+        // Prorrogação ou alteração do vencimento do teste vai ao VetorLeads (no-op fora do teste).
+        if ($tenant->wasChanged('expires_at')) {
+            app(LeadsIntegrationEvents::class)->trialChanged($tenant);
+        }
 
         return redirect()->route('admin.tenants.show', ['tenant' => $tenant->id])->with('success', 'Empresa atualizada com sucesso!');
     }
