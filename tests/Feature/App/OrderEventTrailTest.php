@@ -101,7 +101,7 @@ class OrderEventTrailTest extends TestCase
 
     public function test_valid_transition_records_from_to_actor_and_tenant(): void
     {
-        $order = $this->order(OrderStatus::OPEN);
+        $order = $this->order(OrderStatus::OPEN, ['user_id' => $this->user->id]);
 
         $this->put(route('app.orders.update', $order), $this->payload($order, [
             'service_status' => OrderStatus::IN_DIAGNOSIS,
@@ -359,9 +359,6 @@ class OrderEventTrailTest extends TestCase
         Carbon::setTestNow('2026-10-02 14:00:00');
         $this->put(route('app.orders.update', $order), $this->payload($order, ['user_id' => $maria->id]))->assertSessionHasNoErrors();
 
-        Carbon::setTestNow('2026-10-03 10:00:00');
-        $this->put(route('app.orders.update', $order), $this->payload($order, ['user_id' => null]))->assertSessionHasNoErrors();
-
         Carbon::setTestNow('2026-10-04 08:00:00');
         $this->put(route('app.orders.update', $order), $this->payload($order, ['user_id' => $joao->id]))->assertSessionHasNoErrors();
         Carbon::setTestNow();
@@ -372,7 +369,7 @@ class OrderEventTrailTest extends TestCase
         $this->assertSame(
             [
                 [$joao->id, '2026-10-01 09:00:00', '2026-10-02 14:00:00'],
-                [$maria->id, '2026-10-02 14:00:00', '2026-10-03 10:00:00'],
+                [$maria->id, '2026-10-02 14:00:00', '2026-10-04 08:00:00'],
                 [$joao->id, '2026-10-04 08:00:00', null],
             ],
             $assignments->map(fn ($a) => [
@@ -386,8 +383,7 @@ class OrderEventTrailTest extends TestCase
             [
                 [OrderEvent::TYPE_TECHNICIAN_ASSIGNED, $joao->id, null],
                 [OrderEvent::TYPE_TECHNICIAN_REASSIGNED, $maria->id, $joao->id],
-                [OrderEvent::TYPE_TECHNICIAN_UNASSIGNED, null, $maria->id],
-                [OrderEvent::TYPE_TECHNICIAN_ASSIGNED, $joao->id, null],
+                [OrderEvent::TYPE_TECHNICIAN_REASSIGNED, $joao->id, $maria->id],
             ],
             OrderEvent::query()->where('order_id', $order->id)->orderBy('id')->get()
                 ->map(fn (OrderEvent $e) => [$e->event_type, $e->technician_id ? (int) $e->technician_id : null, $e->previous_technician_id ? (int) $e->previous_technician_id : null])
@@ -400,7 +396,7 @@ class OrderEventTrailTest extends TestCase
 
         $this->assertSame($joao->id, (int) $responsibleAt('2026-10-01 12:00:00'));
         $this->assertSame($maria->id, (int) $responsibleAt('2026-10-02 14:00:00'));
-        $this->assertNull($responsibleAt('2026-10-03 18:00:00'));
+        $this->assertSame($maria->id, (int) $responsibleAt('2026-10-03 18:00:00'));
     }
 
     public function test_same_technician_does_not_duplicate_events(): void
@@ -576,6 +572,7 @@ class OrderEventTrailTest extends TestCase
             'service_status' => OrderStatus::OPEN,
             'is_warranty_return' => true,
             'warranty_source_order_id' => $source->id,
+            'user_id' => $this->user->id,
             'delivery_forecast' => now()->addDays(3)->toDateString(),
         ])->assertSessionHasNoErrors();
 
@@ -640,7 +637,7 @@ class OrderEventTrailTest extends TestCase
             'order_type' => Order::TYPE_EQUIPMENT,
             'customer_id' => $this->customer->id,
             'equipment_id' => $this->equipment->id,
-            'user_id' => $order->user_id,
+            'user_id' => $order->user_id ?? $this->user->id,
             'model' => $order->model ?? 'Modelo',
             'password' => null,
             'defect' => 'Defeito',

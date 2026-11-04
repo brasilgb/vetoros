@@ -1042,7 +1042,7 @@ export default function EditOrder({
 
                                         <div className="mt-4 grid gap-4 md:grid-cols-3">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="service_status">Técnico responsável</Label>
+                                                <Label htmlFor="service_status">Técnico responsável *</Label>
                                                 <Select
                                                     menuPosition="fixed"
                                                     defaultValue={defaultTechnical}

@@ -156,7 +156,8 @@ function MoneyInput({
     return (
         <div className="relative w-full">
             {showPrefix && (
-                <span aria-hidden="true" className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
+                // Em mobile (texto 16px) a linha de base do "R$" fica 1px acima do valor; ajustado com +1px só nesse tamanho.
+                <span aria-hidden="true" className="text-muted-foreground pointer-events-none absolute top-[calc(50%_+_1px)] left-3 -translate-y-1/2 text-base md:top-1/2 md:text-sm">
                     R$
                 </span>
             )}

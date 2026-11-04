@@ -591,8 +591,10 @@ export default function Orders({ orders, whats, feedback, search, status, filter
                                                             amountDue={remaining}
                                                             daysPending={communicationDaysPending}
                                                             financialValues={order.whatsapp_values}
+                                                            budget={order.whatsapp_budget}
                                                             whats={{
                                                                 generatedbudget: whats?.generatedbudget,
+                                                                budgetapproved: whats?.budgetapproved,
                                                                 servicecompleted: whats?.servicecompleted,
                                                                 feedback: whats?.feedback,
                                                                 defaultmessage: whats?.defaultmessage,

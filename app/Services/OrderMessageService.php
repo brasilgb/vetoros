@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 class OrderMessageService
 {
     /** Modelos cujo envio leva o orçamento ao cliente: a mensagem é ligada à versão vigente. */
-    public const BUDGET_TEMPLATES = ['generatedbudget', 'budget_follow_up', 'budget_generated'];
+    public const BUDGET_TEMPLATES = ['generatedbudget', 'budget_follow_up', 'budget_generated', 'budget_approved'];
 
     public const WHATSAPP_TEMPLATES = [
         'generatedbudget',
@@ -27,6 +27,7 @@ class OrderMessageService
         'feedback',
         'budget_follow_up',
         'pending_payment',
+        'budget_approved',
     ];
 
     public function __construct(private readonly OrderEventRecorder $recorder) {}

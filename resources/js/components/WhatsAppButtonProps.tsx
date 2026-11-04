@@ -5,6 +5,12 @@ import { router } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
 
+export type WhatsappBudgetDetails = {
+    description: string | null;
+    parts: { quantity: number; description: string; total: number }[];
+    parts_value: number | null;
+} | null;
+
 export type WhatsAppButtonProps = {
     phone: string;
     customerName: string;
@@ -12,13 +18,15 @@ export type WhatsAppButtonProps = {
     orderNumber?: string;
     status?: string | number;
     feedback?: boolean;
-    context?: 'default' | 'budget_follow_up' | 'pending_payment';
+    context?: 'default' | 'budget_follow_up' | 'pending_payment' | 'budget_approved';
     amountDue?: number;
     daysPending?: number;
     financialValues?: { services: number | null; total: number | null };
+    budget?: WhatsappBudgetDetails;
 
     whats?: {
         generatedbudget?: string;
+        budgetapproved?: string;
         servicecompleted?: string;
         feedback?: string;
         defaultmessage?: string;
@@ -33,6 +41,7 @@ export type WhatsAppButtonProps = {
 };
 
 const STATUS_BUDGET = 3;
+const STATUS_BUDGET_APPROVED = 4;
 const STATUS_COMPLETED = 7;
 const STATUS_OPEN = 1;
 
@@ -89,6 +98,12 @@ const hasMissingFinancialValue = (template: string, financialValues?: WhatsAppBu
 
 const formatFinancialValue = (value?: number | null) => (value == null ? '' : formatBRL(value));
 
+const formatQuantity = (value: number) => (Number.isInteger(value) ? String(value) : value.toLocaleString('pt-BR', { maximumFractionDigits: 3 }));
+
+// Lista de peças do orçamento para {{ peças }}: uma linha por item, sem valores nulos ou "undefined".
+const formatBudgetParts = (parts?: { quantity: number; description: string; total: number }[]) =>
+    (parts ?? []).map((part) => `- ${formatQuantity(part.quantity)}x ${part.description || 'Item'}: ${formatBRL(part.total)}`).join('\n');
+
 const withGreeting = (greeting: string, customerName: string, content: string) => `${greeting}, ${customerName}!\n${content}`;
 
 const normalizeWhatsAppLineBreaks = (message: string) => message.replace(/\n{2,}/g, '\n').trim();
@@ -115,7 +130,14 @@ const applyOpenOrderGreeting = (message: string, greeting: string, customerName:
 };
 
 // Chave do modelo usado: o backend a registra na comunicação (e liga ao orçamento quando for o caso).
-type TemplateKey = 'budget_follow_up' | 'pending_payment' | 'feedback' | 'generatedbudget' | 'servicecompleted' | 'defaultmessage';
+type TemplateKey =
+    | 'budget_follow_up'
+    | 'pending_payment'
+    | 'feedback'
+    | 'generatedbudget'
+    | 'budget_approved'
+    | 'servicecompleted'
+    | 'defaultmessage';
 
 const getTemplateKeyForContext = ({
     status,
@@ -133,6 +155,10 @@ const getTemplateKeyForContext = ({
         return 'pending_payment';
     }
 
+    if (context === 'budget_approved' && whats?.budgetapproved) {
+        return 'budget_approved';
+    }
+
     // prioridade máxima: janela de feedback
     if (feedback) {
         return whats?.feedback ? 'feedback' : null;
@@ -141,6 +167,10 @@ const getTemplateKeyForContext = ({
     // status com template específico
     if (currentStatus === STATUS_BUDGET && whats?.generatedbudget) {
         return 'generatedbudget';
+    }
+
+    if (currentStatus === STATUS_BUDGET_APPROVED && whats?.budgetapproved) {
+        return 'budget_approved';
     }
 
     if (currentStatus === STATUS_COMPLETED && whats?.servicecompleted) {
@@ -157,12 +187,13 @@ const getTemplateKeyForContext = ({
 
 const TEMPLATE_FIELDS: Record<
     TemplateKey,
-    'budgetfollowup' | 'pendingpayment' | 'feedback' | 'generatedbudget' | 'servicecompleted' | 'defaultmessage'
+    'budgetfollowup' | 'pendingpayment' | 'feedback' | 'generatedbudget' | 'budgetapproved' | 'servicecompleted' | 'defaultmessage'
 > = {
     budget_follow_up: 'budgetfollowup',
     pending_payment: 'pendingpayment',
     feedback: 'feedback',
     generatedbudget: 'generatedbudget',
+    budget_approved: 'budgetapproved',
     servicecompleted: 'servicecompleted',
     defaultmessage: 'defaultmessage',
 };
@@ -209,6 +240,7 @@ export const buildMessage = ({
     amountDue,
     daysPending,
     financialValues,
+    budget,
     whats,
 }: Omit<WhatsAppButtonProps, 'phone' | 'className' | 'orderId'>) => {
     const currentStatus = normalizeStatus(status);
@@ -225,6 +257,9 @@ export const buildMessage = ({
         dias_pendentes: String(daysPending ?? 0),
         valor_orcamento: formatFinancialValue(financialValues?.total),
         valor_servico: formatFinancialValue(financialValues?.services),
+        descricao_orcamento: budget?.description ?? '',
+        pecas: formatBudgetParts(budget?.parts),
+        valor_pecas: budget?.parts_value == null ? '' : formatBRL(budget.parts_value),
     };
 
     const selectedTemplate = getTemplateForContext({ status, feedback, context, whats });
@@ -312,6 +347,7 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
     amountDue,
     daysPending,
     financialValues,
+    budget,
     whats,
     className,
 }) => {
@@ -339,6 +375,7 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
             amountDue,
             daysPending,
             financialValues,
+            budget,
             whats,
         });
 

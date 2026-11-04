@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\App\Order;
+use App\Models\User;
 use App\Support\OrderStatus;
 use App\Support\TenantRule;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -11,6 +12,9 @@ use Illuminate\Validation\Rule;
 
 class OrderRequest extends FormRequest
 {
+    /** Coluna orders.budget_value é DECIMAL(10,2). */
+    private const MAX_BUDGET_VALUE = 99999999.99;
+
     protected function prepareForValidation(): void
     {
         $orderType = $this->input('order_type', Order::TYPE_EQUIPMENT);
@@ -93,13 +97,19 @@ class OrderRequest extends FormRequest
             ],
             'services_performed' => 'nullable|string|max:500',
             'budget_value' => [
+                'bail',
                 Rule::requiredIf((int) $this->service_status === OrderStatus::BUDGET_GENERATED),
-                function ($attribute, $value, $fail) {
-                    // Remove pontos de milhar e troca vírgula por ponto para checar o número real
-                    $numericValue = (float) str_replace(['.', ','], ['', '.'], $value);
+                'nullable',
+                $this->nonNegativeMoney(),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $amount = $this->moneyAmount($value) ?? 0;
 
-                    if ((int) $this->service_status === OrderStatus::BUDGET_GENERATED && $numericValue <= 0) {
+                    if ((int) $this->service_status === OrderStatus::BUDGET_GENERATED && $amount <= 0) {
                         $fail('O valor do orçamento deve ser maior que 0,00 quando for "Orçamento gerado".');
+                    }
+
+                    if ($amount > self::MAX_BUDGET_VALUE) {
+                        $fail('O valor do orçamento deve ser no máximo 99.999.999,99.');
                     }
                 },
             ],
@@ -111,7 +121,12 @@ class OrderRequest extends FormRequest
             'delivery_forecast_reason' => 'nullable|string|max:500',
             'budget_valid_until' => 'nullable|date',
 
-            'user_id' => ['nullable', TenantRule::exists('users')],
+            'user_id' => [
+                'required',
+                TenantRule::exists('users')
+                    ->whereIn('roles', [User::ROLE_TECHNICIAN, User::ROLE_ADMIN])
+                    ->where('status', 1),
+            ],
             'schedule_id' => ['nullable', TenantRule::exists('schedules')],
             'delivery_date' => 'nullable|date',
             'delivery_forecast' => 'required|date',
@@ -125,13 +140,21 @@ class OrderRequest extends FormRequest
     private function nonNegativeMoney(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail): void {
-            $raw = trim((string) $value);
-            $normalized = str_contains($raw, ',') ? str_replace(',', '.', str_replace('.', '', $raw)) : $raw;
+            $amount = $this->moneyAmount($value);
 
-            if ($raw !== '' && (! is_numeric($normalized) || (float) $normalized < 0)) {
+            if (trim((string) $value) !== '' && ($amount === null || $amount < 0)) {
                 $fail('Informe um valor válido, maior ou igual a zero.');
             }
         };
+    }
+
+    /** Número do valor monetário, ou null quando não for número. */
+    private function moneyAmount(mixed $value): ?float
+    {
+        $raw = trim((string) $value);
+        $normalized = str_contains($raw, ',') ? str_replace(',', '.', str_replace('.', '', $raw)) : $raw;
+
+        return is_numeric($normalized) ? (float) $normalized : null;
     }
 
     public function attributes(): array

@@ -36,11 +36,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function CreateOrder({
     equipments,
+    technicals,
     sourceSchedule,
     warrantySourceOrders,
     activeOrders,
 }: {
     equipments: { id: number; equipment: string }[];
+    technicals: { id: number; name: string }[];
     sourceSchedule?: { id: number; customer_id: number; user_id?: number | null; schedules?: string | null; customer?: { name: string } } | null;
     warrantySourceOrders: Array<{
         id: number;
@@ -79,6 +81,11 @@ export default function CreateOrder({
     const optionsEquipment: OptionType[] = equipments.map((equipment) => ({
         value: equipment.id,
         label: equipment.equipment,
+    }));
+
+    const optionsTechnical: OptionType[] = technicals.map((technical) => ({
+        value: technical.id,
+        label: technical.name,
     }));
 
     const { data, setData, post, processing, reset, errors } = useForm({
@@ -271,6 +278,23 @@ export default function CreateOrder({
                                 </div>
                             </div>
                         )}
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-3">
+                            <div className="grid gap-2">
+                                <Label htmlFor="user_id">Técnico responsável *</Label>
+                                <Select<OptionType, false>
+                                    inputId="user_id"
+                                    menuPosition="fixed"
+                                    options={optionsTechnical}
+                                    value={optionsTechnical.find((option) => String(option.value) === String(data.user_id)) ?? null}
+                                    onChange={(selected) => setData('user_id', String(selected?.value ?? ''))}
+                                    placeholder="Selecione o técnico"
+                                    className="min-w-0"
+                                    styles={selectStyles}
+                                />
+                                <InputError message={errors.user_id} />
+                            </div>
+                        </div>
 
                         <div className="mt-4 grid gap-4 md:grid-cols-3">
                             <div className="grid gap-2">

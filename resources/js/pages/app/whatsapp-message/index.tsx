@@ -25,6 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type WhatsappMessageSettings = {
     id?: number;
     generatedbudget?: string;
+    budgetapproved?: string;
     servicecompleted?: string;
     feedback?: string;
     defaultmessage?: string;
@@ -34,6 +35,8 @@ type WhatsappMessageSettings = {
 };
 
 const DEFAULT_MESSAGES = {
+    budgetapproved:
+        'Bom dia, {{ cliente }}! Agradecemos seu retorno e a aprovação do orçamento. Assim que seu equipamento estiver pronto, avisaremos por aqui. Obrigado pela confiança!',
     generatedbudget:
         '{{ saudacao }}, {{ cliente }}!\n\nEquipamento analisado preliminarmente. Segue orçamento inicial para reparo conforme diagnóstico técnico apresentado na OS {{ ordem }}.\n\nO serviço será executado somente mediante sua aprovação. Valores e prazo podem sofrer alterações caso sejam identificadas necessidades adicionais durante o reparo.\n\nVocê pode acompanhar pelo link: {{ link_os }}',
     servicecompleted:
@@ -65,6 +68,9 @@ const previewValues = {
     servico: 'Manutenção preventiva',
     materiais: '1x Filtro de óleo, 2x Correia',
     endereco: 'Rua das Flores, 123 - Centro, São Paulo',
+    descricao_orcamento: "Troca de bomba d'água e revisão do sistema de arrefecimento",
+    pecas: "- 1x Bomba d'água: R$ 320,00\n- 2x Correia: R$ 90,00",
+    valor_pecas: 'R$ 410,00',
 };
 
 const normalizePlaceholderKey = (key: string) =>
@@ -104,6 +110,7 @@ export default function WhatsappMessage({
 }) {
     const { data, setData, patch, processing } = useForm({
         generatedbudget: whatsappmessage?.generatedbudget,
+        budgetapproved: whatsappmessage?.budgetapproved,
         servicecompleted: whatsappmessage?.servicecompleted,
         feedback: whatsappmessage?.feedback,
         defaultmessage: whatsappmessage?.defaultmessage,
@@ -123,6 +130,7 @@ export default function WhatsappMessage({
 
     const handleResetDefaults = () => {
         setData('generatedbudget', DEFAULT_MESSAGES.generatedbudget);
+        setData('budgetapproved', DEFAULT_MESSAGES.budgetapproved);
         setData('servicecompleted', DEFAULT_MESSAGES.servicecompleted);
         setData('feedback', DEFAULT_MESSAGES.feedback);
         setData('defaultmessage', DEFAULT_MESSAGES.defaultmessage);
@@ -166,8 +174,10 @@ export default function WhatsappMessage({
                                         <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>, <code>{'{{ link_os }}'}</code>,{' '}
                                         <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code>, <code>{'{{ dias_pendentes }}'}</code>,{' '}
                                         <code>{'{{ valor_orçamento }}'}</code> (total do orçamento, com peças) e <code>{'{{ valor_serviço }}'}</code>{' '}
-                                        (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. O aviso de agendamento ao
-                                        técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
+                                        (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. Os dados do orçamento aprovado
+                                        usam <code>{'{{ descricao_orcamento }}'}</code>, <code>{'{{ peças }}'}</code> (lista de peças) e{' '}
+                                        <code>{'{{ valor_pecas }}'}</code> (total das peças); sem peças ou descrição, a tag fica vazia. O aviso de
+                                        agendamento ao técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
                                         <code>{'{{ servico }}'}</code>, <code>{'{{ materiais }}'}</code> e <code>{'{{ endereco }}'}</code>.
                                     </div>
 
@@ -180,6 +190,18 @@ export default function WhatsappMessage({
                                         />
                                         <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
                                             Prévia: {renderPreview(data.generatedbudget)}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-2 md:col-span-2">
+                                        <Label htmlFor="budgetapproved">Agradecimento pela aprovação do orçamento</Label>
+                                        <Textarea
+                                            id="budgetapproved"
+                                            value={data.budgetapproved}
+                                            onChange={(e) => setData('budgetapproved', e.target.value)}
+                                        />
+                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                            Prévia: {renderPreview(data.budgetapproved)}
                                         </div>
                                     </div>
 

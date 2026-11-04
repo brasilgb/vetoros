@@ -37,6 +37,7 @@ use App\Services\OrderPaymentService;
 use App\Services\OrderStatusService;
 use App\Services\OrderTechnicianAssignmentService;
 use App\Services\OrderTotalsService;
+use App\Services\OrderWhatsappBudgetDetails;
 use App\Services\TechnicianCommissionService;
 use App\Services\WhatsAppService;
 use App\Support\Ean13;
@@ -74,6 +75,7 @@ class OrderController extends Controller
         private readonly OrderDeadlineService $orderDeadlineService,
         private readonly OrderMessageService $orderMessageService,
         private readonly OrderBudgetService $orderBudgetService,
+        private readonly OrderWhatsappBudgetDetails $orderWhatsappBudgetDetails,
         private readonly FiscalDocumentService $fiscalDocumentService,
         private readonly OrderNotificationService $orderNotificationService,
         private readonly WhatsAppService $whatsAppService,
@@ -202,6 +204,7 @@ class OrderController extends Controller
         $order->setAttribute('budget_follow_up', $this->isBudgetFollowUpOrder($order));
         $order->setAttribute('pending_payment_follow_up', $this->isPendingPaymentOrder($order, $paymentSummary));
         $order->setAttribute('whatsapp_values', $this->whatsappFinancialValues($order));
+        $order->setAttribute('whatsapp_budget', $this->orderWhatsappBudgetDetails->forOrder($order));
 
         return $this->appendLastCommunication($order);
     }
@@ -705,9 +708,14 @@ class OrderController extends Controller
             $this->authorize('view', $sourceSchedule);
         }
 
+        $technicals = User::whereIn('roles', [User::ROLE_TECHNICIAN, User::ROLE_ADMIN])
+            ->where('status', 1)
+            ->get(['id', 'name']);
+
         return Inertia::render('app/orders/create-order', [
             'equipments' => $equipments,
             'models' => $models,
+            'technicals' => $technicals,
             'sourceSchedule' => $sourceSchedule,
             'warrantySourceOrders' => $this->warrantySourceOptions(),
             'activeOrders' => $this->activeOrderOptions(),
@@ -747,6 +755,7 @@ class OrderController extends Controller
         $data['public_access_key'] = $publicAccessKey;
         $data['public_access_key_hash'] = Hash::make($publicAccessKey);
         $data['warranty_days'] = isset($data['warranty_days']) && $data['warranty_days'] !== '' ? max(0, (int) $data['warranty_days']) : null;
+        $data['budget_value'] = $this->normalizeMoneyValue($data['budget_value'] ?? 0);
         $data = $this->normalizeDeliveryDateForStatus($data);
         $isEquipmentOrder = ($data['order_type'] ?? Order::TYPE_EQUIPMENT) === Order::TYPE_EQUIPMENT;
         $warrantySourceOrder = $isEquipmentOrder ? $this->warrantySourceOrder($data) : null;

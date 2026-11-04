@@ -10,6 +10,7 @@ use App\Models\App\Customer;
 use App\Models\App\Equipment;
 use App\Models\App\WhatsappMessage;
 use App\Services\OrderCommunicationContextService;
+use App\Services\OrderWhatsappBudgetDetails;
 use App\Services\WhatsAppService;
 use App\Support\OrderStatus;
 use App\Support\TenantSequence;
@@ -375,7 +376,7 @@ class CustomerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, OrderCommunicationContextService $orderCommunicationContextService)
+    public function index(Request $request, OrderCommunicationContextService $orderCommunicationContextService, OrderWhatsappBudgetDetails $orderWhatsappBudgetDetails)
     {
         Gate::authorize('customers.access');
 
@@ -418,7 +419,7 @@ class CustomerController extends Controller
 
         $query->with(['orders' => function ($ordersQuery) {
             $ordersQuery
-                ->whereIn('service_status', [OrderStatus::BUDGET_GENERATED, OrderStatus::SERVICE_COMPLETED, OrderStatus::DELIVERED])
+                ->whereIn('service_status', [OrderStatus::BUDGET_GENERATED, OrderStatus::BUDGET_APPROVED, OrderStatus::SERVICE_COMPLETED, OrderStatus::DELIVERED])
                 ->with('orderPayments:id,order_id,amount')
                 ->orderBy('id', 'DESC');
         }]);
@@ -427,10 +428,10 @@ class CustomerController extends Controller
         $tenantId = (int) Auth::user()?->tenant_id;
 
         $customers->setCollection(
-            $customers->getCollection()->map(function (Customer $customer) use ($orderCommunicationContextService, $tenantId) {
+            $customers->getCollection()->map(function (Customer $customer) use ($orderCommunicationContextService, $orderWhatsappBudgetDetails, $tenantId) {
                 $customer->setAttribute(
                     'whatsapp_options',
-                    $this->buildCustomerWhatsappOptions($customer, $orderCommunicationContextService, $tenantId)
+                    $this->buildCustomerWhatsappOptions($customer, $orderCommunicationContextService, $tenantId, $orderWhatsappBudgetDetails)
                 );
 
                 return $customer;
@@ -457,7 +458,7 @@ class CustomerController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function buildCustomerWhatsappOptions(Customer $customer, OrderCommunicationContextService $service, ?int $tenantId): array
+    private function buildCustomerWhatsappOptions(Customer $customer, OrderCommunicationContextService $service, ?int $tenantId, OrderWhatsappBudgetDetails $budgetDetails): array
     {
         $options = [];
 
@@ -480,6 +481,9 @@ class CustomerController extends Controller
             } elseif ((int) $order->service_status === OrderStatus::BUDGET_GENERATED) {
                 $context = 'default';
                 $label = 'Orçamento gerado';
+            } elseif ((int) $order->service_status === OrderStatus::BUDGET_APPROVED) {
+                $context = 'budget_approved';
+                $label = 'Orçamento aprovado';
             } elseif ((int) $order->service_status === OrderStatus::SERVICE_COMPLETED) {
                 $context = 'default';
                 $label = 'Serviço concluído';
@@ -497,6 +501,7 @@ class CustomerController extends Controller
                 'feedback' => $isFeedbackOpen,
                 'amount_due' => $remaining,
                 'days_pending' => $service->communicationDaysPending($order),
+                'budget' => $budgetDetails->forOrder($order),
             ];
         }
 

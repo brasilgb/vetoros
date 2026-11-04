@@ -83,7 +83,7 @@ class EquipmentControllerTest extends TestCase
             'model' => 'Notebook Dell Inspiron',
             'defect' => 'Não liga',
             'service_status' => OrderStatus::OPEN,
-            'user_id' => null,
+            'user_id' => $this->user->id,
             'delivery_forecast' => now()->addDays(7)->toDateString(),
         ])->assertRedirect(route('app.orders.index'));
 
