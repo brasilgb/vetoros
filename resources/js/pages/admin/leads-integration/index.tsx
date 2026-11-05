@@ -57,11 +57,11 @@ export default function LeadsIntegrationIndex({ settings, counts, failures }: Pr
 
     return (
         <AdminLayout breadcrumbs={[{ title: 'Configurações', href: route('admin.settings.index') }, { title: 'Acompanhamento VetorLeads', href: route('admin.leads-integration.index') }]}>
-            <Head title="Acompanhamento VetorLeads" />
+            <Head title="Acompanhamento de cadastro (VetorLeads)" />
 
             <div className="flex flex-col gap-6 p-4">
                 <div>
-                    <h1 className="text-2xl font-semibold">Acompanhamento VetorLeads</h1>
+                    <h1 className="text-2xl font-semibold">Acompanhamento de cadastro (VetorLeads)</h1>
                     <p className="text-sm text-muted-foreground">
                         No modo API, cadastro, início e prorrogação do teste, assinatura ativada e teste encerrado sem contratação são enviados ao VetorLeads. O envio nunca
                         bloqueia cadastro nem pagamento.
