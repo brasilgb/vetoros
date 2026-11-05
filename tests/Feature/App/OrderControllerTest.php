@@ -596,8 +596,9 @@ class OrderControllerTest extends TestCase
         $this->assertDatabaseHas('orders', ['budget_value' => '1234.56']);
 
         $this->post(route('app.orders.store'), [...$payload, 'budget_value' => '100000000,00'])->assertSessionHasErrors(['budget_value']);
-        $this->post(route('app.orders.store'), [...$payload, 'budget_value' => '0,00'])->assertSessionHasErrors(['budget_value']);
-        $this->assertDatabaseCount('orders', 1);
+        $this->post(route('app.orders.store'), [...$payload, 'budget_value' => '0,00'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('orders', ['budget_value' => '0.00', 'service_status' => OrderStatus::BUDGET_GENERATED]);
+        $this->assertDatabaseCount('orders', 2);
     }
 
     public function test_it_does_not_use_system_mail_for_status_email_when_tenant_mail_is_not_configured(): void
@@ -1700,6 +1701,27 @@ class OrderControllerTest extends TestCase
         ]);
 
         return [$technician, $order, $customer, $equipment, $device];
+    }
+
+    public function test_edit_order_saves_zero_budget_when_status_is_budget_generated(): void
+    {
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
+        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
+        $order = Order::factory()->forTenant($this->tenant->id)->create([
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'user_id' => $this->user->id,
+            'service_status' => OrderStatus::OPEN,
+        ]);
+
+        $response = $this->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $customer, $equipment, [
+            'service_status' => OrderStatus::BUDGET_GENERATED,
+            'budget_description' => 'Diagnóstico sem custo',
+            'budget_value' => '0,00',
+        ]));
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'budget_value' => '0.00', 'service_status' => OrderStatus::BUDGET_GENERATED]);
     }
 
     private function orderUpdatePayload(Order $order, Customer $customer, Equipment $equipment, array $overrides = []): array

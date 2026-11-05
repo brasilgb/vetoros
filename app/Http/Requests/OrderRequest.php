@@ -104,10 +104,6 @@ class OrderRequest extends FormRequest
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     $amount = $this->moneyAmount($value) ?? 0;
 
-                    if ((int) $this->service_status === OrderStatus::BUDGET_GENERATED && $amount <= 0) {
-                        $fail('O valor do orçamento deve ser maior que 0,00 quando for "Orçamento gerado".');
-                    }
-
                     if ($amount > self::MAX_BUDGET_VALUE) {
                         $fail('O valor do orçamento deve ser no máximo 99.999.999,99.');
                     }
