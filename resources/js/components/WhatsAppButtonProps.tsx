@@ -104,6 +104,28 @@ const formatQuantity = (value: number) => (Number.isInteger(value) ? String(valu
 const formatBudgetParts = (parts?: { quantity: number; description: string; total: number }[]) =>
     (parts ?? []).map((part) => `- ${formatQuantity(part.quantity)}x ${part.description || 'Item'}: ${formatBRL(part.total)}`).join('\n');
 
+// Sem peças no orçamento, {{ peças }} e {{ valor_pecas }} saem vazios e as linhas do modelo que ficam só com rótulo
+// (ex.: "Peças:" ou "Total das peças:") são omitidas. Linhas com outros textos ou tags são mantidas.
+const PARTS_TAG_PATTERN = /\{\{\s*([^}]+?)\s*\}\}/g;
+const isPartsTagKey = (rawKey: string) => ['pecas', 'valor_pecas'].includes(normalizePlaceholderKey(rawKey));
+const PARTS_LABEL_ONLY = /^\s*(?:total\s+(?:d[aoe]s?\s+)?)?pe[cç]as\s*:?\s*$/i;
+
+const dropEmptyPartsLines = (template: string) => {
+    const lines = template.split('\n');
+    const hasPartsTag = lines.map((line) => [...line.matchAll(PARTS_TAG_PATTERN)].some((match) => isPartsTagKey(match[1])));
+    const withoutPartsTags = lines.map((line) => line.replace(PARTS_TAG_PATTERN, (match, rawKey) => (isPartsTagKey(rawKey) ? '' : match)));
+    const isEmptyPartsLine = (index: number) => hasPartsTag[index] && (withoutPartsTags[index].trim() === '' || PARTS_LABEL_ONLY.test(withoutPartsTags[index]));
+
+    return lines
+        .filter((_, index) => {
+            if (isEmptyPartsLine(index)) return false;
+            // Rótulo sozinho na linha imediatamente antes de uma linha de peças vazia (ex.: "Peças:" acima de "{{ peças }}").
+            const isLabelBeforeEmptyPartsLine = !hasPartsTag[index] && PARTS_LABEL_ONLY.test(lines[index]) && isEmptyPartsLine(index + 1);
+            return !isLabelBeforeEmptyPartsLine;
+        })
+        .join('\n');
+};
+
 const withGreeting = (greeting: string, customerName: string, content: string) => `${greeting}, ${customerName}!\n${content}`;
 
 const normalizeWhatsAppLineBreaks = (message: string) => message.replace(/\n{2,}/g, '\n').trim();
@@ -246,6 +268,7 @@ export const buildMessage = ({
     const currentStatus = normalizeStatus(status);
     const greeting = getGreeting();
     const trackingUrl = buildTrackingUrl(whats?.tracking_token);
+    const hasNoBudgetParts = (budget?.parts ?? []).length === 0 && !budget?.parts_value;
     const templateValues = {
         saudacao: greeting,
         saudação: greeting,
@@ -259,7 +282,7 @@ export const buildMessage = ({
         valor_servico: formatFinancialValue(financialValues?.services),
         descricao_orcamento: budget?.description ?? '',
         pecas: formatBudgetParts(budget?.parts),
-        valor_pecas: budget?.parts_value == null ? '' : formatBRL(budget.parts_value),
+        valor_pecas: budget?.parts_value == null || hasNoBudgetParts ? '' : formatBRL(budget.parts_value),
     };
 
     const selectedTemplate = getTemplateForContext({ status, feedback, context, whats });
@@ -268,7 +291,7 @@ export const buildMessage = ({
 
     const message = normalizeWhatsAppLineBreaks(
         formatTemplateMessage({
-            template: selectedTemplate,
+            template: hasNoBudgetParts ? dropEmptyPartsLines(selectedTemplate) : selectedTemplate,
             greeting,
             customerName,
             values: templateValues,

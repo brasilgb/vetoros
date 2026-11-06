@@ -48,8 +48,34 @@ describe('mensagem de agradecimento pela aprovação do orçamento', () => {
         assert.equal(message.includes('{{'), false);
         assert.equal(message.includes('undefined'), false);
         assert.equal(message.includes('null'), false);
-        assert.equal(message.includes('Orçamento: \n'), true);
-        assert.equal(message.endsWith('Total das peças:'), true);
+        assert.equal(message.includes('Orçamento:'), true);
+        assert.equal(message.includes('Peças'), false);
+        assert.equal(message.includes('peças'), false);
+        assert.equal(message.includes('R$ 0,00'), false);
+        assert.equal(message, 'Bom dia, João! Agradecemos seu retorno e a aprovação do orçamento.\nOrçamento:');
+    });
+
+    test('sem peças e com valor zero omite rótulos e R$ 0,00 mas mantém o restante da mensagem', () => {
+        const message = brl(
+            buildMessage({
+                ...baseProps,
+                budget: { description: 'Revisão', parts: [], parts_value: 0 },
+                whats: { budgetapproved: 'Olá {{ cliente }}, serviço: {{ descricao_orcamento }}\nPeças:\n{{ peças }}\nTotal das peças: {{ valor_pecas }}\nObrigado!' },
+            }),
+        );
+
+        assert.equal(message, 'Olá João, serviço: Revisão\nObrigado!');
+    });
+
+    test('sem peças mas com valor avulso de peças mantém a linha de valor', () => {
+        const message = brl(
+            buildMessage({
+                ...baseProps,
+                budget: { description: 'Revisão', parts: [], parts_value: 75 },
+            }),
+        );
+
+        assert.equal(message.endsWith('Total das peças: R$ 75,00'), true);
     });
 
     test('sem dados de orçamento (null) também não gera valores inválidos', () => {
