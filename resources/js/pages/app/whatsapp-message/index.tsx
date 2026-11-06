@@ -1,15 +1,19 @@
 import { toastSuccess } from '@/components/app-toast-messages';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { useIsMobile } from '@/hooks/use-mobile';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { MessageCircleCode, Save } from 'lucide-react';
+import { CircleHelp, MessageCircleCode, Save, X } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import WhatsappConnectionPanel from './connection-panel';
+import { TemplateHelpContent, VariableList } from './template-help';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -119,6 +123,22 @@ export default function WhatsappMessage({
         technicianschedule: whatsappmessage?.technicianschedule,
     });
 
+    // No desktop, a ajuda abre numa gaveta ao lado do formulário (sem overlay, para o formulário seguir editável).
+    // No celular, abre num modal ajustado à largura da tela.
+    const isMobile = useIsMobile();
+    const [helpOpen, setHelpOpen] = useState(false);
+
+    useEffect(() => {
+        if (!helpOpen || isMobile) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setHelpOpen(false);
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [helpOpen, isMobile]);
+
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         patch(route('app.whatsapp-message.update', whatsappmessage?.id), {
@@ -165,126 +185,173 @@ export default function WhatsappMessage({
                     </TabsContent>
 
                     <TabsContent value="templates">
-                        <div className="rounded-lg border p-2">
-                            <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
-                                <div className="mt-4 grid gap-4">
-                                    <div className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
-                                        Para usar as mensagens padrão, basta clicar em salvar. Se precisar, altere os textos conforme a necessidade.
-                                        Os templates inserem automaticamente informações do cliente e da O.S. pelos placeholders:{' '}
-                                        <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>, <code>{'{{ link_os }}'}</code>,{' '}
-                                        <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code>, <code>{'{{ dias_pendentes }}'}</code>,{' '}
-                                        <code>{'{{ valor_orçamento }}'}</code> (total do orçamento, com peças) e <code>{'{{ valor_serviço }}'}</code>{' '}
-                                        (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. Os dados do orçamento aprovado
-                                        usam <code>{'{{ descricao_orcamento }}'}</code>, <code>{'{{ peças }}'}</code> (lista de peças) e{' '}
-                                        <code>{'{{ valor_pecas }}'}</code> (total das peças); sem peças ou descrição, a tag fica vazia. O aviso de
-                                        agendamento ao técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
-                                        <code>{'{{ servico }}'}</code>, <code>{'{{ materiais }}'}</code> e <code>{'{{ endereco }}'}</code>.
-                                    </div>
+                        <div className="flex items-start gap-4">
+                            <div className="min-w-0 flex-1 rounded-lg border p-2">
+                                <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
+                                    <div className="mt-4 grid gap-4">
+                                        <div className="grid gap-3">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div>
+                                                    <h3 className="text-sm font-medium">Variáveis</h3>
+                                                    <p className="text-muted-foreground text-sm">
+                                                        Copie uma variável e cole no texto da mensagem. Use a Ajuda para entender cada uma.
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setHelpOpen(true)}
+                                                    aria-haspopup="dialog"
+                                                    aria-expanded={helpOpen}
+                                                >
+                                                    <CircleHelp />
+                                                    Ajuda
+                                                </Button>
+                                            </div>
+                                            <VariableList />
+                                        </div>
 
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="generatedbudget">Orçamento gerado</Label>
-                                        <Textarea
-                                            id="generatedbudget"
-                                            value={data.generatedbudget}
-                                            onChange={(e) => setData('generatedbudget', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.generatedbudget)}
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="generatedbudget">Orçamento gerado</Label>
+                                            <Textarea
+                                                id="generatedbudget"
+                                                value={data.generatedbudget}
+                                                onChange={(e) => setData('generatedbudget', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.generatedbudget)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="budgetapproved">Agradecimento pela aprovação do orçamento</Label>
+                                            <Textarea
+                                                id="budgetapproved"
+                                                value={data.budgetapproved}
+                                                onChange={(e) => setData('budgetapproved', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.budgetapproved)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="servicecompleted">Serviço concluído</Label>
+                                            <Textarea
+                                                id="servicecompleted"
+                                                value={data.servicecompleted}
+                                                onChange={(e) => setData('servicecompleted', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.servicecompleted)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="feedback">Feedback ao cliente</Label>
+                                            <Textarea id="feedback" value={data.feedback} onChange={(e) => setData('feedback', e.target.value)} />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.feedback)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="defaultmessage">Mensagem padrão (demais status)</Label>
+                                            <Textarea
+                                                id="defaultmessage"
+                                                value={data.defaultmessage}
+                                                onChange={(e) => setData('defaultmessage', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.defaultmessage)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="budgetfollowup">Orçamento parado</Label>
+                                            <Textarea
+                                                id="budgetfollowup"
+                                                value={data.budgetfollowup}
+                                                onChange={(e) => setData('budgetfollowup', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.budgetfollowup)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="pendingpayment">Cobrança pendente</Label>
+                                            <Textarea
+                                                id="pendingpayment"
+                                                value={data.pendingpayment}
+                                                onChange={(e) => setData('pendingpayment', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.pendingpayment)}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-2 md:col-span-2">
+                                            <Label htmlFor="technicianschedule">Aviso de agendamento ao técnico</Label>
+                                            <Textarea
+                                                id="technicianschedule"
+                                                value={data.technicianschedule}
+                                                onChange={(e) => setData('technicianschedule', e.target.value)}
+                                            />
+                                            <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                                Prévia: {renderPreview(data.technicianschedule)}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="budgetapproved">Agradecimento pela aprovação do orçamento</Label>
-                                        <Textarea
-                                            id="budgetapproved"
-                                            value={data.budgetapproved}
-                                            onChange={(e) => setData('budgetapproved', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.budgetapproved)}
-                                        </div>
+                                    <div className="flex justify-end gap-2">
+                                        <Button type="button" variant="outline" onClick={handleResetDefaults} disabled={processing}>
+                                            Restaurar modelos
+                                        </Button>
+                                        <Button type="submit" disabled={processing}>
+                                            <Save />
+                                            Salvar
+                                        </Button>
                                     </div>
+                                </form>
+                            </div>
 
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="servicecompleted">Serviço concluído</Label>
-                                        <Textarea
-                                            id="servicecompleted"
-                                            value={data.servicecompleted}
-                                            onChange={(e) => setData('servicecompleted', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.servicecompleted)}
-                                        </div>
+                            {helpOpen && !isMobile && (
+                                <aside
+                                    aria-labelledby="template-help-title"
+                                    className="bg-background sticky top-4 max-h-[calc(100vh-2rem)] w-96 shrink-0 overflow-y-auto rounded-lg border p-4 shadow-sm"
+                                >
+                                    <div className="mb-4 flex items-start justify-between gap-2">
+                                        <h2 id="template-help-title" className="text-lg font-semibold">
+                                            Como usar os templates de mensagem
+                                        </h2>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => setHelpOpen(false)}
+                                            aria-label="Fechar ajuda"
+                                        >
+                                            <X />
+                                        </Button>
                                     </div>
-
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="feedback">Feedback ao cliente</Label>
-                                        <Textarea id="feedback" value={data.feedback} onChange={(e) => setData('feedback', e.target.value)} />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.feedback)}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="defaultmessage">Mensagem padrão (demais status)</Label>
-                                        <Textarea
-                                            id="defaultmessage"
-                                            value={data.defaultmessage}
-                                            onChange={(e) => setData('defaultmessage', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.defaultmessage)}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="budgetfollowup">Orçamento parado</Label>
-                                        <Textarea
-                                            id="budgetfollowup"
-                                            value={data.budgetfollowup}
-                                            onChange={(e) => setData('budgetfollowup', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.budgetfollowup)}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="pendingpayment">Cobrança pendente</Label>
-                                        <Textarea
-                                            id="pendingpayment"
-                                            value={data.pendingpayment}
-                                            onChange={(e) => setData('pendingpayment', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.pendingpayment)}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-2 md:col-span-2">
-                                        <Label htmlFor="technicianschedule">Aviso de agendamento ao técnico</Label>
-                                        <Textarea
-                                            id="technicianschedule"
-                                            value={data.technicianschedule}
-                                            onChange={(e) => setData('technicianschedule', e.target.value)}
-                                        />
-                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
-                                            Prévia: {renderPreview(data.technicianschedule)}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end gap-2">
-                                    <Button type="button" variant="outline" onClick={handleResetDefaults} disabled={processing}>
-                                        Restaurar modelos
-                                    </Button>
-                                    <Button type="submit" disabled={processing}>
-                                        <Save />
-                                        Salvar
-                                    </Button>
-                                </div>
-                            </form>
+                                    <TemplateHelpContent />
+                                </aside>
+                            )}
                         </div>
+
+                        <Dialog open={isMobile && helpOpen} onOpenChange={setHelpOpen}>
+                            <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>Como usar os templates de mensagem</DialogTitle>
+                                    <DialogDescription className="sr-only">
+                                        Instruções e lista das variáveis disponíveis nos templates.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <TemplateHelpContent />
+                            </DialogContent>
+                        </Dialog>
                     </TabsContent>
                 </Tabs>
             </div>
