@@ -131,7 +131,9 @@ class SaleService
                 throw new RuntimeException('Venda já está cancelada.');
             }
 
-            foreach ($sale->items as $item) {
+            // Peças travadas na mesma ordem (part_id crescente) da criação da venda, evitando
+            // deadlock entre cancelamentos e vendas simultâneas com os mesmos itens.
+            foreach ($sale->items->sortBy('part_id') as $item) {
                 $part = Part::query()->whereKey($item->part_id)->lockForUpdate()->first();
 
                 if ($part) {
