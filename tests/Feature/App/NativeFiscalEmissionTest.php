@@ -375,7 +375,7 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
     }
 
-    public function test_order_nfse_emission_uses_service_items_and_public_pdf_link(): void
+    public function test_order_nfse_emission_uses_service_items_and_authenticated_pdf_link(): void
     {
         $this->fiscalSetting(['nfse_enabled' => true]);
         $order = $this->order();
@@ -395,13 +395,17 @@ class NativeFiscalEmissionTest extends TestCase
             && str_contains($request['description'], 'Troca de tela')
             && $request['location']['code'] === 4314902);
 
+        // VETOROS-PERFORMANCE-OS-04: sem consulta pública, o PDF da OS sai pela rota autenticada (como na venda).
         $order->refresh();
-        $this->assertSame(route('os.fiscal-proof.pdf', ['token' => $order->tracking_token]), $order->fiscal_document_url);
+        $document = FiscalDocument::query()->sole();
+        $this->assertSame(route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'pdf']), $order->fiscal_document_url);
 
-        auth()->logout();
-        $this->get(route('os.fiscal-proof.pdf', ['token' => $order->tracking_token]))
+        $this->get($order->fiscal_document_url)
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf');
+
+        auth()->logout();
+        $this->get($order->fiscal_document_url)->assertRedirect();
     }
 
     public function test_cancellation_requires_authorized_note_and_valid_reason(): void

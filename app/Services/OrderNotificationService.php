@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Mail\OrderBudgetFollowUpMail;
-use App\Mail\OrderCreatedMail;
 use App\Mail\OrderFeedbackReminderMail;
 use App\Mail\OrderPaymentReminderMail;
 use App\Mail\OrderStatusUpdatedMail;
@@ -61,15 +60,6 @@ class OrderNotificationService
         return TenantMailConfig::hasConfiguredForTenantId($order->tenant_id ? (int) $order->tenant_id : null);
     }
 
-    public function sendCreated(Order $order): void
-    {
-        if (! $this->canSendToCustomer($order->loadMissing(['customer', 'tenant']), $order->customer?->email)) {
-            return;
-        }
-
-        $this->deliverCreated($order->id);
-    }
-
     public function sendStatusUpdated(Order $order, string $statusLabel, ?string $observations = null): void
     {
         if (! $this->canSendToCustomer($order->loadMissing(['customer', 'tenant']), $order->customer?->email)) {
@@ -104,23 +94,6 @@ class OrderNotificationService
         }
 
         $this->deliverFeedbackReminder($order->id);
-    }
-
-    public function deliverCreated(int $orderId): void
-    {
-        $order = $this->resolveOrder($orderId);
-
-        if (! $order) {
-            return;
-        }
-
-        $customerEmail = trim((string) ($order->customer?->email ?? ''));
-
-        if ($customerEmail === '' || ! filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
-            return;
-        }
-
-        $this->sendRecorded($order, $customerEmail, 'order_created', new OrderCreatedMail($order));
     }
 
     public function deliverStatusUpdated(int $orderId, string $statusLabel, ?string $observations = null): void

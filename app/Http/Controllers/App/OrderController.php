@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers\App;
 
-use App\Events\OrderCreated;
 use App\Events\OrderLifecycleCreated;
 use App\Events\OrderLifecycleStatusChanged;
 use App\Events\OrderPaymentRegistered;
 use App\Events\OrderPaymentRemoved;
-use App\Events\OrderStatusUpdated;
 use App\Exceptions\WhatsAppException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
@@ -53,7 +51,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -61,6 +58,8 @@ use Inertia\Inertia;
 
 class OrderController extends Controller
 {
+    private const CONTEXT_OPTIONS_LIMIT = 50;
+
     public function __construct(
         private readonly OperationalAuditService $operationalAuditService,
         private readonly OrderPaymentService $orderPaymentService,
@@ -346,10 +345,18 @@ class OrderController extends Controller
         return $sourceOrder;
     }
 
-    private function warrantySourceOptions(?int $currentSourceOrderId = null, ?int $excludeOrderId = null)
+    /**
+     * OS de origem possíveis para retorno em garantia. Antes ia para o formulário a lista de
+     * todas as OS do tenant com garantia ativa (cresce com o histórico); agora é sempre
+     * filtrada pelo cliente e equipamento escolhidos e limitada.
+     */
+    private function warrantySourceOptions(int $customerId, int $equipmentId, ?int $currentSourceOrderId = null, ?int $excludeOrderId = null)
     {
+        // Sem scopeOrdersQuery, como antes: a validação (warrantySourceOrder) aceita qualquer OS
+        // do tenant, inclusive atendida por outro técnico.
         return Order::query()
-            ->with(['customer:id,name', 'equipment:id,equipment'])
+            ->where('customer_id', $customerId)
+            ->where('equipment_id', $equipmentId)
             ->whereNotNull('delivery_date')
             ->whereNotNull('warranty_expires_at')
             ->where(function ($query) use ($currentSourceOrderId) {
@@ -361,15 +368,53 @@ class OrderController extends Controller
             })
             ->when($excludeOrderId, fn ($query) => $query->whereKeyNot($excludeOrderId))
             ->orderByDesc('delivery_date')
+            ->limit(self::CONTEXT_OPTIONS_LIMIT)
             ->get(['id', 'order_number', 'customer_id', 'equipment_id', 'model', 'delivery_date', 'warranty_expires_at']);
     }
 
-    private function activeOrderOptions()
+    /** OS em andamento do mesmo cliente/equipamento, para o aviso de possível duplicidade. */
+    private function activeOrderOptions(int $customerId, ?int $equipmentId)
     {
         return $this->scopeOrdersQuery(Order::query())
+            ->where('customer_id', $customerId)
+            ->when($equipmentId, fn ($query) => $query->where('equipment_id', $equipmentId), fn ($query) => $query->whereNull('equipment_id'))
             ->whereNotIn('service_status', [OrderStatus::CANCELLED, OrderStatus::SERVICE_NOT_EXECUTED, OrderStatus::DELIVERED])
             ->latest('updated_at')
+            ->limit(self::CONTEXT_OPTIONS_LIMIT)
             ->get(['id', 'order_number', 'customer_id', 'equipment_id', 'model', 'service_status', 'updated_at']);
+    }
+
+    /**
+     * Dados de apoio do formulário da OS, carregados sob demanda quando o cliente e o
+     * equipamento são escolhidos: OS de origem para garantia e OS em andamento (duplicidade).
+     * O isolamento por tenant vem do escopo global de Order; técnicos sem "ver todas" só
+     * enxergam as próprias OS (scopeOrdersQuery), como na listagem.
+     */
+    public function contextOptions(Request $request)
+    {
+        $this->authorize('viewAny', Order::class);
+
+        $validated = $request->validate([
+            'customer_id' => ['required', 'integer', TenantRule::exists('customers')],
+            'equipment_id' => ['nullable', 'integer'],
+            'exclude_order_id' => ['nullable', 'integer'],
+            'current_source_order_id' => ['nullable', 'integer'],
+        ]);
+
+        $customerId = (int) $validated['customer_id'];
+        $equipmentId = isset($validated['equipment_id']) ? (int) $validated['equipment_id'] : null;
+
+        return response()->json([
+            'warrantySourceOrders' => $equipmentId
+                ? $this->warrantySourceOptions(
+                    $customerId,
+                    $equipmentId,
+                    isset($validated['current_source_order_id']) ? (int) $validated['current_source_order_id'] : null,
+                    isset($validated['exclude_order_id']) ? (int) $validated['exclude_order_id'] : null,
+                )
+                : [],
+            'activeOrders' => $this->activeOrderOptions($customerId, $equipmentId),
+        ]);
     }
 
     private function logOrderAction(Order $order, string $action, array $data = []): void
@@ -435,7 +480,11 @@ class OrderController extends Controller
         $partsValue = $this->roundMoney((float) ($order->parts_value ?? 0));
         $serviceValue = $this->roundMoney((float) ($order->service_value ?? 0));
         $totalOrder = $this->roundMoney((float) ($order->service_cost ?? 0));
-        $totalPaid = $this->roundMoney((float) $order->orderPayments->sum('amount'));
+        // Na listagem o total pago vem agregado no SQL (withSum); nas demais telas, da relação.
+        // withSum devolve null quando não há pagamento: a presença da coluna é o que importa.
+        $totalPaid = $this->roundMoney((float) (! $order->relationLoaded('orderPayments') && array_key_exists('total_paid', $order->getAttributes())
+            ? ($order->getAttributes()['total_paid'] ?? 0)
+            : $order->orderPayments->sum('amount')));
         $remaining = $this->roundMoney(max(0, $totalOrder - $totalPaid));
 
         return [
@@ -646,11 +695,13 @@ class OrderController extends Controller
             });
         }
 
+        // Total pago agregado no SQL (withSum) em vez de carregar todos os pagamentos; a data
+        // de pendência do orçamento vem na mesma consulta (antes era 1–2 consultas por linha).
         $orders = $query
+            ->withBudgetPendingSince()
             ->with([
                 'equipment',
                 'customer',
-                'orderPayments:id,order_id,amount',
                 'logs' => fn ($logsQuery) => $logsQuery->whereIn('action', ['payment_reminder_sent', 'budget_follow_up_sent']),
             ])
             ->withMax('statusHistory as status_changed_at', 'created_at')
@@ -661,7 +712,6 @@ class OrderController extends Controller
         $orders->setCollection(
             $orders->getCollection()->map(function (Order $order) {
                 $order = $this->appendPaymentReminderAvailability($order);
-                $order->setAttribute('public_access_key_value', $order->public_access_key);
 
                 return $this->appendCommunicationFlags($order);
             })
@@ -694,8 +744,9 @@ class OrderController extends Controller
     {
         $this->authorize('create', Order::class);
 
-        $equipments = Equipment::get();
-        $models = Order::distinct()->pluck('model');
+        // Só tipos de equipamento (cadastro pequeno). Clientes e equipamentos do cliente são
+        // pesquisados sob demanda; OS de garantia/duplicidade vêm de contextOptions().
+        $equipments = Equipment::query()->get(['id', 'equipment']);
         $sourceSchedule = null;
 
         if ($request->filled('schedule_id')) {
@@ -707,10 +758,7 @@ class OrderController extends Controller
 
         return Inertia::render('app/orders/create-order', [
             'equipments' => $equipments,
-            'models' => $models,
             'sourceSchedule' => $sourceSchedule,
-            'warrantySourceOrders' => $this->warrantySourceOptions(),
-            'activeOrders' => $this->activeOrderOptions(),
         ]);
     }
 
@@ -740,12 +788,8 @@ class OrderController extends Controller
             Equipment::query()->whereKey($data['equipment_id'])->firstOrFail();
         }
         $tenantId = (int) ($this->currentUser()?->tenant_id ?? 0);
-        $data['order_number'] = TenantSequence::next(Order::class, 'order_number', $tenantId);
-        $data['barcode'] = Ean13::fromNumber($data['order_number']);
+        // tracking_token segue obrigatório (NOT NULL/único) até a migration de remoção; não dá mais acesso a nada.
         $data['tracking_token'] = Str::uuid();
-        $publicAccessKey = Str::upper(Str::random(8));
-        $data['public_access_key'] = $publicAccessKey;
-        $data['public_access_key_hash'] = Hash::make($publicAccessKey);
         $data['warranty_days'] = isset($data['warranty_days']) && $data['warranty_days'] !== '' ? max(0, (int) $data['warranty_days']) : null;
         $data = $this->normalizeDeliveryDateForStatus($data);
         $isEquipmentOrder = ($data['order_type'] ?? Order::TYPE_EQUIPMENT) === Order::TYPE_EQUIPMENT;
@@ -768,7 +812,14 @@ class OrderController extends Controller
         $budgetValidUntil = $data['budget_valid_until'] ?? null;
         unset($data['status_reason'], $data['status_change_kind'], $data['budget_valid_until'], $data['delivery_forecast_reason']);
 
-        $order = DB::transaction(function () use ($data, $sourceSchedule, $warrantySourceOrder, $budgetValidUntil): Order {
+        // O número é reservado dentro da transação: o SELECT MAX ... FOR UPDATE segura a ponta do
+        // índice (tenant_id, order_number) até o commit, e uma criação simultânea no mesmo tenant
+        // espera e recebe o número seguinte. Antes, calculado fora da transação, duas criações
+        // simultâneas podiam obter o mesmo número e uma falhava na chave única
+        // (VETOROS-PERFORMANCE-OS-03). O bcrypt da chave pública fica fora, para não alongar a trava.
+        $order = DB::transaction(function () use ($data, $tenantId, $sourceSchedule, $warrantySourceOrder, $budgetValidUntil): Order {
+            $data['order_number'] = TenantSequence::next(Order::class, 'order_number', $tenantId);
+            $data['barcode'] = Ean13::fromNumber($data['order_number']);
             $order = Order::create($data);
             if ($sourceSchedule) {
                 $sourceSchedule->update(['order_id' => $order->id]);
@@ -795,7 +846,7 @@ class OrderController extends Controller
             );
 
             return $order;
-        });
+        }, 3);
         event(new OrderLifecycleCreated($order->id, $this->currentUser()?->id, [
             'status' => (int) $order->service_status,
             'status_label' => OrderStatus::label($order->service_status),
@@ -805,14 +856,9 @@ class OrderController extends Controller
             'warranty_source_order_number' => $warrantySourceOrder?->order_number,
         ]));
 
+        // Sem e-mail automático ao cliente (VETOROS-PERFORMANCE-OS-03): a empresa comunica pelo
+        // WhatsApp, com os envios manuais da tela da OS.
         $successMessage = 'Ordem cadastrada com sucesso';
-
-        try {
-            event(new OrderCreated($order));
-        } catch (\Throwable $e) {
-            report($e);
-            $successMessage = 'Ordem cadastrada com sucesso, mas houve falha ao enviar o e-mail ao cliente.';
-        }
 
         $shouldShowLabelButton = $tenantId > 0
             ? (bool) Other::query()
@@ -859,13 +905,14 @@ class OrderController extends Controller
             'orderPayments',
         ]);
 
-        $equipments = Equipment::get();
-        $parts = Part::where('type', 'part')->get();
+        // Somente as colunas que a tela usa. `models` (DISTINCT sobre todas as OS do tenant)
+        // não era lido pelo frontend e foi removido.
+        $equipments = Equipment::query()->get(['id', 'equipment']);
+        $parts = Part::where('type', 'part')->get(['id', 'name', 'sale_price', 'quantity']);
 
         $technicals = User::whereIn('roles', [User::ROLE_TECHNICIAN, User::ROLE_ADMIN])
             ->where('status', 1)
-            ->get();
-        $models = Order::distinct()->pluck('model');
+            ->get(['id', 'name']);
         $paymentSummary = $this->buildPaymentSummary($order);
         $order = $this->appendPaymentReminderAvailability($order);
         $warrantySourceOrder = $order->warrantySourceOrder()->first(['id', 'order_number', 'warranty_expires_at']);
@@ -914,7 +961,6 @@ class OrderController extends Controller
             'technicals' => $technicals,
             'equipments' => $equipments,
             'parts' => $parts,
-            'models' => $models,
             'equipmentHistory' => [
                 'total_previous_orders' => $equipmentHistory->count(),
                 'has_recurrence' => $equipmentHistory->isNotEmpty(),
@@ -932,9 +978,6 @@ class OrderController extends Controller
                 ] : null,
                 'history' => $equipmentHistory,
             ],
-            'warrantySourceOrders' => $this->warrantySourceOptions($order->warranty_source_order_id, $order->id),
-            'publicAccessKey' => $order->public_access_key,
-            'publicAccessKeyConfigured' => filled($order->getRawOriginal('public_access_key')),
             'budgets' => $order->budgets()->with('items')->get()->reverse()->values(),
             'messages' => $order->messages()->limit(50)->get([
                 'id', 'order_budget_id', 'channel', 'recipient', 'template', 'status',
@@ -945,41 +988,6 @@ class OrderController extends Controller
             'status' => $request->status,
             'filter' => $request->filter,
         ]);
-    }
-
-    public function regeneratePublicAccessKey(Request $request, Order $order): RedirectResponse
-    {
-        $this->authorize('update', $order);
-        $user = $request->user();
-        abort_unless($user instanceof User && $user->isAdministrator() && $user->hasPermission('orders'), 403);
-
-        $validated = $request->validate([
-            'reason' => ['required', 'string', 'min:10', 'max:500'],
-        ]);
-
-        DB::transaction(function () use ($order, $user, $validated): void {
-            $lockedOrder = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
-            $this->authorize('update', $lockedOrder);
-            abort_if($lockedOrder->public_access_key !== null, 409, 'A chave atual ainda pode ser recuperada.');
-
-            $key = Str::upper(Str::random(8));
-            $lockedOrder->public_access_key = $key;
-            $lockedOrder->public_access_key_hash = Hash::make($key);
-            $lockedOrder->save();
-
-            $reason = trim($validated['reason']);
-            $reason = preg_replace('/(?<![A-Z0-9])[A-Z0-9]{8}(?![A-Z0-9])/', '[redigido]', $reason) ?? $reason;
-
-            $this->operationalAuditService->record(
-                'public_access_key_regenerated',
-                'order',
-                $lockedOrder,
-                (int) $user->id,
-                ['reason' => $reason, 'previous_key_revoked' => true],
-            );
-        }, 3);
-
-        return back()->with('success', 'Nova chave de acesso público criada. A chave anterior foi invalidada.');
     }
 
     /**
@@ -1158,13 +1166,8 @@ class OrderController extends Controller
                 $statusChangeData,
                 $statusChangeData,
             ));
-
-            try {
-                event(new OrderStatusUpdated($order->fresh(['customer', 'tenant']), $statusLabel, $data['observations'] ?? null));
-            } catch (\Throwable $exception) {
-                report($exception);
-                $successMessage = 'Ordem atualizada com sucesso, mas houve falha ao enviar o e-mail de status ao cliente.';
-            }
+            // Sem e-mail automático de status (VETOROS-PERFORMANCE-OS-03): histórico e auditoria
+            // ficam acima; a comunicação com o cliente é feita pelo WhatsApp, manualmente.
         }
 
         $order = $order->fresh(['orderPayments']);
@@ -1492,7 +1495,8 @@ class OrderController extends Controller
         }
 
         try {
-            event(new OrderStatusUpdated($order->fresh(['customer', 'tenant']), OrderStatus::label((int) $order->service_status), $note));
+            // Envio manual, pedido pelo usuário nesta ação; não há mais envio automático de status.
+            $this->orderNotificationService->sendStatusUpdated($order->fresh(['customer', 'tenant']), OrderStatus::label((int) $order->service_status), $note);
         } catch (\Throwable $e) {
             report($e);
 

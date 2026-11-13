@@ -25,7 +25,7 @@ import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
 import { maskPhone } from '@/Utils/mask';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { CheckCircle2, Filter, LinkIcon, Mail, MessageCircle, PauseCircle, PlayCircle, Search, Wrench } from 'lucide-react';
+import { CheckCircle2, Filter, Mail, MessageCircle, PauseCircle, PlayCircle, Search, Wrench } from 'lucide-react';
 import moment from 'moment';
 import { useState, type ReactNode } from 'react';
 import FollowUpTabs from './follow-up-tabs';
@@ -342,20 +342,6 @@ function FollowUpTable({
                                                                     {type === 'budget' ? 'Cobrar orçamento' : 'Cobrar saldo'}
                                                                 </Button>
                                                             )}
-                                                            <Button
-                                                                asChild
-                                                                size="icon"
-                                                                className="!bg-solar-blue-primary hover:!bg-solar-blue-primary/90 !text-white hover:!text-white"
-                                                            >
-                                                                <a
-                                                                    target="_blank"
-                                                                    href={route('os.token', order.tracking_token)}
-                                                                    title="Link público da ordem"
-                                                                    aria-label={`Abrir link público da ordem ${order.order_number}`}
-                                                                >
-                                                                    <LinkIcon className="h-4 w-4" />
-                                                                </a>
-                                                            </Button>
                                                             <Button
                                                                 asChild
                                                                 size="icon"

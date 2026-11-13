@@ -14,7 +14,6 @@ use App\Events\MessageDeleted;
 use App\Events\MessageReadStatusUpdated;
 use App\Events\MessageUpdated;
 use App\Events\OrderBudgetFollowUpRequested;
-use App\Events\OrderCreated;
 use App\Events\OrderCustomerFeedbackSubmitted;
 use App\Events\OrderCustomerNotificationAcknowledged;
 use App\Events\OrderCustomerPickupAcknowledged;
@@ -22,9 +21,8 @@ use App\Events\OrderFeedbackRecoveryUpdated;
 use App\Events\OrderLifecycleCreated;
 use App\Events\OrderLifecycleStatusChanged;
 use App\Events\OrderPaymentRegistered;
-use App\Events\OrderPaymentRemoved;
 use App\Events\OrderPaymentReminderRequested;
-use App\Events\OrderStatusUpdated;
+use App\Events\OrderPaymentRemoved;
 use App\Events\SaleCancelled;
 use App\Events\SaleCreated;
 use App\Events\SaleDeleted;
@@ -40,10 +38,10 @@ use App\Listeners\RecordMessageCreatedAudit;
 use App\Listeners\RecordMessageDeletedAudit;
 use App\Listeners\RecordMessageReadStatusUpdatedAudit;
 use App\Listeners\RecordMessageUpdatedAudit;
+use App\Listeners\RecordOrderCreatedLifecycle;
 use App\Listeners\RecordOrderCustomerFeedbackSubmittedLifecycle;
 use App\Listeners\RecordOrderCustomerNotificationAcknowledgedLifecycle;
 use App\Listeners\RecordOrderCustomerPickupAcknowledgedLifecycle;
-use App\Listeners\RecordOrderCreatedLifecycle;
 use App\Listeners\RecordOrderFeedbackRecoveryUpdatedLifecycle;
 use App\Listeners\RecordOrderPaymentRegisteredLifecycle;
 use App\Listeners\RecordOrderPaymentRemovedLifecycle;
@@ -53,22 +51,16 @@ use App\Listeners\RecordSaleCreatedLifecycle;
 use App\Listeners\RecordSaleDeletedLifecycle;
 use App\Listeners\RecordWhatsappMessageSettingsUpdatedAudit;
 use App\Listeners\SendOrderBudgetFollowUpNotification;
-use App\Listeners\SendOrderCreatedNotification;
 use App\Listeners\SendOrderPaymentReminderNotification;
-use App\Listeners\SendOrderStatusUpdatedNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
 {
+    // OS criada e mudança de status não enviam e-mail automático (VETOROS-PERFORMANCE-OS-03):
+    // a comunicação com o cliente é feita pela empresa, pelo WhatsApp.
     protected $listen = [
-        OrderCreated::class => [
-            SendOrderCreatedNotification::class,
-        ],
         OrderLifecycleCreated::class => [
             RecordOrderCreatedLifecycle::class,
-        ],
-        OrderStatusUpdated::class => [
-            SendOrderStatusUpdatedNotification::class,
         ],
         OrderLifecycleStatusChanged::class => [
             RecordOrderStatusChangedLifecycle::class,

@@ -206,6 +206,13 @@ class OrderCommunicationTest extends TestCase
 
         $this->generateBudget($order);
 
+        // Mudar o status não envia e-mail automático (VETOROS-PERFORMANCE-OS-03).
+        Mail::assertNothingSent();
+        $this->assertSame(0, OrderMessage::query()->where('order_id', $order->id)->count());
+
+        // O envio manual pela OS continua disponível e fica ligado à versão do orçamento.
+        $this->post(route('app.orders.customer-update', $order), ['note' => 'Orçamento disponível para aprovação.'])->assertRedirect();
+
         Mail::assertSent(OrderStatusUpdatedMail::class);
         $message = OrderMessage::query()->where('order_id', $order->id)->sole();
         $this->assertSame(OrderMessage::CHANNEL_EMAIL, $message->channel);
@@ -225,7 +232,7 @@ class OrderCommunicationTest extends TestCase
         $before = config('mail');
 
         try {
-            app(OrderNotificationService::class)->deliverCreated($order->id);
+            app(OrderNotificationService::class)->deliverStatusUpdated($order->id, OrderStatus::label(OrderStatus::OPEN));
             $this->fail('Envio sem SMTP do tenant deveria falhar.');
         } catch (\RuntimeException $exception) {
             $this->assertSame('SMTP do tenant não configurado.', $exception->getMessage());
@@ -234,7 +241,7 @@ class OrderCommunicationTest extends TestCase
         $message = OrderMessage::query()->where('order_id', $order->id)->sole();
         $this->assertSame(OrderMessage::STATUS_FAILED, $message->status);
         $this->assertSame(OrderMessage::CHANNEL_EMAIL, $message->channel);
-        $this->assertSame('order_created', $message->template);
+        $this->assertSame('status_updated', $message->template);
         $this->assertSame($before, config('mail'));
     }
 

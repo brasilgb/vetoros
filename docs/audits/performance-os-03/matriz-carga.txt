@@ -1,0 +1,240 @@
+== real-t10-u10 | tenants=10 usuários=10 pausa=2000ms | 40s | 188 req | 4.7 req/s | erros 1
+   listar          n=   47 err=  0  p50   115.2  p95   269.6  p99   304.4  max   304.4 
+   listar_status   n=   12 err=  0  p50   115.4  p95   416.5  p99   416.5  max   416.5 
+   listar_busca    n=   10 err=  0  p50     137  p95     189  p99     189  max     189 
+   abrir_simples   n=   43 err=  0  p50    95.9  p95   246.9  p99   412.1  max   412.1 
+   abrir_pesada    n=    6 err=  0  p50     107  p95   204.1  p99   204.1  max   204.1 
+   form_nova       n=    7 err=  0  p50    69.9  p95   310.4  p99   310.4  max   310.4 
+   buscar_cliente  n=   10 err=  0  p50      23  p95    81.5  p99    81.5  max    81.5 
+   link_publico    n=   15 err=  0  p50   124.5  p95   344.9  p99   344.9  max   344.9 
+   salvar_nova     n=    8 err=  0  p50   310.4  p95   645.2  p99   645.2  max   645.2 
+   editar_salvar   n=   16 err=  0  p50    69.3  p95   389.4  p99   389.4  max   389.4 
+   mudar_status    n=   14 err=  1  p50    72.6  p95   195.9  p99   195.9  max   195.9 {"303":1}
+== real-t10-u30 | tenants=10 usuários=30 pausa=2000ms | 40s | 568 req | 14.2 req/s | erros 0
+   listar          n=  144 err=  0  p50   100.1  p95   352.1  p99   677.9  max   833.7 
+   listar_status   n=   56 err=  0  p50    93.7  p95   334.5  p99   990.6  max   990.6 
+   listar_busca    n=   53 err=  0  p50   133.2  p95   729.4  p99  1040.6  max  1040.6 
+   abrir_simples   n=  119 err=  0  p50    80.4  p95   260.3  p99   547.4  max   718.2 
+   abrir_pesada    n=   17 err=  0  p50    85.3  p95   166.1  p99   166.1  max   166.1 
+   form_nova       n=   20 err=  0  p50    50.1  p95   131.5  p99   134.2  max   134.2 
+   buscar_cliente  n=   27 err=  0  p50    27.4  p95    76.7  p99   347.3  max   347.3 
+   link_publico    n=   38 err=  0  p50      76  p95   254.7  p99   590.9  max   590.9 
+   salvar_nova     n=   23 err=  0  p50   319.8  p95   536.4  p99   673.4  max   673.4 
+   editar_salvar   n=   49 err=  0  p50    70.3  p95   395.5  p99   541.2  max   541.2 
+   mudar_status    n=   22 err=  0  p50    71.6  p95     217  p99   708.9  max   708.9 
+== real-t10-u50 | tenants=10 usuários=50 pausa=2000ms | 40s | 914 req | 22.8 req/s | erros 5
+   listar          n=  253 err=  0  p50   122.1  p95   435.8  p99   593.6  max   742.6 
+   listar_status   n=   73 err=  0  p50   104.2  p95   503.6  p99   761.5  max   761.5 
+   listar_busca    n=   71 err=  0  p50   132.9  p95   435.4  p99   676.2  max   676.2 
+   abrir_simples   n=  163 err=  0  p50    95.3  p95   505.5  p99   755.1  max   774.7 
+   abrir_pesada    n=   41 err=  0  p50   122.1  p95   460.6  p99   694.9  max   694.9 
+   form_nova       n=   38 err=  0  p50      76  p95   340.9  p99   726.7  max   726.7 
+   buscar_cliente  n=   51 err=  0  p50    26.8  p95   137.5  p99   730.2  max   730.2 
+   link_publico    n=   53 err=  0  p50   113.1  p95   467.3  p99   483.6  max   483.6 
+   salvar_nova     n=   40 err=  1  p50   400.3  p95  1645.3  p99  1808.8  max  1808.8 {"302":1}
+   editar_salvar   n=   77 err=  0  p50    93.1  p95   387.8  p99   800.3  max   800.3 
+   mudar_status    n=   54 err=  4  p50    84.1  p95   440.4  p99  1442.1  max  1442.1 {"303":4}
+== real-t10-u100 | tenants=10 usuários=100 pausa=2000ms | 41s | 1211 req | 29.4 req/s | erros 8
+   listar          n=  259 err=  0  p50  1079.5  p95  3256.2  p99  3644.5  max  3796.8 
+   listar_status   n=  107 err=  0  p50  1135.1  p95  3713.1  p99  4063.6  max  4196.2 
+   listar_busca    n=  104 err=  0  p50  1067.2  p95  2615.1  p99  3327.8  max  3592.3 
+   abrir_simples   n=  252 err=  0  p50  1046.2  p95  3173.5  p99  3668.5  max  4726.9 
+   abrir_pesada    n=   53 err=  0  p50  1172.2  p95  3071.4  p99  4091.8  max  4091.8 
+   form_nova       n=   60 err=  0  p50   703.3  p95  2421.3  p99  3198.7  max  3198.7 
+   buscar_cliente  n=   73 err=  0  p50   798.1  p95  2734.9  p99  3951.6  max  3951.6 
+   link_publico    n=   79 err=  0  p50   998.1  p95  2833.5  p99  4491.3  max  4491.3 
+   salvar_nova     n=   62 err=  5  p50  1972.3  p95  4017.5  p99    5455  max    5455 {"302":5}
+   editar_salvar   n=   99 err=  0  p50  1042.6  p95  3562.2  p99  3834.5  max  3834.5 
+   mudar_status    n=   63 err=  3  p50   905.1  p95  3045.2  p99  3431.1  max  3431.1 {"303":3}
+== real-t20-u10 | tenants=20 usuários=10 pausa=2000ms | 40s | 192 req | 4.8 req/s | erros 1
+   listar          n=   52 err=  0  p50     100  p95   189.7  p99   197.5  max   197.5 
+   listar_status   n=   16 err=  0  p50    97.8  p95   144.6  p99   144.6  max   144.6 
+   listar_busca    n=   13 err=  0  p50   127.5  p95   226.8  p99   226.8  max   226.8 
+   abrir_simples   n=   35 err=  0  p50    72.8  p95   153.9  p99   163.5  max   163.5 
+   abrir_pesada    n=    3 err=  0  p50   107.8  p95   112.3  p99   112.3  max   112.3 
+   form_nova       n=   12 err=  0  p50    50.8  p95   106.5  p99   106.5  max   106.5 
+   buscar_cliente  n=   13 err=  0  p50    20.7  p95    48.7  p99    48.7  max    48.7 
+   link_publico    n=   16 err=  0  p50    80.7  p95   123.6  p99   123.6  max   123.6 
+   salvar_nova     n=    5 err=  0  p50   336.2  p95   435.3  p99   435.3  max   435.3 
+   editar_salvar   n=   16 err=  0  p50    56.1  p95   266.8  p99   266.8  max   266.8 
+   mudar_status    n=   11 err=  1  p50    73.5  p95    95.4  p99    95.4  max    95.4 {"303":1}
+== real-t20-u30 | tenants=20 usuários=30 pausa=2000ms | 40s | 573 req | 14.3 req/s | erros 0
+   listar          n=  158 err=  0  p50    91.2  p95   177.6  p99   395.4  max   502.6 
+   listar_status   n=   45 err=  0  p50      88  p95   160.7  p99   197.7  max   197.7 
+   listar_busca    n=   49 err=  0  p50   105.7  p95   171.7  p99   179.8  max   179.8 
+   abrir_simples   n=  119 err=  0  p50    77.3  p95   151.1  p99   183.7  max   361.3 
+   abrir_pesada    n=   21 err=  0  p50    90.3  p95   139.6  p99   141.7  max   141.7 
+   form_nova       n=   24 err=  0  p50    52.5  p95    93.4  p99   100.8  max   100.8 
+   buscar_cliente  n=   23 err=  0  p50    26.6  p95    78.7  p99      97  max      97 
+   link_publico    n=   46 err=  0  p50    70.3  p95   124.8  p99   153.6  max   153.6 
+   salvar_nova     n=   39 err=  0  p50   306.3  p95   564.4  p99     982  max     982 
+   editar_salvar   n=   28 err=  0  p50    62.4  p95   185.3  p99   424.9  max   424.9 
+   mudar_status    n=   21 err=  0  p50    80.4  p95   189.2  p99   254.9  max   254.9 
+== real-t20-u50 | tenants=20 usuários=50 pausa=2000ms | 40s | 933 req | 23.2 req/s | erros 2
+   listar          n=  235 err=  0  p50   119.8  p95   422.2  p99   505.5  max   614.5 
+   listar_status   n=   74 err=  0  p50   130.3  p95   478.3  p99   853.1  max   853.1 
+   listar_busca    n=   89 err=  0  p50   157.8  p95   398.4  p99   599.4  max   599.4 
+   abrir_simples   n=  186 err=  0  p50   101.9  p95   338.1  p99   651.1  max  1183.9 
+   abrir_pesada    n=   35 err=  0  p50   126.1  p95   376.3  p99   396.7  max   396.7 
+   form_nova       n=   57 err=  0  p50    84.2  p95   296.7  p99   411.1  max   411.1 
+   buscar_cliente  n=   41 err=  0  p50    36.8  p95   226.9  p99   537.6  max   537.6 
+   link_publico    n=   59 err=  0  p50   122.3  p95   464.9  p99   575.7  max   575.7 
+   salvar_nova     n=   40 err=  0  p50   408.4  p95  1107.6  p99  1248.3  max  1248.3 
+   editar_salvar   n=   75 err=  0  p50    99.9  p95   392.3  p99   511.9  max   511.9 
+   mudar_status    n=   42 err=  2  p50    97.1  p95   292.3  p99   330.7  max   330.7 {"303":2}
+== real-t20-u100 | tenants=20 usuários=100 pausa=2000ms | 41s | 1352 req | 33.1 req/s | erros 5
+   listar          n=  354 err=  0  p50   806.8  p95  2527.8  p99  3391.8  max    3944 
+   listar_status   n=  111 err=  0  p50   838.6  p95  2527.8  p99  2763.8  max  2846.5 
+   listar_busca    n=  130 err=  0  p50   888.7  p95  2590.2  p99    3566  max  3651.4 
+   abrir_simples   n=  270 err=  0  p50   763.1  p95  1940.3  p99  3181.9  max  3278.8 
+   abrir_pesada    n=   48 err=  0  p50   773.2  p95  2416.4  p99  2861.8  max  2861.8 
+   form_nova       n=   60 err=  0  p50   686.4  p95  1894.3  p99  3196.1  max  3196.1 
+   buscar_cliente  n=   60 err=  0  p50   523.4  p95  1320.1  p99  2383.5  max  2383.5 
+   link_publico    n=   93 err=  0  p50   715.3  p95  2312.9  p99  2693.5  max  2693.5 
+   salvar_nova     n=   62 err=  2  p50  1722.6  p95  3698.6  p99  4537.5  max  4537.5 {"302":2}
+   editar_salvar   n=  108 err=  0  p50   746.4  p95  1894.8  p99    2630  max  2751.8 
+   mudar_status    n=   56 err=  3  p50   684.6  p95  2697.4  p99  2788.8  max  2788.8 {"303":3}
+== real-t30-u10 | tenants=30 usuários=10 pausa=2000ms | 40s | 186 req | 4.6 req/s | erros 0
+   listar          n=   50 err=  0  p50   103.3  p95   259.2  p99   308.9  max   308.9 
+   listar_status   n=   13 err=  0  p50    98.7  p95     326  p99     326  max     326 
+   listar_busca    n=   16 err=  0  p50   138.1  p95   348.7  p99   348.7  max   348.7 
+   abrir_simples   n=   33 err=  0  p50    79.4  p95   159.5  p99   287.1  max   287.1 
+   abrir_pesada    n=    6 err=  0  p50   106.4  p95   201.3  p99   201.3  max   201.3 
+   form_nova       n=   12 err=  0  p50    60.4  p95   259.7  p99   259.7  max   259.7 
+   buscar_cliente  n=   11 err=  0  p50    55.2  p95    70.1  p99    70.1  max    70.1 
+   link_publico    n=   12 err=  0  p50    98.6  p95   297.4  p99   297.4  max   297.4 
+   salvar_nova     n=    7 err=  0  p50   316.8  p95     390  p99     390  max     390 
+   editar_salvar   n=   15 err=  0  p50    81.1  p95     179  p99     179  max     179 
+   mudar_status    n=   11 err=  0  p50    67.1  p95     105  p99     105  max     105 
+== real-t30-u30 | tenants=30 usuários=30 pausa=2000ms | 40s | 563 req | 14.1 req/s | erros 1
+   listar          n=  147 err=  0  p50   101.3  p95   305.5  p99   471.5  max   755.5 
+   listar_status   n=   52 err=  0  p50   108.2  p95   341.9  p99   486.8  max   486.8 
+   listar_busca    n=   37 err=  0  p50   129.1  p95   278.8  p99   410.3  max   410.3 
+   abrir_simples   n=  117 err=  0  p50    80.8  p95   374.8  p99   619.4  max   713.6 
+   abrir_pesada    n=   24 err=  0  p50    94.8  p95   179.5  p99   390.4  max   390.4 
+   form_nova       n=   25 err=  0  p50      48  p95    93.3  p99   105.8  max   105.8 
+   buscar_cliente  n=   27 err=  0  p50      44  p95   141.7  p99   150.1  max   150.1 
+   link_publico    n=   48 err=  0  p50    79.4  p95   402.3  p99   569.7  max   569.7 
+   salvar_nova     n=   31 err=  0  p50   343.7  p95  1152.7  p99  1280.5  max  1280.5 
+   editar_salvar   n=   31 err=  0  p50    69.2  p95   158.7  p99   457.6  max   457.6 
+   mudar_status    n=   24 err=  1  p50    65.1  p95  1009.3  p99  1035.3  max  1035.3 {"303":1}
+== real-t30-u50 | tenants=30 usuários=50 pausa=2000ms | 40s | 928 req | 23.2 req/s | erros 3
+   listar          n=  262 err=  0  p50   114.5  p95   266.9  p99   428.1  max   792.8 
+   listar_status   n=   67 err=  0  p50   114.4  p95   294.1  p99   484.8  max   484.8 
+   listar_busca    n=   69 err=  0  p50   153.4  p95   496.6  p99   742.9  max   742.9 
+   abrir_simples   n=  189 err=  0  p50    94.9  p95   194.3  p99   522.3  max   632.7 
+   abrir_pesada    n=   29 err=  0  p50   102.9  p95   265.8  p99     362  max     362 
+   form_nova       n=   44 err=  0  p50    72.3  p95   132.8  p99   476.9  max   476.9 
+   buscar_cliente  n=   38 err=  0  p50    29.7  p95   100.7  p99   181.5  max   181.5 
+   link_publico    n=   58 err=  0  p50    91.7  p95   230.6  p99   462.8  max   462.8 
+   salvar_nova     n=   53 err=  0  p50   386.9  p95    1274  p99  1410.9  max  1410.9 
+   editar_salvar   n=   77 err=  0  p50    91.7  p95   194.2  p99   452.4  max   452.4 
+   mudar_status    n=   42 err=  3  p50   102.8  p95   302.5  p99   660.7  max   660.7 {"303":3}
+== real-t30-u100 | tenants=30 usuários=100 pausa=2000ms | 41s | 1376 req | 33.6 req/s | erros 7
+   listar          n=  305 err=  0  p50   863.9  p95  1893.6  p99  2157.7  max  2803.5 
+   listar_status   n=  110 err=  0  p50   884.7  p95  1664.2  p99  2299.2  max  2679.5 
+   listar_busca    n=  113 err=  0  p50     828  p95  1515.9  p99  1769.7  max    2604 
+   abrir_simples   n=  306 err=  0  p50   806.1  p95  1790.6  p99    2347  max  2629.8 
+   abrir_pesada    n=   53 err=  0  p50   921.1  p95  2219.5  p99  2707.1  max  2707.1 
+   form_nova       n=   67 err=  0  p50   670.6  p95  1497.2  p99    1732  max    1732 
+   buscar_cliente  n=   65 err=  0  p50   561.9  p95  1480.1  p99  1605.6  max  1605.6 
+   link_publico    n=  117 err=  0  p50   882.1  p95  1899.8  p99  2320.8  max  2445.7 
+   salvar_nova     n=   78 err=  4  p50  1789.6  p95  2841.8  p99  3386.9  max  3386.9 {"302":4}
+   editar_salvar   n=   99 err=  0  p50   645.2  p95  1726.1  p99    2885  max    2885 
+   mudar_status    n=   63 err=  3  p50   827.3  p95  1514.3  p99  2160.6  max  2160.6 {"303":3}
+== real-t50-u10 | tenants=50 usuários=10 pausa=2000ms | 40s | 191 req | 4.8 req/s | erros 0
+   listar          n=   45 err=  0  p50    95.1  p95   126.4  p99   130.7  max   130.7 
+   listar_status   n=   14 err=  0  p50    90.3  p95   165.2  p99   165.2  max   165.2 
+   listar_busca    n=   18 err=  0  p50   129.4  p95   207.2  p99   207.2  max   207.2 
+   abrir_simples   n=   32 err=  0  p50    82.3  p95   141.7  p99   151.6  max   151.6 
+   abrir_pesada    n=    9 err=  0  p50    83.7  p95     385  p99     385  max     385 
+   form_nova       n=   16 err=  0  p50    57.9  p95   122.7  p99   122.7  max   122.7 
+   buscar_cliente  n=    4 err=  0  p50    26.1  p95    35.2  p99    35.2  max    35.2 
+   link_publico    n=   17 err=  0  p50      79  p95   136.3  p99   136.3  max   136.3 
+   salvar_nova     n=    5 err=  0  p50   289.3  p95   401.5  p99   401.5  max   401.5 
+   editar_salvar   n=   21 err=  0  p50    61.1  p95   121.1  p99   127.3  max   127.3 
+   mudar_status    n=   10 err=  0  p50    62.2  p95   119.6  p99   119.6  max   119.6 
+== real-t50-u30 | tenants=50 usuários=30 pausa=2000ms | 40s | 564 req | 14.1 req/s | erros 4
+   listar          n=  161 err=  0  p50    98.5  p95   209.5  p99   402.3  max   410.4 
+   listar_status   n=   40 err=  0  p50    93.4  p95     161  p99   222.9  max   222.9 
+   listar_busca    n=   38 err=  0  p50   114.1  p95   322.6  p99   412.1  max   412.1 
+   abrir_simples   n=  106 err=  0  p50      76  p95   153.6  p99   186.6  max   282.2 
+   abrir_pesada    n=   16 err=  0  p50    84.4  p95   250.4  p99   250.4  max   250.4 
+   form_nova       n=   33 err=  0  p50    56.6  p95   239.6  p99   319.3  max   319.3 
+   buscar_cliente  n=   31 err=  0  p50    26.2  p95    70.3  p99    88.7  max    88.7 
+   link_publico    n=   47 err=  0  p50    82.9  p95     130  p99   316.7  max   316.7 
+   salvar_nova     n=   25 err=  0  p50   305.4  p95   417.4  p99   664.7  max   664.7 
+   editar_salvar   n=   44 err=  0  p50    58.9  p95   184.2  p99   528.3  max   528.3 
+   mudar_status    n=   23 err=  4  p50    73.5  p95   140.6  p99   245.4  max   245.4 {"303":4}
+== real-t50-u50 | tenants=50 usuários=50 pausa=2000ms | 42s | 809 req | 19.4 req/s | erros 4
+   listar          n=  194 err=  0  p50   255.3  p95  3101.9  p99  6174.3  max  7164.2 
+   listar_status   n=   56 err=  0  p50     193  p95  2636.5  p99  4782.5  max  4782.5 
+   listar_busca    n=   53 err=  0  p50   341.5  p95  4038.6  p99    7075  max    7075 
+   abrir_simples   n=  169 err=  0  p50   143.1  p95  1536.4  p99  2462.9  max  3134.4 
+   abrir_pesada    n=   41 err=  0  p50   130.5  p95   836.5  p99    1666  max    1666 
+   form_nova       n=   43 err=  0  p50      84  p95    1357  p99  2290.4  max  2290.4 
+   buscar_cliente  n=   47 err=  0  p50    59.5  p95  1492.6  p99  2446.5  max  2446.5 
+   link_publico    n=   69 err=  0  p50     145  p95  1300.9  p99  2345.3  max  2345.3 
+   salvar_nova     n=   40 err=  0  p50   436.9  p95  1726.9  p99  3247.6  max  3247.6 
+   editar_salvar   n=   61 err=  0  p50   140.7  p95   866.4  p99  2534.8  max  2534.8 
+   mudar_status    n=   36 err=  4  p50   119.8  p95    2492  p99  2578.8  max  2578.8 {"303":4}
+== real-t50-u100 | tenants=50 usuários=100 pausa=2000ms | 51s | 607 req | 12.0 req/s | erros 1
+   listar          n=  147 err=  0  p50  5174.1  p95   10855  p99 13424.6  max 15004.2 
+   listar_status   n=   48 err=  0  p50  5507.3  p95  8896.6  p99 11894.2  max 11894.2 
+   listar_busca    n=   55 err=  0  p50  5583.6  p95 13430.6  p99 14156.6  max 14156.6 
+   abrir_simples   n=  116 err=  0  p50  4520.1  p95 10039.6  p99 10931.2  max   11093 
+   abrir_pesada    n=   27 err=  0  p50  4160.4  p95  6189.1  p99 10379.9  max 10379.9 
+   form_nova       n=   22 err=  0  p50  4423.5  p95 10591.3  p99 10651.5  max 10651.5 
+   buscar_cliente  n=   32 err=  0  p50  4503.7  p95  9943.5  p99 12483.8  max 12483.8 
+   link_publico    n=   38 err=  0  p50  4525.3  p95  9744.2  p99 10051.9  max 10051.9 
+   salvar_nova     n=   40 err=  0  p50  5656.2  p95 10507.2  p99 11439.5  max 11439.5 
+   editar_salvar   n=   43 err=  0  p50  4544.7  p95  9898.9  p99 14523.9  max 14523.9 
+   mudar_status    n=   39 err=  1  p50  4296.5  p95 10854.7  p99 11214.4  max 11214.4 {"303":1}
+== stress-t50-u10 | tenants=50 usuários=10 pausa=0ms | 90s | 568 req | 6.3 req/s | erros 1
+   listar          n=  146 err=  0  p50   541.9  p95  2570.5  p99 43877.6  max 53558.8 
+   listar_status   n=   56 err=  0  p50   570.9  p95    1350  p99  1455.8  max  1455.8 
+   listar_busca    n=   49 err=  0  p50   639.8  p95  1453.1  p99  1985.2  max  1985.2 
+   abrir_simples   n=  106 err=  0  p50   518.1  p95  1306.3  p99  1935.4  max    3213 
+   abrir_pesada    n=   32 err=  0  p50   509.3  p95  2401.4  p99    2509  max    2509 
+   form_nova       n=   24 err=  0  p50   303.4  p95  1371.3  p99  6603.3  max  6603.3 
+   buscar_cliente  n=   34 err=  0  p50     160  p95  1131.5  p99  9116.3  max  9116.3 
+   link_publico    n=   30 err=  0  p50   510.6  p95  1812.7  p99  3802.8  max  3802.8 
+   salvar_nova     n=   30 err=  0  p50    1916  p95    4716  p99 27195.6  max 27195.6 
+   editar_salvar   n=   36 err=  0  p50   445.2  p95    1030  p99  2593.4  max  2593.4 
+   mudar_status    n=   25 err=  1  p50   521.6  p95    2025  p99 19799.1  max 19799.1 {"303":1}
+== stress-t50-u30 | tenants=50 usuários=30 pausa=0ms | 41s | 1140 req | 27.7 req/s | erros 3
+   listar          n=  296 err=  0  p50   959.3  p95  1921.5  p99  2720.1  max    3671 
+   listar_status   n=   92 err=  0  p50   990.4  p95    1917  p99  3144.2  max  3144.2 
+   listar_busca    n=   99 err=  0  p50   940.8  p95  1998.2  p99  7530.4  max  7530.4 
+   abrir_simples   n=  213 err=  0  p50   873.1  p95    1832  p99  4528.6  max  6821.9 
+   abrir_pesada    n=   67 err=  0  p50   902.5  p95  1593.3  p99  2575.8  max  2575.8 
+   form_nova       n=   49 err=  0  p50   831.3  p95  1768.5  p99  2396.4  max  2396.4 
+   buscar_cliente  n=   51 err=  0  p50   632.2  p95  1715.5  p99  1950.3  max  1950.3 
+   link_publico    n=   81 err=  0  p50   907.6  p95    1617  p99  9646.9  max  9646.9 
+   salvar_nova     n=   55 err=  0  p50  1851.3  p95  2786.9  p99  5799.9  max  5799.9 
+   editar_salvar   n=   80 err=  0  p50   775.5  p95  1287.5  p99  9160.5  max  9160.5 
+   mudar_status    n=   57 err=  3  p50   882.1  p95  1609.2  p99  2565.8  max  2565.8 {"303":3}
+== stress-t50-u50 | tenants=50 usuários=50 pausa=0ms | 41s | 917 req | 22.1 req/s | erros 4
+   listar          n=  218 err=  0  p50  1982.5  p95  5305.2  p99  7187.7  max 14130.5 
+   listar_status   n=   92 err=  0  p50  2116.4  p95  6955.5  p99 14531.3  max 14531.3 
+   listar_busca    n=   82 err=  0  p50  2074.1  p95  4145.7  p99 12209.2  max 12209.2 
+   abrir_simples   n=  177 err=  0  p50  1709.1  p95  3747.1  p99 10326.4  max 15360.2 
+   abrir_pesada    n=   43 err=  0  p50  1704.2  p95  3714.1  p99  4441.3  max  4441.3 
+   form_nova       n=   43 err=  0  p50  1438.7  p95  2418.8  p99  9499.5  max  9499.5 
+   buscar_cliente  n=   36 err=  0  p50  1507.1  p95    3605  p99  6474.6  max  6474.6 
+   link_publico    n=   77 err=  0  p50  1604.3  p95  3427.1  p99 13286.2  max 13286.2 
+   salvar_nova     n=   39 err=  0  p50  2654.2  p95  3813.1  p99  9696.9  max  9696.9 
+   editar_salvar   n=   56 err=  0  p50  1808.1  p95  5765.5  p99  7979.9  max  7979.9 
+   mudar_status    n=   54 err=  4  p50  1812.2  p95  3042.2  p99  3191.8  max  3191.8 {"303":4}
+== stress-t50-u100 | tenants=50 usuários=100 pausa=0ms | 43s | 1306 req | 30.1 req/s | erros 1
+   listar          n=  319 err=  0  p50  3063.1  p95  5198.8  p99  6964.3  max  9826.3 
+   listar_status   n=  112 err=  0  p50    3048  p95  4892.6  p99  6137.7  max  8060.4 
+   listar_busca    n=  107 err=  0  p50    3227  p95  5957.1  p99 10982.6  max 13387.5 
+   abrir_simples   n=  245 err=  0  p50  2886.6  p95    4368  p99  8830.1  max   11127 
+   abrir_pesada    n=   50 err=  0  p50  2951.2  p95    7607  p99    8893  max    8893 
+   form_nova       n=   63 err=  0  p50  2814.4  p95  4025.5  p99  4643.6  max  4643.6 
+   buscar_cliente  n=   69 err=  0  p50  2673.6  p95  3873.2  p99  9824.6  max  9824.6 
+   link_publico    n=  103 err=  0  p50  2837.3  p95  4336.6  p99  5623.4  max  8140.1 
+   salvar_nova     n=   60 err=  0  p50  3491.3  p95  7785.1  p99 10801.8  max 10801.8 
+   editar_salvar   n=  119 err=  0  p50  2813.5  p95  4122.1  p99  5509.1  max 10675.1 
+   mudar_status    n=   59 err=  1  p50  2864.4  p95  4725.2  p99  5823.6  max  5823.6 {"303":1}

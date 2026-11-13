@@ -41,7 +41,6 @@ export default function Others({ othersettings, company, license, subscription, 
         enable_purchases: othersettings?.enable_purchases ?? false,
         show_follow_ups_menu: othersettings?.show_follow_ups_menu ?? false,
         show_quality_menu: othersettings?.show_quality_menu ?? false,
-        public_order_access_key_required: othersettings?.public_order_access_key_required ?? false,
         mail_mailer: mailSettings?.mail_mailer ?? 'smtp',
         mail_host: mailSettings?.mail_host ?? '',
         mail_port: mailSettings?.mail_port ?? 587,
@@ -235,7 +234,7 @@ export default function Others({ othersettings, company, license, subscription, 
                                 <div className="space-y-6 rounded-2xl border p-5">
                                     <HeadingSmall
                                         title="Configuração de e-mail (SMTP)"
-                                        description={`Cadastre os dados da conta de e-mail para envio de notificações de status e outros e-mails automáticos. O teste será enviado para ${company?.email || 'o e-mail cadastrado da empresa'}.`}
+                                        description={`Cadastre os dados da conta de e-mail usada nos envios ao cliente, como lembretes de cobrança e atualizações enviadas manualmente pela OS. Abertura e mudança de status da OS não enviam e-mail automático. O teste será enviado para ${company?.email || 'o e-mail cadastrado da empresa'}.`}
                                     />
 
                                     <div className="grid w-full gap-4 xl:grid-cols-2 2xl:grid-cols-4">
@@ -393,24 +392,6 @@ export default function Others({ othersettings, company, license, subscription, 
                             </TabsContent>
 
                             <TabsContent value="operational" className="w-full space-y-8">
-                                <div className="space-y-6 rounded-2xl border p-5">
-                                    <HeadingSmall
-                                        title="Proteção da página pública da OS"
-                                        description="Exija uma chave adicional para abrir a página, comprovantes e ações públicas do cliente."
-                                    />
-                                    <div className="bg-card text-card-foreground flex items-center justify-between rounded-2xl border p-4 shadow-sm">
-                                        <div>
-                                            <p className="font-medium">Solicitar chave de acesso</p>
-                                            <p className="text-muted-foreground text-sm">Cada OS possui uma chave própria de 8 caracteres.</p>
-                                        </div>
-                                        <Switch
-                                            id="public_order_access_key_required"
-                                            checked={data.public_order_access_key_required}
-                                            disabled={!canManageOtherSettings}
-                                            onCheckedChange={(checked) => setData('public_order_access_key_required', checked)}
-                                        />
-                                    </div>
-                                </div>
                                 <div className="space-y-6 rounded-2xl border p-5">
                                     <HeadingSmall
                                         title="Visibilidade dos menus operacionais"

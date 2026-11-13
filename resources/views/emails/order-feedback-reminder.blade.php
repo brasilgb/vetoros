@@ -30,24 +30,14 @@
                             </h2>
                             <p style="font-size:15px;line-height:1.6;margin:14px 0;">
                                 A ordem de serviço #{{ $order->order_number }} foi entregue e gostaríamos de saber como foi sua experiência.
-                                Leva só um instante para deixar uma nota e, se desejar, um comentário.
+                                Se puder, responda a este e-mail contando como foi o atendimento.
                             </p>
-                            @if (!empty($order->tracking_token))
-                                <p style="margin:28px 0;text-align:center;">
-                                    <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                        style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:bold;">
-                                        Avaliar atendimento
-                                    </a>
-                                </p>
-                            @endif
                             <p style="font-size:13px;line-height:1.6;color:#6b7280;">
                                 Este é apenas um lembrete. Caso já tenha enviado sua avaliação, agradecemos e você pode desconsiderar esta mensagem.
                             </p>
                         </td>
                     </tr>
-                    <tr>
-                        <td style="padding:0 32px;">@include('emails.partials.order-access-key')</td>
-                    </tr><tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
+                    <tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
                             <p style="margin:0;">© {{ date('Y') }} {{ $companyName }}</p>
                         </td>
                     </tr>

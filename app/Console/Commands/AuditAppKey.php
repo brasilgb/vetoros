@@ -6,7 +6,6 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -17,23 +16,17 @@ use Illuminate\Support\Facades\Schema;
  */
 class AuditAppKey extends Command
 {
-    protected $signature = 'security:audit-app-key
-        {--verify-hash : Confere também a chave pública decifrada contra public_access_key_hash (bcrypt; mais lento)}
-        {--hash-sample=200 : Máximo de OS conferidas com --verify-hash}';
+    protected $signature = 'security:audit-app-key';
 
-    protected $description = 'Verifica, sem alterar nada, se a APP_KEY atual decifra as chaves públicas das OS e as credenciais SMTP';
+    protected $description = 'Verifica, sem alterar nada, se a APP_KEY atual decifra as credenciais SMTP e da Spedy';
 
     public function handle(): int
     {
         $rows = [];
         $unreadableTotal = 0;
 
-        if (Schema::hasTable('orders')) {
-            [$row, $unreadable] = $this->audit('orders.public_access_key', 'orders', 'public_access_key', fn ($value) => Crypt::decryptString($value));
-            $rows[] = $row;
-            $unreadableTotal += $unreadable;
-        }
-
+        // A chave pública das OS (orders.public_access_key) deixou de ser auditada: a consulta
+        // pública foi removida na VETOROS-PERFORMANCE-OS-04 e o valor não é mais lido.
         if (Schema::hasTable('others')) {
             [$row, $unreadable] = $this->audit('others.mail_password (SMTP)', 'others', 'mail_password', fn ($value) => Crypt::decryptString($value));
             $rows[] = $row;
@@ -49,10 +42,6 @@ class AuditAppKey extends Command
         }
 
         $this->table(['Campo', 'Preenchidos', 'Legíveis', 'Ilegíveis', 'Tenants com ilegíveis'], $rows);
-
-        if ($this->option('verify-hash') && Schema::hasTable('orders')) {
-            $this->verifyHashes();
-        }
 
         if ($unreadableTotal > 0) {
             $this->error("{$unreadableTotal} valor(es) cifrado(s) não decifram com a APP_KEY atual. Não altere a chave nem recifre sem um plano aprovado.");
@@ -96,34 +85,5 @@ class AuditAppKey extends Command
         $tenantList = $tenants === [] ? '—' : implode(', ', array_keys($tenants));
 
         return [[$label, $filled, $readable, $unreadable, $hasTenant ? $tenantList : 'n/a'], $unreadable];
-    }
-
-    private function verifyHashes(): void
-    {
-        $limit = max(1, (int) $this->option('hash-sample'));
-        $checked = 0;
-        $matches = 0;
-
-        $records = DB::table('orders')
-            ->whereNotNull('public_access_key')->where('public_access_key', '!=', '')
-            ->whereNotNull('public_access_key_hash')
-            ->orderByDesc('id')->limit($limit)
-            ->get(['public_access_key', 'public_access_key_hash']);
-
-        foreach ($records as $record) {
-            try {
-                $plain = Crypt::decryptString($record->public_access_key);
-            } catch (DecryptException) {
-                continue;
-            }
-
-            $checked++;
-            // A página pública compara em maiúsculas (OsController).
-            if (Hash::check(strtoupper($plain), $record->public_access_key_hash)) {
-                $matches++;
-            }
-        }
-
-        $this->line("Chave pública decifrada × hash: {$matches} de {$checked} conferem (amostra das {$limit} OS mais recentes com chave legível).");
     }
 }

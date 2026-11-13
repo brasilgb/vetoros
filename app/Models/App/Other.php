@@ -2,6 +2,7 @@
 
 namespace App\Models\App;
 
+use App\Support\RequestCache;
 use App\Support\TenantMailConfig;
 use App\Tenantable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,8 +19,34 @@ class Other extends Model
     protected static function booted(): void
     {
         // A configuração de e-mail lida na requisição não pode sobreviver a uma gravação.
-        static::saved(fn () => TenantMailConfig::forget());
-        static::deleted(fn () => TenantMailConfig::forget());
+        static::saved(fn () => self::forgetSettingsCache());
+        static::deleted(fn () => self::forgetSettingsCache());
+    }
+
+    private static function forgetSettingsCache(): void
+    {
+        TenantMailConfig::forget();
+        RequestCache::forget('others-setting:');
+    }
+
+    /**
+     * Lê uma coluna de configuração do tenant uma única vez por requisição/job. A listagem de
+     * Ordens consultava `others` várias vezes por linha (prazo de follow-up, financeiro e janela
+     * de feedback). Gravações via Eloquent invalidam a memória da própria requisição.
+     */
+    private static function settingValue(?int $tenantId, string $column): mixed
+    {
+        $scope = $tenantId ?: 'scope:'.(resolveCurrentTenantId() ?? 'none');
+
+        return RequestCache::remember('others-setting:'.$scope.':'.$column, function () use ($tenantId, $column) {
+            $query = static::query();
+
+            if ($tenantId) {
+                $query->where('tenant_id', $tenantId);
+            }
+
+            return $query->value($column);
+        });
     }
 
     protected $casts = [
@@ -33,7 +60,6 @@ class Other extends Model
         'show_commercial_performance_menu' => 'boolean',
         'show_quality_menu' => 'boolean',
         'print_label_button_after_order_create' => 'boolean',
-        'public_order_access_key_required' => 'boolean',
         'warranty_return_alert_threshold' => 'float',
         'communication_follow_up_cooldown_days' => 'integer',
         'automatic_follow_ups_enabled' => 'boolean',
@@ -46,13 +72,7 @@ class Other extends Model
 
     public static function recordsPerPage(?int $tenantId = null): int
     {
-        $query = static::query();
-
-        if ($tenantId) {
-            $query->where('tenant_id', $tenantId);
-        }
-
-        $configured = (int) ($query->value('records_per_page') ?? self::DEFAULT_RECORDS_PER_PAGE);
+        $configured = (int) (self::settingValue($tenantId, 'records_per_page') ?? self::DEFAULT_RECORDS_PER_PAGE);
 
         return in_array($configured, self::ALLOWED_RECORDS_PER_PAGE, true)
             ? $configured
@@ -72,13 +92,7 @@ class Other extends Model
 
     public static function communicationFollowUpCooldownDays(?int $tenantId = null): int
     {
-        $query = static::query();
-
-        if ($tenantId) {
-            $query->where('tenant_id', $tenantId);
-        }
-
-        $configured = $query->value('communication_follow_up_cooldown_days');
+        $configured = self::settingValue($tenantId, 'communication_follow_up_cooldown_days');
 
         if ($configured !== null) {
             return max(1, (int) $configured);
@@ -117,13 +131,7 @@ class Other extends Model
 
     public static function financeEnabled(?int $tenantId = null): bool
     {
-        $query = static::query();
-
-        if ($tenantId) {
-            $query->where('tenant_id', $tenantId);
-        }
-
-        return (bool) ($query->value('enable_finance') ?? false);
+        return (bool) (self::settingValue($tenantId, 'enable_finance') ?? false);
     }
 
     public static function purchasesEnabled(?int $tenantId = null): bool
@@ -156,13 +164,7 @@ class Other extends Model
 
     public static function customerFeedbackRequestDelayDays(?int $tenantId = null): int
     {
-        $query = static::query();
-
-        if ($tenantId) {
-            $query->where('tenant_id', $tenantId);
-        }
-
-        $configured = $query->value('customer_feedback_request_delay_days');
+        $configured = self::settingValue($tenantId, 'customer_feedback_request_delay_days');
 
         if ($configured !== null) {
             return max(1, (int) $configured);

@@ -160,74 +160,8 @@ class OrderEventTrailTest extends TestCase
         );
     }
 
-    public function test_customer_actor_on_public_budget_approval(): void
-    {
-        $order = $this->order(OrderStatus::BUDGET_GENERATED);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED])
-            ->assertSessionHas('success');
-
-        $this->assertDatabaseHas('order_events', [
-            'tenant_id' => $this->tenant->id,
-            'order_id' => $order->id,
-            'event_type' => OrderEvent::TYPE_STATUS_CHANGED,
-            'from_status' => OrderStatus::BUDGET_GENERATED,
-            'to_status' => OrderStatus::BUDGET_APPROVED,
-            'actor_type' => OrderActor::CUSTOMER,
-            'actor_id' => null,
-        ]);
-        $event = OrderEvent::query()->where('order_id', $order->id)->sole();
-        $this->assertSame(['channel' => 'public_tracking'], $event->metadata);
-    }
-
-    public function test_customer_actor_on_public_budget_rejection(): void
-    {
-        $order = $this->order(OrderStatus::BUDGET_GENERATED);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_REJECTED])
-            ->assertSessionHas('success');
-
-        $this->assertDatabaseHas('order_events', [
-            'order_id' => $order->id,
-            'from_status' => OrderStatus::BUDGET_GENERATED,
-            'to_status' => OrderStatus::BUDGET_REJECTED,
-            'actor_type' => OrderActor::CUSTOMER,
-        ]);
-    }
-
-    public function test_customer_notice_and_pickup_record_transition_and_acknowledgement(): void
-    {
-        $order = $this->order(OrderStatus::SERVICE_COMPLETED, ['service_cost' => 0, 'parts_value' => 0, 'service_value' => 0]);
-        Auth::logout();
-
-        $this->post(route('orders.notification.acknowledge', $order->tracking_token))->assertSessionHas('success');
-        $this->post(route('orders.pickup.acknowledge', $order->tracking_token))->assertSessionHas('success');
-
-        $events = OrderEvent::query()->where('order_id', $order->id)->orderBy('id')->get();
-
-        $this->assertSame([
-            [OrderEvent::TYPE_STATUS_CHANGED, OrderStatus::SERVICE_COMPLETED, OrderStatus::CUSTOMER_NOTIFIED],
-            [OrderEvent::TYPE_CUSTOMER_NOTIFICATION_ACKNOWLEDGED, OrderStatus::SERVICE_COMPLETED, OrderStatus::CUSTOMER_NOTIFIED],
-            [OrderEvent::TYPE_STATUS_CHANGED, OrderStatus::CUSTOMER_NOTIFIED, OrderStatus::DELIVERED],
-            [OrderEvent::TYPE_CUSTOMER_PICKUP_ACKNOWLEDGED, OrderStatus::CUSTOMER_NOTIFIED, OrderStatus::DELIVERED],
-        ], $events->map(fn (OrderEvent $e) => [$e->event_type, $e->from_status, $e->to_status])->all());
-        $this->assertTrue($events->every(fn (OrderEvent $e) => $e->actor_type === OrderActor::CUSTOMER && $e->actor_id === null));
-    }
-
-    public function test_acknowledgement_without_status_change_has_no_to_status(): void
-    {
-        $order = $this->order(OrderStatus::CUSTOMER_NOTIFIED);
-        Auth::logout();
-
-        $this->post(route('orders.notification.acknowledge', $order->tracking_token))->assertSessionHas('success');
-
-        $event = OrderEvent::query()->where('order_id', $order->id)->sole();
-        $this->assertSame(OrderEvent::TYPE_CUSTOMER_NOTIFICATION_ACKNOWLEDGED, $event->event_type);
-        $this->assertSame(OrderStatus::CUSTOMER_NOTIFIED, $event->from_status);
-        $this->assertNull($event->to_status);
-    }
+    // VETOROS-PERFORMANCE-OS-04: os testes de ações do cliente pelo portal público (aprovação, recusa,
+    // aviso e retirada) saíram com a remoção da consulta pública.
 
     public function test_system_actor_on_maintenance_contract_order(): void
     {

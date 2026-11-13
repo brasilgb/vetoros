@@ -3,10 +3,12 @@
 namespace Tests\Feature\App;
 
 use App\Models\App\Customer;
+use App\Models\App\Order;
 use App\Models\App\Part;
 use App\Models\Tenant;
 use App\Support\TenantSequence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TenantSequenceTest extends TestCase
@@ -49,5 +51,21 @@ class TenantSequenceTest extends TestCase
         ]);
 
         $this->assertSame(11, TenantSequence::next(Part::class, 'part_number', $tenant->id));
+    }
+
+    public function test_order_number_uses_an_aggregate_per_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        Order::factory()->forTenant($tenant->id)->create(['order_number' => 41]);
+        Order::factory()->forTenant($tenant->id)->create(['order_number' => 9]);
+        Order::factory()->forTenant($otherTenant->id)->create(['order_number' => 500]);
+
+        DB::enableQueryLog();
+        $this->assertSame(42, TenantSequence::next(Order::class, 'order_number', $tenant->id));
+        $this->assertStringContainsString('max(', strtolower(DB::getQueryLog()[0]['query']));
+        DB::disableQueryLog();
+
+        $this->assertSame(1, TenantSequence::next(Order::class, 'order_number', Tenant::factory()->create()->id));
     }
 }

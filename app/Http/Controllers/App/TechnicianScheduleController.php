@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\App\Order;
 use App\Models\App\Part;
 use App\Models\App\PartMovement;
 use App\Models\App\Schedule;
 use App\Models\App\ScheduleImage;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Support\PartCostPolicy;
 use App\Support\OrderStatus;
+use App\Support\PartCostPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -26,7 +27,7 @@ class TechnicianScheduleController extends Controller
             return null;
         }
 
-        $service = $order->order_type === \App\Models\App\Order::TYPE_EXTERNAL_SERVICE
+        $service = $order->order_type === Order::TYPE_EXTERNAL_SERVICE
             ? ($order->service_type ?: $order->defect)
             : $order->defect;
 
@@ -64,7 +65,7 @@ class TechnicianScheduleController extends Controller
         return Schedule::query()
             ->with([
                 'customer:id,name,email,phone,whatsapp,zipcode,state,city,district,street,number,complement,observations',
-                'order:id,customer_id,equipment_id,user_id,order_number,order_type,tracking_token,model,defect,service_type,service_details,materials_used,state_conservation,accessories,budget_description,budget_value,service_status,observations,services_performed,technician_diagnosis,technician_solution,technician_observations,technician_checklist_items,technician_checklist_completed_at,technician_attended_at,technician_local_payment_received,technician_local_payment_status,technician_local_payment_amount,technician_local_payment_method,technician_local_payment_notes,technician_local_payment_received_at,technician_local_payment_user_id,service_cost,delivery_forecast,delivery_date',
+                'order:id,customer_id,equipment_id,user_id,order_number,order_type,model,defect,service_type,service_details,materials_used,state_conservation,accessories,budget_description,budget_value,service_status,observations,services_performed,technician_diagnosis,technician_solution,technician_observations,technician_checklist_items,technician_checklist_completed_at,technician_attended_at,technician_local_payment_received,technician_local_payment_status,technician_local_payment_amount,technician_local_payment_method,technician_local_payment_notes,technician_local_payment_received_at,technician_local_payment_user_id,service_cost,delivery_forecast,delivery_date',
                 'order.orderPayments:id,order_id,amount,payment_method,paid_at,notes',
                 'order.equipment:id,equipment_number,equipment',
                 'order.equipment.checklists:id,equipment_id,checklist',
@@ -823,7 +824,6 @@ class TechnicianScheduleController extends Controller
                 'id' => $order->id,
                 'order_type' => $order->order_type,
                 'order_number' => $order->order_number,
-                'tracking_token' => $order->tracking_token,
                 'model' => $order->model,
                 'defect' => $order->defect,
                 'service_type' => $order->service_type,

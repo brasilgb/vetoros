@@ -23,7 +23,6 @@ use App\Services\OrderMessageService;
 use App\Services\OrderTotalsService;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -157,22 +156,6 @@ class IntelHomologationTest extends TestCase
         $paid = app(OrderMarginService::class)->breakdown($order->fresh());
         $this->assertSame(OrderMarginService::KNOWN, $paid['costs']['payment_fees']['status']);
         $this->assertSame(2.0, $paid['costs']['payment_fees']['amount']);
-    }
-
-    public function test_commission_is_pending_when_delivered_by_customer_and_not_consolidated(): void
-    {
-        $technician = User::factory()->forTenant($this->tenant->id)->create(['roles' => User::ROLE_TECHNICIAN, 'status' => 1, 'commission_percentage' => 10]);
-        $order = $this->orderWithTotals(100, ['service_status' => OrderStatus::CUSTOMER_NOTIFIED, 'user_id' => $technician->id]);
-        // A retirada pública exige saldo quitado.
-        OrderPayment::query()->create(['order_id' => $order->id, 'amount' => 100, 'payment_method' => 'pix', 'paid_at' => now()]);
-        Auth::logout();
-
-        $this->post(route('orders.pickup.acknowledge', $order->tracking_token))->assertSessionHas('success');
-
-        $margin = app(OrderMarginService::class)->breakdown($order->fresh());
-        $this->assertSame(OrderStatus::DELIVERED, (int) $order->fresh()->service_status);
-        $this->assertSame(OrderMarginService::PENDING, $margin['costs']['commission']['status']);
-        $this->assertNull($margin['margin']);
     }
 
     public function test_delivered_without_eligible_technician_has_known_zero_commission(): void

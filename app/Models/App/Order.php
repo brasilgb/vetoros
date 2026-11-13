@@ -5,18 +5,13 @@ namespace App\Models\App;
 use App\Models\User;
 use App\Support\OrderStatus;
 use App\Tenantable;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 
 class Order extends Model
 {
@@ -28,7 +23,11 @@ class Order extends Model
 
     protected $guarded = ['allparts'];
 
-    protected $hidden = ['public_access_key', 'public_access_key_hash'];
+    /**
+     * VETOROS-PERFORMANCE-OS-04: a consulta pública de OS foi removida. As colunas legadas da chave
+     * pública continuam no banco até a migration de remoção, mas nunca são serializadas nem usadas.
+     */
+    protected $hidden = ['public_access_key', 'public_access_key_hash', 'public_access_key_check', 'tracking_token'];
 
     protected $casts = [
         'delivery_date' => 'datetime',
@@ -52,49 +51,6 @@ class Order extends Model
         'technician_checklist_completed_at' => 'datetime',
         'customer_signature_captured_at' => 'datetime',
     ];
-
-    /**
-     * Chave de acesso público, criptografada com a APP_KEY (mesmo formato do cast "encrypted").
-     * Valor gravado com outra APP_KEY (banco vindo de outro ambiente ou chave regenerada) não é
-     * legível: devolve null em vez de derrubar a listagem/tela da OS. O acesso público continua
-     * validado por public_access_key_hash, que não depende da APP_KEY.
-     */
-    protected function publicAccessKey(): Attribute
-    {
-        return Attribute::make(
-            get: function (?string $value): ?string {
-                if ($value === null || $value === '') {
-                    return null;
-                }
-
-                try {
-                    $plainKey = Crypt::decryptString($value);
-                    $storedHash = $this->getRawOriginal('public_access_key_hash');
-
-                    if (is_string($storedHash) && Hash::check($plainKey, $storedHash)) {
-                        return $plainKey;
-                    }
-
-                    Log::warning('Chave de acesso público da OS não confere com o hash armazenado.', ['order_id' => $this->getKey()]);
-
-                    return null;
-                } catch (DecryptException) {
-                    $legacyHash = $this->getRawOriginal('public_access_key_hash');
-
-                    if (preg_match('/^[A-Z0-9]{8}$/', $value) === 1 && is_string($legacyHash) && Hash::check($value, $legacyHash)) {
-                        Log::notice('Chave de acesso público legada recuperada após validação do hash.', ['order_id' => $this->getKey()]);
-
-                        return $value;
-                    }
-
-                    Log::warning('Chave de acesso público da OS ilegível com a APP_KEY atual.', ['order_id' => $this->getKey()]);
-
-                    return null;
-                }
-            },
-            set: fn (?string $value): ?string => $value === null || $value === '' ? $value : Crypt::encryptString($value),
-        );
-    }
 
     /**
      * Desde quando o orçamento está com o cliente aguardando resposta, pela melhor evidência:

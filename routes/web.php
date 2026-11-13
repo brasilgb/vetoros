@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\SupportSessionController;
 use App\Http\Controllers\App\SaasCheckoutController;
 use App\Http\Controllers\App\SubscriptionController;
 use App\Http\Controllers\OrderFileController;
-use App\Http\Controllers\OsController;
 use App\Http\Controllers\SharedFiscalDocumentController;
 use App\Http\Controllers\SharedSaasFiscalDocumentController;
 use App\Http\Controllers\Site\HomeController;
@@ -29,25 +28,12 @@ Route::prefix('chat')->middleware('throttle:30,1')->name('chat.')->group(functio
     Route::post('conversations/{conversation}/close', [WebChatProxyController::class, 'close'])->whereUuid('conversation')->name('close');
 });
 Route::get('/planos', [PlanController::class, 'index'])->name('plans.index');
-Route::get('/os/{token}', [OsController::class, 'index'])->name('os.token');
-Route::post('/os/{token}/access', [OsController::class, 'authorizeAccess'])
-    ->middleware('throttle:6,1')
-    ->name('os.access');
-Route::post('/os/{token}/budget-status', [OsController::class, 'updateBudgetStatus'])
-    ->name('orders.budget.status');
-Route::post('/os/{token}/acknowledge-notification', [OsController::class, 'acknowledgeNotification'])
-    ->name('orders.notification.acknowledge');
-Route::post('/os/{token}/acknowledge-pickup', [OsController::class, 'acknowledgePickup'])
-    ->name('orders.pickup.acknowledge');
-Route::get('/os/{token}/receipt/{type}', [OsController::class, 'receipt'])
-    ->name('os.receipt');
-Route::get('/os/{token}/payment-proof', [OsController::class, 'paymentProof'])
-    ->name('os.payment-proof');
-Route::get('/os/{token}/fiscal-proof', [OsController::class, 'fiscalProof'])
-    ->name('os.fiscal-proof');
-Route::get('/os/{token}/fiscal-proof/pdf', [OsController::class, 'fiscalProofFile'])
+// VETOROS-PERFORMANCE-OS-04: a consulta pública de OS foi removida. Links antigos (WhatsApp, e-mail,
+// recibo impresso) recebem 410 com uma página estática: nenhuma consulta ao banco, nenhum dado da OS.
+Route::any('/os/{path}', fn () => response()->view('os-unavailable', [], 410)->header('X-Robots-Tag', 'noindex, nofollow'))
+    ->where('path', '.*')
     ->middleware('throttle:30,1')
-    ->name('os.fiscal-proof.pdf');
+    ->name('os.unavailable');
 // PDF/XML de NFS-e de contrato para o cliente final: link assinado e temporário (VETOR-FISCAL-05.3).
 Route::get('/nfse/{document}/{format}', SharedFiscalDocumentController::class)
     ->whereNumber('document')
@@ -70,8 +56,6 @@ Route::get('/files/orders/{order}/signature', [OrderFileController::class, 'sign
     ->whereNumber('order')
     ->middleware(['signed', 'throttle:300,1'])
     ->name('order-files.signature');
-Route::post('/os/{token}/feedback', [OsController::class, 'submitFeedback'])
-    ->name('os.feedback.submit');
 Route::get('/experience/{token}', [TenantFeedbackController::class, 'show'])->name('tenant.feedback.show');
 Route::post('/experience/{token}', [TenantFeedbackController::class, 'submit'])->name('tenant.feedback.submit');
 

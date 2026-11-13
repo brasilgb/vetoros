@@ -1,70 +1,57 @@
-# VETOROS-EFI-RENEWAL-02.2 — Publicação e homologação da renovação
+# VETOROS-PERFORMANCE-OS-04 — Remoção da consulta pública de OS
 
-**Objetivo:** concluir a publicação e homologação do fluxo de renovação Efí implementado na etapa 02.1, preservando integralmente as funcionalidades existentes e os dados operacionais.
+**Objetivo:** simplificar o VetorOS, eliminando a estrutura de acesso público às Ordens de Serviço e o processamento associado, sem comprometer as funcionalidades administrativas.
 
-## 1. Recuperação do Git
+**Diretório:** projeto VetorOS existente.
 
-- Auditar o checkout original e o clone temporário `/tmp/vetoros-renewal-publish-20261027`.
-- Identificar todas as alterações da etapa 02.1.
-- Resolver as permissões de escrita do Git sem comprometer o histórico.
-- Verificar o acesso SSH ao GitHub e a chave autorizada.
-- Criar commit com os arquivos efetivamente validados.
-- Sincronizar com `origin/main`, preservando alterações remotas.
-- Efetuar push sem `force`, salvo justificativa e autorização expressa.
-- Registrar o SHA publicado.
+### 1. Auditoria inicial
 
-## 2. Preparação e deploy
+- Identificar todas as rotas públicas de acompanhamento de OS.
+- Localizar chaves, hashes bcrypt, HMAC, middlewares, controllers, serviços e templates relacionados.
+- Verificar dependências em WhatsApp, e-mail, orçamento, contratos e área do cliente.
+- Identificar links públicos eventualmente utilizados.
+- Verificar o estado das alterações da PERFORMANCE-OS-03, que ainda não receberam commit ou deploy.
 
-- Confirmar acesso autorizado à VPS.
-- Verificar backup válido do banco.
-- Confirmar que a migration de disponibilidade dos planos é compatível com os registros existentes.
-- Executar a migration antes de disponibilizar o novo código.
-- Publicar a versão validada.
-- Verificar logs, rotas, jobs, filas e funcionamento dos webhooks.
+### 2. Remoção funcional
 
-Não executar containers locais.
+- Desativar a consulta pública de OS.
+- Remover geração e validação de chaves públicas de OS.
+- Remover processamento bcrypt/HMAC exclusivo dessa funcionalidade.
+- Remover botões, menus e links de acompanhamento público.
+- Ajustar os templates que utilizam `{{ link_os }}`, preservando as demais variáveis.
+- Não remover autenticação de usuários nem outras proteções do sistema.
 
-## 3. Homologação funcional
+### 3. Banco de dados
 
-Testar o percurso completo:
+- Identificar colunas e índices exclusivos da consulta pública.
+- Planejar a remoção por migration posterior, somente após confirmar que não existem dependências.
+- Não eliminar dados de OS, clientes, orçamentos ou histórico.
+- Não executar imediatamente o backfill de chaves previsto na OS-03.
 
-1. Tenant com assinatura vencida acessa o sistema.
-2. Visualiza a tela de bloqueio.
-3. Clica em Renovar assinatura.
-4. Seleciona um plano público e ativo.
-5. Confere valores, periodicidade e resumo.
-6. Clica em Prosseguir para pagamento.
-7. Visualiza os métodos Efí habilitados.
-8. Inicia o pagamento.
-9. Em caso de pagamento pendente, pode recuperar e consultar a cobrança posteriormente.
-10. Após confirmação confiável do pagamento, a assinatura é ativada e o acesso é restabelecido.
+### 4. Preservação operacional
 
-Validar também isolamento entre tenants, autorização administrativa, webhook duplicado, plano desativado, falha de pagamento e ausência de cobrança retroativa após cortesia expirada.
+Garantir que continuem funcionando:
 
-## 4. Homologação visual
+- Criação, edição e listagem de OS.
+- Alterações de status.
+- Orçamentos e aprovações.
+- Mensagens manuais por WhatsApp e e-mail.
+- Histórico e auditoria.
+- Operações multi-tenant.
+- Integrações existentes.
 
-Inspecionar no navegador desktop e mobile:
+### 5. Testes e desempenho
 
-- Tela de acesso suspenso.
-- Seleção de planos.
-- Resumo da contratação.
-- Modal de pagamento Efí.
-- Situação de pagamento pendente.
-- Confirmação e retorno ao dashboard.
+- Atualizar testes relacionados à consulta pública.
+- Executar a suíte completa.
+- Medir novamente listagem, abertura e criação de OS.
+- Verificar se a remoção do bcrypt da criação reduz a latência.
+- Confirmar inexistência de rotas públicas que exponham dados de clientes.
 
-Manter a identidade visual padronizada do VetorOS, com interface simples e sem configurações técnicas desnecessárias para o cliente.
+### 6. Entrega
 
-## 5. Critérios de conclusão
+Registrar diagnóstico, alterações, testes, impacto no banco e plano de migração em `docs/VETOROS-PERFORMANCE-OS-04.md`.
 
-Somente considerar a tarefa concluída quando:
+Atualizar `executed.md` com o resultado.
 
-- Commit e push estiverem confirmados.
-- Migration e deploy tiverem sido executados com sucesso.
-- Testes automatizados permanecerem aprovados.
-- Fluxo em navegador estiver homologado.
-- A conciliação Efí tiver sido comprovada com segurança, sem simular pagamentos reais.
-- Nenhum tenant existente tiver perdido dados, permissões ou funcionalidades.
-
-Caso não haja acesso à VPS ou credenciais Efí autorizadas, documentar o bloqueio real e não declarar homologação concluída.
-
-Gerar relatório em `docs/VETOROS-EFI-RENEWAL-02.2.md` e atualizar `executed.md`, com evidências, commits, testes e pendências.
+**Não executar commit, push, deploy ou alterações em produção sem autorização explícita.**

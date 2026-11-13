@@ -1,4 +1,4 @@
-import { toastError, toastSuccess } from '@/components/app-toast-messages';
+import { toastSuccess } from '@/components/app-toast-messages';
 import AsyncResourceSelect from '@/components/async-resource-select';
 import { DatePicker } from '@/components/date-picker';
 import FormFieldHelp from '@/components/form-field-help';
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useOrderContextOptions } from '@/hooks/use-order-context-options';
 import AppLayout from '@/layouts/app-layout';
 import { formatBRL, fromCents, multiplyMoney, normalizeMoney, sumMoney, toCents } from '@/lib/money';
 import { BreadcrumbItem, OptionType, type Order, type PageProps, type User } from '@/types';
@@ -23,7 +23,7 @@ import { statusServico } from '@/Utils/dataSelect';
 import { ORDER_STATUS, ORDER_STATUSES_READY_FOR_INVOICE, orderStatusChangeRequirement } from '@/Utils/order-status';
 import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Copy, ExternalLink, FileTextIcon, KeyRound, Mail, MessageSquareText, Printer, Save, Wrench, X } from 'lucide-react';
+import { ArrowLeft, Copy, FileTextIcon, Mail, MessageSquareText, Printer, Save, Wrench, X } from 'lucide-react';
 import moment from 'moment';
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
 import Select from 'react-select';
@@ -53,7 +53,6 @@ type OrderEditRecord = Order & {
     budget_value?: MoneyValue;
     can_send_budget_follow_up?: boolean;
     created_at: string;
-    tracking_token: string;
     customer_equipment?: CustomerEquipmentOption | null;
     customer_equipment_id?: number | null;
     delivery_forecast?: string | null;
@@ -124,9 +123,6 @@ type EditOrderProps = {
         remaining?: MoneyValue;
     };
     equipmentHistory: EquipmentHistory;
-    warrantySourceOrders: WarrantySourceOrder[];
-    publicAccessKey: string | null;
-    publicAccessKeyConfigured: boolean;
     budgets: OrderBudgetVersion[];
     messages: OrderMessageEntry[];
     page?: number;
@@ -233,9 +229,6 @@ export default function EditOrder({
     orderPayments,
     paymentSummary,
     equipmentHistory,
-    warrantySourceOrders,
-    publicAccessKey,
-    publicAccessKeyConfigured,
     budgets,
     messages,
     page,
@@ -246,9 +239,6 @@ export default function EditOrder({
     const budgetFollowUpForm = useForm({});
     const [customerUpdateOpen, setCustomerUpdateOpen] = useState(false);
     const customerUpdateForm = useForm({ note: '' });
-    const publicKeyRegenerationForm = useForm({ reason: '' });
-    const [publicKeyRegenerationOpen, setPublicKeyRegenerationOpen] = useState(false);
-    const [customerAccessOpen, setCustomerAccessOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<OptionType | null>(
         order?.customer ? { value: order.customer.id, label: order.customer.name } : null,
     );
@@ -260,18 +250,6 @@ export default function EditOrder({
             onSuccess: () => {
                 setCustomerUpdateOpen(false);
                 customerUpdateForm.reset('note');
-            },
-        });
-    };
-
-    const handleRegeneratePublicAccessKey = (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        publicKeyRegenerationForm.post(route('app.orders.public-access-key.regenerate', order.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                setPublicKeyRegenerationOpen(false);
-                publicKeyRegenerationForm.reset();
-                setCustomerAccessOpen(true);
             },
         });
     };
@@ -288,26 +266,7 @@ export default function EditOrder({
 
     const { othersetting, auth, fiscalSetting } = usePage<EditOrderPageProps>().props;
     const canManageOrders = auth?.role !== 'technician' && auth?.permissions?.includes('orders');
-    const canRegeneratePublicAccessKey = auth?.role === 'administrator' && canManageOrders;
-    const publicOrderUrl = route('os.token', order.tracking_token);
 
-    const copyCustomerAccessValue = async (value: string, label: string) => {
-        if (!navigator.clipboard?.writeText) {
-            toastError('Não foi possível copiar', 'O navegador não disponibilizou a área de transferência.');
-            return;
-        }
-
-        try {
-            await navigator.clipboard.writeText(value);
-            toastSuccess(`${label} copiado`, `O ${label.toLowerCase()} foi copiado para a área de transferência.`);
-        } catch {
-            toastError('Não foi possível copiar', 'Verifique a permissão de área de transferência do navegador.');
-        }
-    };
-
-    const customerAccessMessage = publicAccessKey
-        ? `Olá, ${order.customer.name}! Acompanhe sua Ordem de Serviço nº ${order.order_number} pelo link ${publicOrderUrl}. Quando solicitado, informe a chave de acesso ${publicAccessKey}.`
-        : null;
     // Trocar cliente/equipamento exige a permissão de clientes (o servidor também confere);
     // sem ela, os campos ficam somente leitura e as buscas (que dariam 403) não são feitas.
     const canChangeCustomer = Boolean(auth?.permissions?.includes('customers'));
@@ -381,7 +340,11 @@ export default function EditOrder({
     });
 
     const [openInvoiceModal, setOpenInvoiceModal] = useState(false);
-    const eligibleWarrantyOrders = warrantySourceOrders.filter(
+    const { warrantySourceOrders } = useOrderContextOptions(data.customer_id, data.equipment_id, {
+        excludeOrderId: order?.id,
+        currentSourceOrderId: order?.warranty_source_order_id ?? null,
+    });
+    const eligibleWarrantyOrders = (warrantySourceOrders as WarrantySourceOrder[]).filter(
         (item) => String(item.customer_id) === String(data.customer_id) && String(item.equipment_id) === String(data.equipment_id),
     );
 
@@ -687,50 +650,7 @@ export default function EditOrder({
                                                             disabled
                                                         />
                                                     )}
-                                                    {canManageOrders && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    aria-label="Chave da página pública"
-                                                                    onClick={() => setCustomerAccessOpen(true)}
-                                                                >
-                                                                    <KeyRound className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Chave da página pública</TooltipContent>
-                                                        </Tooltip>
-                                                    )}
                                                 </div>
-                                                {!publicAccessKey && !publicAccessKeyConfigured && (
-                                                    <div className="space-y-2">
-                                                        <p role="status" className="text-muted-foreground text-xs">
-                                                            Chave de acesso público indisponível.
-                                                        </p>
-                                                        {canRegeneratePublicAccessKey && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => setPublicKeyRegenerationOpen(true)}
-                                                            >
-                                                                Gerar chave
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {!publicAccessKey && publicAccessKeyConfigured && canRegeneratePublicAccessKey && (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => setPublicKeyRegenerationOpen(true)}
-                                                    >
-                                                        Regenerar chave
-                                                    </Button>
-                                                )}
                                                 <InputError className="mt-2" message={errors.customer_id} />
                                                 {!canChangeCustomer && (
                                                     <p className="text-muted-foreground text-xs">
@@ -1336,112 +1256,6 @@ export default function EditOrder({
                     </form>
                 </div>
             </div>
-            <Dialog open={customerAccessOpen} onOpenChange={setCustomerAccessOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogTitle>Acesso do cliente</DialogTitle>
-                    <p className="text-muted-foreground text-sm">
-                        OS nº {order.order_number}. Compartilhe o link e a chave para o cliente acompanhar o atendimento.
-                    </p>
-
-                    <div className="space-y-4">
-                        <section className="space-y-2">
-                            <Label>Chave pública</Label>
-                            {publicAccessKey ? (
-                                <>
-                                    <div className="rounded-lg border bg-slate-50 px-4 py-5 text-center font-mono text-2xl font-semibold tracking-[0.3em] text-slate-900">
-                                        {publicAccessKey}
-                                    </div>
-                                    <Button type="button" variant="outline" onClick={() => void copyCustomerAccessValue(publicAccessKey, 'Chave')}>
-                                        <Copy className="h-4 w-4" />
-                                        Copiar chave
-                                    </Button>
-                                </>
-                            ) : (
-                                <p role="status" className="text-muted-foreground rounded-md border p-3 text-sm">
-                                    A chave não está disponível para compartilhamento. Um administrador pode gerá-la ou regenerá-la abaixo.
-                                </p>
-                            )}
-                        </section>
-
-                        <section className="space-y-2">
-                            <Label>Link de acompanhamento</Label>
-                            <a href={publicOrderUrl} target="_blank" rel="noreferrer" className="text-primary block break-all text-sm underline">
-                                {publicOrderUrl}
-                            </a>
-                            <div className="flex flex-wrap gap-2">
-                                <Button type="button" variant="outline" onClick={() => void copyCustomerAccessValue(publicOrderUrl, 'Link')}>
-                                    <Copy className="h-4 w-4" />
-                                    Copiar link
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => window.open(publicOrderUrl, '_blank', 'noopener,noreferrer')}
-                                >
-                                    <ExternalLink className="h-4 w-4" />
-                                    Abrir página pública
-                                </Button>
-                            </div>
-                        </section>
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={!customerAccessMessage}
-                            onClick={() => customerAccessMessage && void copyCustomerAccessValue(customerAccessMessage, 'Mensagem')}
-                        >
-                            <MessageSquareText className="h-4 w-4" />
-                            Copiar mensagem para WhatsApp
-                        </Button>
-
-                        {!publicAccessKey && canRegeneratePublicAccessKey && (
-                            <Button
-                                type="button"
-                                onClick={() => {
-                                    setCustomerAccessOpen(false);
-                                    setPublicKeyRegenerationOpen(true);
-                                }}
-                            >
-                                <KeyRound className="h-4 w-4" />
-                                {publicAccessKeyConfigured ? 'Regenerar chave' : 'Gerar chave'}
-                            </Button>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-            <Dialog open={publicKeyRegenerationOpen} onOpenChange={setPublicKeyRegenerationOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogTitle>Gerar nova chave pública?</DialogTitle>
-                    <p className="text-muted-foreground text-sm">
-                        Esta ação invalida a chave anterior. Informe o motivo e confirme para criar uma chave individual para esta OS.
-                    </p>
-                    <form onSubmit={handleRegeneratePublicAccessKey} className="space-y-3">
-                        <Label htmlFor="public-access-key-regeneration-reason">Motivo</Label>
-                        <Textarea
-                            id="public-access-key-regeneration-reason"
-                            value={publicKeyRegenerationForm.data.reason}
-                            onChange={(event) => publicKeyRegenerationForm.setData('reason', event.target.value)}
-                            placeholder="Explique por que a chave atual não pôde ser recuperada."
-                            rows={4}
-                            minLength={10}
-                            maxLength={500}
-                            required
-                        />
-                        {publicKeyRegenerationForm.errors.reason && <p className="text-sm text-red-500">{publicKeyRegenerationForm.errors.reason}</p>}
-                        <div className="flex justify-end gap-2">
-                            <Button type="button" variant="outline" onClick={() => setPublicKeyRegenerationOpen(false)}>
-                                Cancelar
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={publicKeyRegenerationForm.processing || publicKeyRegenerationForm.data.reason.trim().length < 10}
-                            >
-                                {publicKeyRegenerationForm.processing ? 'Gerando...' : 'Confirmar e substituir'}
-                            </Button>
-                        </div>
-                    </form>
-                </DialogContent>
-            </Dialog>
             <Dialog open={customerUpdateOpen} onOpenChange={setCustomerUpdateOpen}>
                 <DialogContent className="max-w-md">
                     <DialogTitle>Enviar atualização ao cliente</DialogTitle>

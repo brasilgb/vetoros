@@ -16,7 +16,6 @@ use App\Support\OrderActor;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Tests\TestCase;
@@ -114,97 +113,9 @@ class OrderBudgetVersioningTest extends TestCase
         $this->assertMoney(40, $item->unit_cost);
     }
 
-    public function test_public_approval_references_the_current_version(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '280,00']);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 2])
-            ->assertSessionHas('success');
-
-        $v2 = OrderBudget::query()->where('order_id', $order->id)->where('version', 2)->sole();
-        $this->assertSame(OrderBudget::STATUS_APPROVED, $v2->status);
-        $this->assertSame(OrderActor::CUSTOMER, $v2->approved_by_type);
-        $this->assertSame('public_tracking', $v2->response_channel);
-        $this->assertNotNull($v2->approved_at);
-        $this->assertSame($v2->id, (int) $order->fresh()->approved_budget_id);
-        $this->assertSame(OrderStatus::BUDGET_APPROVED, (int) $order->fresh()->service_status);
-        $this->assertDatabaseHas('order_events', ['order_id' => $order->id, 'event_type' => OrderEvent::TYPE_BUDGET_APPROVED, 'actor_type' => OrderActor::CUSTOMER]);
-    }
-
-    public function test_public_rejection_references_version_and_reason(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), [
-            'status' => OrderStatus::BUDGET_REJECTED, 'budget_version' => 1, 'rejection_reason' => 'Achei caro',
-        ])->assertSessionHas('success');
-
-        $v1 = OrderBudget::query()->where('order_id', $order->id)->sole();
-        $this->assertSame(OrderBudget::STATUS_REJECTED, $v1->status);
-        $this->assertSame('Achei caro', $v1->rejection_reason);
-        $this->assertNotNull($v1->rejected_at);
-        $this->assertNull($order->fresh()->approved_budget_id);
-    }
-
-    public function test_superseded_or_missing_version_cannot_be_approved(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '280,00']);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1])
-            ->assertSessionHasErrors('status');
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED])
-            ->assertSessionHasErrors('status');
-
-        $this->assertSame(0, OrderBudget::query()->where('order_id', $order->id)->where('status', OrderBudget::STATUS_APPROVED)->count());
-        $this->assertSame(OrderStatus::BUDGET_GENERATED, (int) $order->fresh()->service_status);
-    }
-
-    public function test_second_response_after_approval_is_refused(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1]);
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_REJECTED, 'budget_version' => 1])
-            ->assertSessionHasErrors('status');
-
-        $this->assertSame(OrderBudget::STATUS_APPROVED, OrderBudget::query()->where('order_id', $order->id)->sole()->status);
-    }
-
-    public function test_expired_version_cannot_be_approved_and_expiration_is_persisted(): void
-    {
-        $order = $this->order();
-        Carbon::setTestNow('2026-10-01 09:00:00');
-        $this->generate($order, '300,00', ['budget_valid_until' => '2026-10-05']);
-
-        $budget = OrderBudget::query()->where('order_id', $order->id)->sole();
-        $this->assertSame(OrderBudget::STATUS_SENT, $budget->effective_status);
-
-        Carbon::setTestNow('2026-10-06 08:00:00');
-        $this->assertSame(OrderBudget::STATUS_EXPIRED, $budget->fresh()->effective_status);
-        $this->assertSame(1, OrderBudget::query()->effectivelyExpired()->count());
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1])
-            ->assertSessionHasErrors('status');
-        Carbon::setTestNow();
-
-        // A recusa da aprovação não desfaz o registro do vencimento.
-        $budget->refresh();
-        $this->assertSame(OrderBudget::STATUS_EXPIRED, $budget->status);
-        $this->assertSame('2026-10-05 23:59:59', $budget->expired_at->toDateTimeString());
-        $this->assertDatabaseHas('order_events', ['order_id' => $order->id, 'event_type' => OrderEvent::TYPE_BUDGET_EXPIRED, 'actor_type' => OrderActor::SYSTEM]);
-        $this->assertSame(OrderStatus::BUDGET_GENERATED, (int) $order->fresh()->service_status);
-    }
+    // VETOROS-PERFORMANCE-OS-04: os testes de resposta do cliente pelo portal público (aprovação,
+    // recusa, versão superada, segunda resposta e vencimento pelo link) saíram com a remoção da
+    // consulta pública. A aprovação e o vencimento pelo fluxo interno seguem cobertos abaixo.
 
     public function test_internal_approval_after_expiration_is_blocked_and_resend_creates_new_version(): void
     {
@@ -256,9 +167,9 @@ class OrderBudgetVersioningTest extends TestCase
         $versions = OrderBudget::query()->where('order_id', $order->id)->orderBy('version')->get();
         $this->assertSame([OrderBudget::STATUS_APPROVED, OrderBudget::STATUS_SENT], $versions->pluck('status')->all());
         $this->assertSame($versions[0]->id, (int) $order->fresh()->approved_budget_id);
-        Auth::logout();
 
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 2]);
+        $this->save($order->fresh(), ['budget_description' => 'Troca de tela + conector', 'budget_value' => '380,00', 'service_status' => OrderStatus::BUDGET_APPROVED])
+            ->assertSessionHasNoErrors();
 
         $versions = OrderBudget::query()->where('order_id', $order->id)->orderBy('version')->get();
         $this->assertSame([OrderBudget::STATUS_SUPERSEDED, OrderBudget::STATUS_APPROVED], $versions->pluck('status')->all());
@@ -289,12 +200,6 @@ class OrderBudgetVersioningTest extends TestCase
             }
             $this->assertSame(0, OrderBudgetItem::query()->where('order_budget_id', $legacy->id)->count());
         }
-
-        // O cliente ainda pode responder o orçamento legado que está diante dele.
-        Auth::logout();
-        $this->post(route('orders.budget.status', $awaiting->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1])
-            ->assertSessionHas('success');
-        $this->assertNotNull($legacyAwaiting->fresh()->approved_at);
     }
 
     public function test_budgets_are_isolated_by_tenant(): void
@@ -324,9 +229,9 @@ class OrderBudgetVersioningTest extends TestCase
         $this->generate($order, '300,00');
         Carbon::setTestNow('2026-10-02 10:00:00');
         $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '260,00']);
-        Auth::logout();
         Carbon::setTestNow('2026-10-03 16:00:00');
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 2]);
+        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '260,00', 'service_status' => OrderStatus::BUDGET_APPROVED])
+            ->assertSessionHasNoErrors();
         Carbon::setTestNow();
 
         // Tempo envio → aprovação da versão aprovada, versões por OS e diferença entre 1ª e última versão.

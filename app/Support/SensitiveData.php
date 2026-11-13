@@ -12,6 +12,7 @@ final class SensitiveData
         'password',
         'public_access_key',
         'public_access_key_hash',
+        'public_access_key_check',
         'tracking_token',
         'token',
         'customer_signature',

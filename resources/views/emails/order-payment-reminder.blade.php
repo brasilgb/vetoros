@@ -69,17 +69,6 @@
                                         <td style="padding:4px 0;"><strong>Entrega registrada em:</strong> {{ \Carbon\Carbon::parse($order->delivery_date)->format('d/m/Y H:i') }}</td>
                                     </tr>
                                 @endif
-                                @if (!empty($order->tracking_token))
-                                    <tr>
-                                        <td style="padding:4px 0;">
-                                            <strong>Acompanhamento:</strong>
-                                            <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                                style="color:#2563eb;text-decoration:none;">
-                                                Clique para visualizar sua ordem
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endif
                             </table>
 
                             <p style="font-size:15px;line-height:1.6;">
@@ -88,9 +77,7 @@
                         </td>
                     </tr>
 
-                    <tr>
-                        <td style="padding:0 32px;">@include('emails.partials.order-access-key')</td>
-                    </tr><tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
+                    <tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
                             <p style="margin:0;">© {{ date('Y') }} {{ $companyName }}</p>
                             <p style="margin:6px 0;">Todos os direitos reservados</p>
                             @if (!empty($companySite))

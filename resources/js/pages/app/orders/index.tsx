@@ -36,7 +36,6 @@ import {
     Edit,
     FileTextIcon,
     ImageUp,
-    LinkIcon,
     Mail,
     MoreHorizontal,
     Plus,
@@ -83,7 +82,6 @@ export default function Orders({ orders, whats, feedback, search, status, filter
             print_label_button_after_order_create?: boolean;
             show_follow_ups_menu?: boolean;
             show_tasks_menu?: boolean;
-            public_order_access_key_required?: boolean;
         };
     }>().props;
     const [openInvoiceModal, setOpenInvoiceModal] = useState(false);
@@ -598,9 +596,6 @@ export default function Orders({ orders, whats, feedback, search, status, filter
                                                                 defaultmessage: whats?.defaultmessage,
                                                                 budgetfollowup: whats?.budgetfollowup,
                                                                 pendingpayment: whats?.pendingpayment,
-                                                                tracking_token: order?.tracking_token,
-                                                                public_access_key: order?.public_access_key_value,
-                                                                public_access_key_required: Boolean(othersetting?.public_order_access_key_required),
                                                             }}
                                                         />
                                                     )}
@@ -634,12 +629,6 @@ export default function Orders({ orders, whats, feedback, search, status, filter
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="w-56">
-                                                                <DropdownMenuItem asChild>
-                                                                    <a target="_blank" href={route('os.token', order?.tracking_token)}>
-                                                                        <LinkIcon />
-                                                                        Acompanhamento público
-                                                                    </a>
-                                                                </DropdownMenuItem>
                                                                 <DropdownMenuItem onSelect={() => setReceiptOrderId(order.id)}>
                                                                     <Printer />
                                                                     Imprimir recibo

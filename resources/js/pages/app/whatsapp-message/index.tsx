@@ -10,6 +10,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { MessageCircleCode, Save } from 'lucide-react';
 import type { FormEvent } from 'react';
 import WhatsappConnectionPanel from './connection-panel';
+import { withoutRemovedPlaceholders } from '@/lib/whatsapp-template';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -35,17 +36,17 @@ type WhatsappMessageSettings = {
 
 const DEFAULT_MESSAGES = {
     generatedbudget:
-        '{{ saudacao }}, {{ cliente }}!\n\nEquipamento analisado preliminarmente. Segue orçamento inicial para reparo conforme diagnóstico técnico apresentado na OS {{ ordem }}.\n\nO serviço será executado somente mediante sua aprovação. Valores e prazo podem sofrer alterações caso sejam identificadas necessidades adicionais durante o reparo.\n\nVocê pode acompanhar pelo link: {{ link_os }}',
+        '{{ saudacao }}, {{ cliente }}!\n\nEquipamento analisado preliminarmente. Segue orçamento inicial para reparo conforme diagnóstico técnico apresentado na OS {{ ordem }}.\n\nO serviço será executado somente mediante sua aprovação. Valores e prazo podem sofrer alterações caso sejam identificadas necessidades adicionais durante o reparo.',
     servicecompleted:
-        '{{ saudacao }}, {{ cliente }}!\n\nSua OS {{ ordem }} foi concluída com sucesso.\n\nVocê pode acompanhar pelo link: {{ link_os }}\n\nQualquer dúvida, conte com a gente.',
+        '{{ saudacao }}, {{ cliente }}!\n\nSua OS {{ ordem }} foi concluída com sucesso.\n\nQualquer dúvida, conte com a gente.',
     feedback:
-        '{{ saudacao }}, {{ cliente }}!\n\nSua OS {{ ordem }} foi finalizada e sua opinião é muito importante para nós.\n\nAcesse sua área do cliente pelo link {{ link_os }} e deixe uma nota com um comentário rápido sobre sua experiência.\n\nSeu feedback nos ajuda a melhorar cada atendimento.',
+        '{{ saudacao }}, {{ cliente }}!\n\nSua OS {{ ordem }} foi finalizada e sua opinião é muito importante para nós.\n\nSeu feedback nos ajuda a melhorar cada atendimento.',
     defaultmessage:
-        '{{ saudacao }}, {{ cliente }}!\n\nAtualização da sua OS {{ ordem }}.\n\nAcompanhe pelo link: {{ link_os }}\n\nQualquer dúvida, estamos à disposição.',
+        '{{ saudacao }}, {{ cliente }}!\n\nAtualização da sua OS {{ ordem }}.\n\nQualquer dúvida, estamos à disposição.',
     budgetfollowup:
-        '{{ saudacao }}, {{ cliente }}!\n\nSeu orçamento da OS {{ ordem }} segue aguardando retorno há {{ dias_pendentes }} dias.\n\nVocê pode aprovar ou acompanhar pelo link: {{ link_os }}\n\nSe precisar de ajuda, estamos à disposição.',
+        '{{ saudacao }}, {{ cliente }}!\n\nSeu orçamento da OS {{ ordem }} segue aguardando retorno há {{ dias_pendentes }} dias.\n\nSe precisar de ajuda, estamos à disposição.',
     pendingpayment:
-        '{{ saudacao }}, {{ cliente }}!\n\nA OS {{ ordem }} segue com saldo pendente de {{ saldo }}.\n\nVocê pode acompanhar pelo link: {{ link_os }}\n\nSe já realizou o pagamento, desconsidere esta mensagem.',
+        '{{ saudacao }}, {{ cliente }}!\n\nA OS {{ ordem }} segue com saldo pendente de {{ saldo }}.\n\nSe já realizou o pagamento, desconsidere esta mensagem.',
     technicianschedule:
         '{{ saudacao }}, {{ tecnico }}!\nVisita agendada para {{ data_visita }}.\nServiço: {{ servico }}.\nMateriais: {{ materiais }}.\nCliente: {{ cliente }}.\nEndereço: {{ endereco }}.',
 };
@@ -53,7 +54,6 @@ const DEFAULT_MESSAGES = {
 const previewValues = {
     cliente: 'João da Silva',
     ordem: '1024',
-    link_os: 'https://seusite.com.br/os/abc123',
     saudacao: 'Boa tarde',
     saudação: 'Boa tarde',
     saldo: 'R$ 185,00',
@@ -79,7 +79,7 @@ const normalizePlaceholderKey = (key: string) =>
 const renderPreview = (template?: string) => {
     if (!template) return '';
 
-    return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, key) => {
+    return withoutRemovedPlaceholders(template).replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, key) => {
         const normalizedKey = normalizePlaceholderKey(String(key));
 
         if (normalizedKey in previewValues) {
@@ -163,7 +163,7 @@ export default function WhatsappMessage({
                                     <div className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
                                         Para usar as mensagens padrão, basta clicar em salvar. Se precisar, altere os textos conforme a necessidade.
                                         Os templates inserem automaticamente informações do cliente e da O.S. pelos placeholders:{' '}
-                                        <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>, <code>{'{{ link_os }}'}</code>,{' '}
+                                        <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>,{' '}
                                         <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code>, <code>{'{{ dias_pendentes }}'}</code>,{' '}
                                         <code>{'{{ valor_orçamento }}'}</code> (total do orçamento, com peças) e <code>{'{{ valor_serviço }}'}</code>{' '}
                                         (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. O aviso de agendamento ao

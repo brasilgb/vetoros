@@ -21,7 +21,6 @@ use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -87,15 +86,14 @@ class OrderControllerTest extends TestCase
         $order = Order::query()->firstOrFail();
 
         $this->assertSame('Notebook Dell Inspiron', $order->model);
-        $this->assertMatchesRegularExpression('/^[A-Z0-9]{8}$/', $order->public_access_key);
-        $this->assertNotSame($order->public_access_key, DB::table('orders')->where('id', $order->id)->value('public_access_key'));
-        $this->assertTrue(Hash::check($order->public_access_key, $order->public_access_key_hash));
+        // VETOROS-PERFORMANCE-OS-04: a OS não recebe mais chave de acesso público.
+        $this->assertNull(DB::table('orders')->where('id', $order->id)->value('public_access_key_hash'));
 
         $this->get(route('app.orders.show', $order))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('app/orders/edit-order')
-                ->where('publicAccessKey', $order->public_access_key));
+                ->missing('publicAccessKey'));
 
         $this->assertDatabaseHas('order_status_history', [
             'order_id' => $order->id,
@@ -583,7 +581,7 @@ class OrderControllerTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_it_sends_status_email_immediately_with_tenant_mail_configuration(): void
+    public function test_status_change_does_not_send_automatic_email_even_with_tenant_mail_configuration(): void
     {
         Mail::fake();
 
@@ -613,6 +611,14 @@ class OrderControllerTest extends TestCase
         ]));
 
         $response->assertRedirect(route('app.orders.show', ['order' => $order->id]));
+        $response->assertSessionHas('success', 'Ordem atualizada com sucesso');
+        // VETOROS-PERFORMANCE-OS-03: sem e-mail automático; histórico de status preservado.
+        Mail::assertNothingSent();
+        $this->assertDatabaseHas('order_status_history', ['order_id' => $order->id, 'status' => OrderStatus::REPAIR_IN_PROGRESS]);
+
+        // O envio manual de atualização ao cliente continua funcionando.
+        $this->post(route('app.orders.customer-update', $order), ['note' => 'Peça chegou, reparo em andamento.'])
+            ->assertSessionHas('success', 'Atualização enviada ao cliente por e-mail e publicada no acompanhamento da ordem.');
         Mail::assertSent(
             OrderStatusUpdatedMail::class,
             fn (OrderStatusUpdatedMail $mail) => $mail->hasTo('cliente@example.com'),
@@ -888,7 +894,7 @@ class OrderControllerTest extends TestCase
         ]);
     }
 
-    public function test_it_handles_main_order_flow_until_customer_feedback(): void
+    public function test_it_handles_main_order_flow_until_delivery(): void
     {
         $customer = Customer::factory()->forTenant($this->tenant->id)->create();
         $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
@@ -929,18 +935,33 @@ class OrderControllerTest extends TestCase
 
         $budgetResponse->assertRedirect(route('app.orders.show', ['order' => $order->id]));
 
-        // VETOR-INTEL-03: a resposta pública cita a versão do orçamento que o cliente viu.
-        $approveResponse = $this->post(route('orders.budget.status', $order->tracking_token), [
-            'status' => OrderStatus::BUDGET_APPROVED,
-            'budget_version' => 1,
-        ]);
+        // VETOROS-PERFORMANCE-OS-04: sem portal público, a aprovação do cliente é registrada pela equipe.
+        $this->put(route('app.orders.update', $order->fresh()), [
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'user_id' => $this->user->id,
+            'model' => $order->model,
+            'password' => $order->password,
+            'defect' => $order->defect,
+            'state_conservation' => $order->state_conservation,
+            'accessories' => $order->accessories,
+            'budget_description' => 'Troca do conector de carga',
+            'budget_value' => '150,00',
+            'services_performed' => $order->services_performed,
+            'parts_value' => '50,00',
+            'service_value' => '100,00',
+            'service_cost' => '150,00',
+            'delivery_date' => null,
+            'service_status' => OrderStatus::BUDGET_APPROVED,
+            'delivery_forecast' => now()->addDays(7)->toDateString(),
+            'observations' => 'Cliente aprovou por telefone',
+        ])->assertSessionHasNoErrors();
 
-        $approveResponse->assertSessionHas('success', 'Status do orçamento atualizado com sucesso.');
         $this->assertDatabaseHas('order_budgets', [
             'order_id' => $order->id,
             'version' => 1,
             'status' => 'approved',
-            'approved_by_type' => 'customer',
+            'approved_by_type' => 'user',
         ]);
 
         $serviceCompletedResponse = $this->put(route('app.orders.update', $order->fresh()), [
@@ -983,25 +1004,50 @@ class OrderControllerTest extends TestCase
 
         $paymentResponse->assertSessionHas('success', 'Pagamento registrado com sucesso.');
 
-        $notificationResponse = $this->post(route('orders.notification.acknowledge', $order->fresh()->tracking_token));
-
-        $notificationResponse->assertSessionHas('success', 'Confirmação de aviso registrada com sucesso.');
-
-        $pickupResponse = $this->post(route('orders.pickup.acknowledge', $order->fresh()->tracking_token));
-
-        $pickupResponse->assertSessionHas('success', 'Confirmação de retirada registrada com sucesso.');
-
-        $feedbackResponse = $this->post(route('os.feedback.submit', $order->fresh()->tracking_token), [
-            'rating' => 5,
-            'comment' => 'Atendimento excelente',
-        ]);
-
-        $feedbackResponse->assertSessionHas('success', 'Obrigado! Seu feedback foi enviado com sucesso.');
+        $this->put(route('app.orders.update', $order->fresh()), [
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'user_id' => $this->user->id,
+            'model' => $order->model,
+            'password' => $order->password,
+            'defect' => $order->defect,
+            'state_conservation' => $order->state_conservation,
+            'accessories' => $order->accessories,
+            'budget_description' => 'Troca do conector de carga',
+            'budget_value' => '150,00',
+            'services_performed' => 'Troca realizada com sucesso',
+            'parts_value' => '50,00',
+            'service_value' => '100,00',
+            'service_cost' => '150,00',
+            'delivery_date' => null,
+            'service_status' => OrderStatus::CUSTOMER_NOTIFIED,
+            'delivery_forecast' => now()->addDays(7)->toDateString(),
+            'observations' => 'Cliente avisado',
+        ])->assertSessionHasNoErrors();
+        $this->put(route('app.orders.update', $order->fresh()), [
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'user_id' => $this->user->id,
+            'model' => $order->model,
+            'password' => $order->password,
+            'defect' => $order->defect,
+            'state_conservation' => $order->state_conservation,
+            'accessories' => $order->accessories,
+            'budget_description' => 'Troca do conector de carga',
+            'budget_value' => '150,00',
+            'services_performed' => 'Troca realizada com sucesso',
+            'parts_value' => '50,00',
+            'service_value' => '100,00',
+            'service_cost' => '150,00',
+            'delivery_date' => null,
+            'service_status' => OrderStatus::DELIVERED,
+            'delivery_forecast' => now()->addDays(7)->toDateString(),
+            'observations' => 'Entregue',
+        ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('orders', [
             'id' => $order->id,
             'service_status' => OrderStatus::DELIVERED,
-            'customer_feedback_rating' => 5,
         ]);
 
         $this->assertDatabaseHas('order_status_history', [
@@ -1030,24 +1076,6 @@ class OrderControllerTest extends TestCase
             'entity_type' => 'order',
             'entity_id' => $order->id,
             'action' => 'order_payment_registered',
-        ]);
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_customer_notification_acknowledged',
-        ]);
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_customer_pickup_acknowledged',
-        ]);
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_customer_feedback_submitted',
         ]);
     }
 

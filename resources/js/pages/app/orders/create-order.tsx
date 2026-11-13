@@ -8,6 +8,7 @@ import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useOrderContextOptions } from '@/hooks/use-order-context-options';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem, OptionType, SharedData } from '@/types';
 import { statusOrcamento } from '@/Utils/dataSelect';
@@ -37,28 +38,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function CreateOrder({
     equipments,
     sourceSchedule,
-    warrantySourceOrders,
-    activeOrders,
 }: {
     equipments: { id: number; equipment: string }[];
     sourceSchedule?: { id: number; customer_id: number; user_id?: number | null; schedules?: string | null; customer?: { name: string } } | null;
-    warrantySourceOrders: Array<{
-        id: number;
-        order_number: number;
-        customer_id: number;
-        equipment_id: number;
-        model?: string | null;
-        warranty_expires_at: string;
-    }>;
-    activeOrders: Array<{
-        id: number;
-        order_number: number;
-        customer_id: number;
-        equipment_id: number | null;
-        model?: string | null;
-        service_status: number;
-        updated_at: string;
-    }>;
 }) {
     const { flash } = usePage<
         SharedData & {
@@ -133,6 +115,7 @@ export default function CreateOrder({
     };
 
     const selectedEquipment = optionsEquipment.find((option) => String(option.value) === String(data.equipment_id)) ?? null;
+    const { warrantySourceOrders, activeOrders } = useOrderContextOptions(data.customer_id, data.equipment_id);
     const eligibleWarrantyOrders = warrantySourceOrders.filter(
         (item) => String(item.customer_id) === String(data.customer_id) && String(item.equipment_id) === String(data.equipment_id),
     );
@@ -362,7 +345,7 @@ export default function CreateOrder({
                                             <option key={item.id} value={item.id}>
                                                 OS #{item.order_number}
                                                 {item.model ? ` • ${item.model}` : ''} • garantia até{' '}
-                                                {new Date(item.warranty_expires_at).toLocaleDateString('pt-BR')}
+                                                {item.warranty_expires_at ? new Date(item.warranty_expires_at).toLocaleDateString('pt-BR') : '-'}
                                             </option>
                                         ))}
                                     </select>

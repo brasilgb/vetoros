@@ -52,17 +52,6 @@
                                 <tr>
                                     <td style="padding:4px 0;"><strong>Status atual:</strong> {{ $statusLabel }}</td>
                                 </tr>
-                                @if (!empty($order->tracking_token))
-                                <tr>
-                                    <td style="padding:4px 0;">
-                                        <strong>Acompanhamento:</strong>
-                                        <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                            style="color:#2563eb;text-decoration:none;">
-                                            Clique para acompanhar sua ordem
-                                        </a>
-                                    </td>
-                                </tr>
-                                @endif
                                 @if (!empty($note))
                                 <tr>
                                     <td style="padding:4px 0;"><strong>Observação:</strong> {{ $note }}</td>
@@ -90,20 +79,10 @@
                                 Se tiver dúvidas, entre em contato com nossa equipe.
                             </p>
 
-                            @if (!empty($order->tracking_token))
-                            <p style="margin-top:8px;">
-                                <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                    style="background:#0f766e;border-radius:6px;color:#ffffff;display:inline-block;font-size:14px;font-weight:bold;padding:12px 22px;text-decoration:none;">
-                                    Acompanhar minha ordem
-                                </a>
-                            </p>
-                            @endif
                         </td>
                     </tr>
 
-                    <tr>
-                        <td style="padding:0 32px;">@include('emails.partials.order-access-key')</td>
-                    </tr><tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
+                    <tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
                             <p style="margin:0;">© {{ date('Y') }} {{ $companyName }}</p>
                             <p style="margin:6px 0;">Todos os direitos reservados</p>
                             @if (!empty($companySite))

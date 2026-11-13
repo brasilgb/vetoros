@@ -87,8 +87,8 @@ Route::delete('customer-equipments/{customerEquipment}', [CustomerEquipmentContr
 Route::resource('messages', MessageController::class);
 Route::patch('messages/{message}/read', [MessageController::class, 'read'])->name('messages.read');
 Route::patch('orders/{order}/feedback', [OrderController::class, 'markFeedback'])->name('orders.feedback');
+Route::get('orders/context-options', [OrderController::class, 'contextOptions'])->name('orders.context-options');
 Route::resource('orders', OrderController::class);
-Route::post('orders/{order}/public-access-key/regenerate', [OrderController::class, 'regeneratePublicAccessKey'])->name('orders.public-access-key.regenerate');
 Route::post('orders/{order}/payments', [OrderController::class, 'storePayment'])->name('orders.payments.store');
 Route::post('orders/{order}/payments/mobile-confirm', [OrderController::class, 'confirmMobilePayment'])->name('orders.payments.mobile-confirm');
 Route::post('orders/{order}/payments/reminder', [OrderController::class, 'sendPaymentReminder'])->name('orders.payments.reminder');
