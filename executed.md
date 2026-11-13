@@ -1,6 +1,6 @@
 # VetorOS — Correção da ajuda dos templates de mensagem — Resultado da execução
 
-**Status:** correção feita e verificada localmente. **Não commitada e não publicada** nesta etapa. A versão em produção ainda é a da ajuda com gaveta lateral e lista de variáveis na tela principal (imagem `vetoros:template-help-20261106-182826`).
+**Status:** correção feita e verificada localmente. **Commitada e enviada ao branch `fix/efi-identificador-invalido`** (commits `fa570df8` e `57e0a3f2`, registro em `24b4f4f0`). **Não publicada em produção nesta etapa.** A versão em produção ainda é a da ajuda com gaveta lateral e lista de variáveis na tela principal (imagem `vetoros:template-help-20261106-182826`).
 
 ## Escopo
 
