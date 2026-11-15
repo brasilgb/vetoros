@@ -32,3 +32,5 @@ Route::post('/saas/documents/{document}/refresh', [SaasInvoiceController::class,
 Route::post('/saas/documents/{document}/cancel', [SaasInvoiceController::class, 'cancel'])->name('saas.cancel');
 Route::get('/saas/documents/{document}/file/{format}', [SaasInvoiceController::class, 'file'])->name('saas.file');
 Route::post('/saas/documents/{document}/send', [SaasInvoiceController::class, 'send'])->middleware('throttle:10,1')->name('saas.send');
+
+Route::post('/companies/{tenant}/check-numbering', [FiscalCompanyController::class, 'checkNumbering'])->middleware('throttle:20,1')->name('companies.check-numbering');

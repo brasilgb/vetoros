@@ -340,7 +340,7 @@ class OrderCommunicationTest extends TestCase
         return Order::factory()->forTenant($this->tenant->id)->create([
             'customer_id' => $this->customer->id,
             'equipment_id' => $this->equipment->id,
-            'user_id' => null,
+            'user_id' => $this->user->id,
             'service_status' => $status,
             'service_value' => 0,
             'parts_value' => 0,

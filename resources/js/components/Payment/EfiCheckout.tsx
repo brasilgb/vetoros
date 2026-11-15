@@ -379,7 +379,7 @@ export default function EfiCheckout({
                         key={item.key}
                         type="button"
                         onClick={() => setTab(item.key)}
-                        className={`flex-1 rounded-md border px-3 py-2 text-sm ${tab === item.key ? 'border-indigo-500 bg-indigo-50 font-medium' : 'border-gray-300'}`}
+                        className={`flex-1 rounded-md border px-3 py-2 text-sm ${tab === item.key ? 'border-indigo-500 bg-indigo-50 font-medium text-indigo-900 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-100' : 'border-gray-300 dark:border-gray-600'}`}
                     >
                         {item.label}
                     </button>

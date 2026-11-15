@@ -2,15 +2,18 @@ import { toastSuccess } from '@/components/app-toast-messages';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { MessageCircleCode, Save } from 'lucide-react';
+import { CircleHelp, MessageCircleCode, Save } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import WhatsappConnectionPanel from './connection-panel';
 import { withoutRemovedPlaceholders } from '@/lib/whatsapp-template';
+import { TemplateHelpContent } from './template-help';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -26,6 +29,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type WhatsappMessageSettings = {
     id?: number;
     generatedbudget?: string;
+    budgetapproved?: string;
     servicecompleted?: string;
     feedback?: string;
     defaultmessage?: string;
@@ -35,6 +39,8 @@ type WhatsappMessageSettings = {
 };
 
 const DEFAULT_MESSAGES = {
+    budgetapproved:
+        'Bom dia, {{ cliente }}! Agradecemos seu retorno e a aprovação do orçamento. Assim que seu equipamento estiver pronto, avisaremos por aqui. Obrigado pela confiança!',
     generatedbudget:
         '{{ saudacao }}, {{ cliente }}!\n\nEquipamento analisado preliminarmente. Segue orçamento inicial para reparo conforme diagnóstico técnico apresentado na OS {{ ordem }}.\n\nO serviço será executado somente mediante sua aprovação. Valores e prazo podem sofrer alterações caso sejam identificadas necessidades adicionais durante o reparo.',
     servicecompleted:
@@ -65,6 +71,9 @@ const previewValues = {
     servico: 'Manutenção preventiva',
     materiais: '1x Filtro de óleo, 2x Correia',
     endereco: 'Rua das Flores, 123 - Centro, São Paulo',
+    descricao_orcamento: "Troca de bomba d'água e revisão do sistema de arrefecimento",
+    pecas: "- 1x Bomba d'água: R$ 320,00\n- 2x Correia: R$ 90,00",
+    valor_pecas: 'R$ 410,00',
 };
 
 const normalizePlaceholderKey = (key: string) =>
@@ -104,6 +113,7 @@ export default function WhatsappMessage({
 }) {
     const { data, setData, patch, processing } = useForm({
         generatedbudget: whatsappmessage?.generatedbudget,
+        budgetapproved: whatsappmessage?.budgetapproved,
         servicecompleted: whatsappmessage?.servicecompleted,
         feedback: whatsappmessage?.feedback,
         defaultmessage: whatsappmessage?.defaultmessage,
@@ -111,6 +121,8 @@ export default function WhatsappMessage({
         pendingpayment: whatsappmessage?.pendingpayment,
         technicianschedule: whatsappmessage?.technicianschedule,
     });
+
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -123,6 +135,7 @@ export default function WhatsappMessage({
 
     const handleResetDefaults = () => {
         setData('generatedbudget', DEFAULT_MESSAGES.generatedbudget);
+        setData('budgetapproved', DEFAULT_MESSAGES.budgetapproved);
         setData('servicecompleted', DEFAULT_MESSAGES.servicecompleted);
         setData('feedback', DEFAULT_MESSAGES.feedback);
         setData('defaultmessage', DEFAULT_MESSAGES.defaultmessage);
@@ -160,14 +173,30 @@ export default function WhatsappMessage({
                         <div className="rounded-lg border p-2">
                             <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
                                 <div className="mt-4 grid gap-4">
+                                    <div className="flex items-center justify-between gap-2 md:col-span-2">
+                                        <h3 className="text-sm font-medium">Variáveis</h3>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setHelpOpen(true)}
+                                            aria-haspopup="dialog"
+                                            aria-expanded={helpOpen}
+                                        >
+                                            <CircleHelp />
+                                            Ajuda
+                                        </Button>
+                                    </div>
                                     <div className="text-muted-foreground rounded-md border border-dashed p-3 text-sm">
                                         Para usar as mensagens padrão, basta clicar em salvar. Se precisar, altere os textos conforme a necessidade.
                                         Os templates inserem automaticamente informações do cliente e da O.S. pelos placeholders:{' '}
                                         <code>{'{{ cliente }}'}</code>, <code>{'{{ ordem }}'}</code>,{' '}
                                         <code>{'{{ saudacao }}'}</code>, <code>{'{{ saldo }}'}</code>, <code>{'{{ dias_pendentes }}'}</code>,{' '}
                                         <code>{'{{ valor_orçamento }}'}</code> (total do orçamento, com peças) e <code>{'{{ valor_serviço }}'}</code>{' '}
-                                        (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. O aviso de agendamento ao
-                                        técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
+                                        (somente serviços). Se a OS não tiver valor definido, o envio fica bloqueado. Os dados do orçamento aprovado
+                                        usam <code>{'{{ descricao_orcamento }}'}</code>, <code>{'{{ peças }}'}</code> (lista de peças) e{' '}
+                                        <code>{'{{ valor_pecas }}'}</code> (total das peças); sem peças ou descrição, a tag fica vazia. O aviso de
+                                        agendamento ao técnico usa também <code>{'{{ tecnico }}'}</code>, <code>{'{{ data_visita }}'}</code>,{' '}
                                         <code>{'{{ servico }}'}</code>, <code>{'{{ materiais }}'}</code> e <code>{'{{ endereco }}'}</code>.
                                     </div>
 
@@ -180,6 +209,18 @@ export default function WhatsappMessage({
                                         />
                                         <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
                                             Prévia: {renderPreview(data.generatedbudget)}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-2 md:col-span-2">
+                                        <Label htmlFor="budgetapproved">Agradecimento pela aprovação do orçamento</Label>
+                                        <Textarea
+                                            id="budgetapproved"
+                                            value={data.budgetapproved}
+                                            onChange={(e) => setData('budgetapproved', e.target.value)}
+                                        />
+                                        <div className="text-muted-foreground bg-muted/40 rounded-md p-2 text-xs whitespace-pre-wrap">
+                                            Prévia: {renderPreview(data.budgetapproved)}
                                         </div>
                                     </div>
 
@@ -263,6 +304,20 @@ export default function WhatsappMessage({
                                 </div>
                             </form>
                         </div>
+
+                        <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
+                            <SheetContent className="w-full sm:max-w-md">
+                                <SheetHeader className="pr-12">
+                                    <SheetTitle>Como usar os templates de mensagem</SheetTitle>
+                                    <SheetDescription className="sr-only">
+                                        Instruções, variáveis, exemplo e regras de envio dos templates.
+                                    </SheetDescription>
+                                </SheetHeader>
+                                <div className="flex-1 overflow-y-auto px-4 pb-6">
+                                    <TemplateHelpContent />
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                     </TabsContent>
                 </Tabs>
             </div>

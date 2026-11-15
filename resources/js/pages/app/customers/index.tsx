@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { buildMessage } from '@/components/WhatsAppButtonProps';
+import { buildMessage, type WhatsappBudgetDetails } from '@/components/WhatsAppButtonProps';
 import AppLayout from '@/layouts/app-layout';
 import { formatBRL } from '@/lib/money';
 import { BreadcrumbItem } from '@/types';
@@ -44,11 +44,12 @@ type CustomerWhatsappOption = {
     label: string;
     order_id?: number;
     order_number?: string;
-    context?: 'default' | 'budget_follow_up' | 'pending_payment';
+    context?: 'default' | 'budget_follow_up' | 'pending_payment' | 'budget_approved';
     status?: number;
     feedback?: boolean;
     amount_due?: number;
     days_pending?: number;
+    budget?: WhatsappBudgetDetails;
 };
 
 const DEFAULT_WHATSAPP_OPTION: CustomerWhatsappOption = { key: 'default', label: 'Mensagem padrão', context: 'default' };
@@ -60,6 +61,9 @@ export default function Customers({ customers, search, pending, whats }: any) {
     const [sendingWhatsappId, setSendingWhatsappId] = useState<number | null>(null);
     const [selectedWhatsappOption, setSelectedWhatsappOption] = useState<Record<number, string>>({});
     const canManageCustomers = auth?.permissions?.includes('customers');
+
+    // Mesma regra do backend: usa o WhatsApp do cliente e, se ele não for válido, o telefone.
+    const whatsappNumberFor = (customer: any): string => (isValidWhatsappPhone(customer.whatsapp) ? customer.whatsapp : customer.phone);
 
     const whatsappOptionsFor = (customer: any): CustomerWhatsappOption[] => [
         DEFAULT_WHATSAPP_OPTION,
@@ -78,6 +82,7 @@ export default function Customers({ customers, search, pending, whats }: any) {
             context: option.context,
             amountDue: option.amount_due,
             daysPending: option.days_pending,
+            budget: option.budget,
             whats,
         });
 
@@ -184,7 +189,7 @@ export default function Customers({ customers, search, pending, whats }: any) {
                                                             className="bg-green-500 text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
                                                             title="Enviar WhatsApp"
                                                             aria-label={`Enviar WhatsApp para ${customer.name}`}
-                                                            disabled={!isValidWhatsappPhone(customer.whatsapp) || sendingWhatsappId === customer.id}
+                                                            disabled={!isValidWhatsappPhone(whatsappNumberFor(customer)) || sendingWhatsappId === customer.id}
                                                         >
                                                             {sendingWhatsappId === customer.id ? (
                                                                 <Loader2 className="h-4 w-4 animate-spin" />

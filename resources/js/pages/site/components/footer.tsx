@@ -4,7 +4,8 @@ import { MessageCircle } from 'lucide-react';
 import { CookiePreferencesButton } from './cookie-consent';
 import { contactLink, useContactChannel } from './site-contact';
 
-export function Footer() {
+// O aviso de cookies só existe na landing page: o link de preferências só aparece onde ele está montado.
+export function Footer({ showCookiePreferences = false }: { showCookiePreferences?: boolean }) {
     const productName = import.meta.env.VITE_PUBLIC_PRODUCT_NAME || 'VetorOS';
     const contactChannel = useContactChannel();
     const contactUrl = contactLink(contactChannel);
@@ -111,7 +112,7 @@ export function Footer() {
                 <nav aria-label="Informações legais" className="mt-12 flex justify-center gap-6 border-t border-white/10 pt-6 text-sm sm:justify-end">
                     <a href="/privacidade" className="text-white/60 transition-colors hover:text-white">Privacidade</a>
                     <a href="/termos" className="text-white/60 transition-colors hover:text-white">Termos</a>
-                    <CookiePreferencesButton className="text-white/60 transition-colors hover:text-white" />
+                    {showCookiePreferences && <CookiePreferencesButton className="text-white/60 transition-colors hover:text-white" />}
                 </nav>
                 <div className="mt-6 flex flex-col items-center gap-3 border-t border-white/10 pt-6 text-center text-xs text-white/70 sm:flex-row sm:justify-between sm:text-left">
                     <p>© {new Date().getFullYear()} {productName}. Todos os direitos reservados.</p>

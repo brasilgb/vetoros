@@ -21,6 +21,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
     generatedbudget: 'Orçamento gerado',
     budget_generated: 'Orçamento gerado',
     budget_follow_up: 'Acompanhamento de orçamento',
+    budget_approved: 'Agradecimento pela aprovação',
     servicecompleted: 'Serviço concluído',
     pending_payment: 'Pagamento pendente',
     payment_reminder: 'Lembrete de pagamento',

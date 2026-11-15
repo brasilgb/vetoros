@@ -23,7 +23,7 @@ export default function Home({ testimonials = [] }: { testimonials?: Testimonial
             <Testimonials testimonials={testimonials} />
             <FAQ />
             <CTA />
-            <Footer />
+            <Footer showCookiePreferences />
             <CookieConsent />
         </main>
     );

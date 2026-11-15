@@ -329,6 +329,7 @@ class OrderFinancialIntegrityTest extends TestCase
             'model' => 'Notebook',
             'defect' => 'Não liga',
             'service_status' => OrderStatus::OPEN,
+            'user_id' => $this->user->id,
             'delivery_forecast' => '2026-10-10',
         ])->assertSessionHasNoErrors();
         $order = Order::query()->latest('id')->firstOrFail();
@@ -498,7 +499,7 @@ class OrderFinancialIntegrityTest extends TestCase
         return Order::factory()->forTenant($this->tenant->id)->create([
             'customer_id' => $this->customer->id,
             'equipment_id' => $this->equipment->id,
-            'user_id' => null,
+            'user_id' => $this->user->id,
             'service_status' => $status,
             'service_value' => 0,
             'parts_value' => 0,

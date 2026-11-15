@@ -77,7 +77,7 @@ class OrderControllerTest extends TestCase
             'model' => 'Notebook Dell Inspiron',
             'defect' => 'Não liga',
             'service_status' => OrderStatus::OPEN,
-            'user_id' => null,
+            'user_id' => $this->user->id,
             'delivery_forecast' => now()->addDays(7)->toDateString(),
         ]);
 
@@ -122,7 +122,7 @@ class OrderControllerTest extends TestCase
             'model' => 'Notebook Dell Inspiron',
             'defect' => 'Não liga',
             'service_status' => OrderStatus::OPEN,
-            'user_id' => null,
+            'user_id' => $this->user->id,
             'delivery_forecast' => now()->addDays(7)->toDateString(),
             'customer_signature' => 'data:image/png;base64,'.base64_encode('ignored-web-signature'),
         ]);
@@ -145,7 +145,7 @@ class OrderControllerTest extends TestCase
             'model' => 'Notebook Dell Inspiron',
             'defect' => 'Não liga',
             'service_status' => OrderStatus::OPEN,
-            'user_id' => null,
+            'user_id' => $this->user->id,
         ]);
 
         $response
@@ -196,6 +196,7 @@ class OrderControllerTest extends TestCase
             'service_details' => 'Instalação de inversor solar e vistoria do quadro elétrico',
             'materials_used' => 'Cabos, conectores MC4 e disjuntores',
             'service_status' => OrderStatus::OPEN,
+            'user_id' => $this->user->id,
             'service_value' => '350,00',
             'delivery_forecast' => now()->addDays(7)->toDateString(),
         ]);
@@ -525,7 +526,7 @@ class OrderControllerTest extends TestCase
         $this->assertSame('Atualizado pelo tecnico responsavel', $order->model);
     }
 
-    public function test_operator_must_assign_technician_before_changing_unassigned_order_status(): void
+    public function test_order_update_requires_responsible_technician_even_for_status_change(): void
     {
         $operator = User::factory()->forTenant($this->tenant->id)->create([
             'roles' => User::ROLE_OPERATOR,
@@ -547,11 +548,56 @@ class OrderControllerTest extends TestCase
             'status_reason' => 'Cliente desistiu do reparo',
         ]));
 
-        $response->assertSessionHasErrors('user_id');
+        $response->assertSessionHasErrors(['user_id']);
 
         $order->refresh();
         $this->assertNull($order->user_id);
         $this->assertSame(OrderStatus::OPEN, (int) $order->service_status);
+    }
+
+    public function test_order_store_rejects_missing_or_non_technician_responsible(): void
+    {
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
+        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
+        $operator = User::factory()->forTenant($this->tenant->id)->create([
+            'roles' => User::ROLE_OPERATOR,
+        ]);
+        $payload = [
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'defect' => 'Não liga',
+            'service_status' => OrderStatus::OPEN,
+            'delivery_forecast' => now()->addDays(7)->toDateString(),
+        ];
+
+        // Técnico só é obrigatório fora de OS aberta (regra definida em OrderRequest).
+        $this->post(route('app.orders.store'), [...$payload, 'user_id' => null, 'service_status' => OrderStatus::REPAIR_IN_PROGRESS])->assertSessionHasErrors(['user_id']);
+        $this->post(route('app.orders.store'), [...$payload, 'user_id' => $operator->id])->assertSessionHasErrors(['user_id']);
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_order_budget_value_accepts_brazilian_format_and_rejects_values_over_column_limit(): void
+    {
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
+        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
+        $payload = [
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'user_id' => $this->user->id,
+            'defect' => 'Não liga',
+            'service_status' => OrderStatus::BUDGET_GENERATED,
+            'budget_description' => 'Troca de fonte',
+            'delivery_forecast' => now()->addDays(7)->toDateString(),
+        ];
+
+        $this->post(route('app.orders.store'), [...$payload, 'budget_value' => '1.234,56'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('orders', ['budget_value' => '1234.56']);
+
+        $this->post(route('app.orders.store'), [...$payload, 'budget_value' => '100000000,00'])->assertSessionHasErrors(['budget_value']);
+        $this->post(route('app.orders.store'), [...$payload, 'budget_value' => '0,00'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('orders', ['budget_value' => '0.00', 'service_status' => OrderStatus::BUDGET_GENERATED]);
+        $this->assertDatabaseCount('orders', 2);
     }
 
     public function test_it_does_not_use_system_mail_for_status_email_when_tenant_mail_is_not_configured(): void
@@ -1684,6 +1730,27 @@ class OrderControllerTest extends TestCase
         ]);
 
         return [$technician, $order, $customer, $equipment, $device];
+    }
+
+    public function test_edit_order_saves_zero_budget_when_status_is_budget_generated(): void
+    {
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
+        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
+        $order = Order::factory()->forTenant($this->tenant->id)->create([
+            'customer_id' => $customer->id,
+            'equipment_id' => $equipment->id,
+            'user_id' => $this->user->id,
+            'service_status' => OrderStatus::OPEN,
+        ]);
+
+        $response = $this->put(route('app.orders.update', $order), $this->orderUpdatePayload($order, $customer, $equipment, [
+            'service_status' => OrderStatus::BUDGET_GENERATED,
+            'budget_description' => 'Diagnóstico sem custo',
+            'budget_value' => '0,00',
+        ]));
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'budget_value' => '0.00', 'service_status' => OrderStatus::BUDGET_GENERATED]);
     }
 
     private function orderUpdatePayload(Order $order, Customer $customer, Equipment $equipment, array $overrides = []): array

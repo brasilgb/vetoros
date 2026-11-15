@@ -291,6 +291,7 @@ export default function CustomerForm({ initialData }: { initialData?: Customer }
                                 onChange={(e) => setData('whatsapp', unMask(e.target.value) ?? '')}
                                 maxLength={15}
                             />
+                            {errors.whatsapp && <div className="text-sm text-red-500">{errors.whatsapp}</div>}
                         </div>
 
                         <div className="grid gap-2 md:col-span-2">

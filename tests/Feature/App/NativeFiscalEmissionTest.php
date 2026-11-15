@@ -28,6 +28,7 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -375,7 +376,18 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
     }
 
-    public function test_order_nfse_emission_uses_service_items_and_authenticated_pdf_link(): void
+    public function test_national_normal_regime_omits_iss_rate_from_dps(): void
+    {
+        $this->fiscalSetting(['nfse_enabled' => true, 'nfse_mode' => 'national', 'company_tax_regime' => '3']);
+        $order = $this->order();
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response($this->invoice('nfse-normal', 'enqueued'))]);
+
+        $this->post(route('app.orders.fiscal.emit', $order))->assertSessionHas('success');
+        Http::assertSent(fn (HttpRequest $request) => $request->url() === self::SANDBOX.'/service-invoices'
+            && ! array_key_exists('issRate', $request['total']));
+    }
+
+    public function test_order_nfse_emission_uses_service_items_and_public_pdf_link(): void
     {
         $this->fiscalSetting(['nfse_enabled' => true]);
         $order = $this->order();
@@ -782,7 +794,7 @@ class NativeFiscalEmissionTest extends TestCase
         $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000']);
         Http::fake([
             self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
-            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 42]]),
         ]);
 
         $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload(['nfse_next_number' => 42]))
@@ -831,7 +843,7 @@ class NativeFiscalEmissionTest extends TestCase
         $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
         Http::fake([
             self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
-            self::SANDBOX.'/companies/company-uuid/settings' => Http::response([]),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 50]]),
         ]);
 
         $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
@@ -842,6 +854,51 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertSame(50, $setting->refresh()->nfse_next_number);
         Http::assertSent(fn (HttpRequest $request) => str_ends_with($request->url(), '/settings')
             && $request['serviceInvoice']['nextNumber'] === 50);
+    }
+
+    /**
+     * nDPS = 0 na NFS-e: a Spedy respondeu outro número (ou nenhum) ao pedido de numeração.
+     * O VetorOS não pode gravar 50 como próximo número enquanto o emissor usa outro.
+     */
+    public function test_numbering_change_is_not_stored_when_spedy_does_not_confirm_the_number(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 0]]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
+            'nfse_next_number' => 50,
+            'confirm_nfse_sequence_change' => true,
+        ]))->assertSessionHas('error', fn (string $message) => str_contains($message, 'pode ter aplicado a alteração'));
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+        $this->assertNull($setting->nfse_numbering_synced_at);
+    }
+
+    /**
+     * Sincronização comum não envia nextNumber. Se a Spedy responder outro número, o VetorOS avisa
+     * e mantém o registro local, sem reenviar nem alterar a numeração.
+     */
+    public function test_routine_sync_logs_when_spedy_reports_another_next_number(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Log::spy();
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 0]]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([]))
+            ->assertSessionHas('success');
+
+        $this->assertSame(42, $setting->refresh()->nfse_next_number);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context) => $message === 'Numeração da DPS divergente da Spedy.'
+                && $context['local_next_number'] === 42
+                && $context['spedy_next_number'] === 0)
+            ->once();
     }
 
     public function test_spedy_rejection_keeps_the_previous_nfse_number(): void
@@ -894,6 +951,75 @@ class NativeFiscalEmissionTest extends TestCase
                 ->component('app/fiscal-settings/index')
                 ->where('setting.nfse_next_number', 42)
                 ->where('setting.nfse_has_issued', false));
+    }
+
+    /**
+     * Contador da DPS zerado na Spedy (E1235 nDPS = 0): a Spedy informou 0 numa sincronização
+     * comum, então a emissão de NFS-e fica bloqueada antes de qualquer envio.
+     */
+    public function test_nfse_emission_is_blocked_when_spedy_reports_a_zero_counter(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['serviceInvoice' => ['nextNumber' => 0]]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([]))
+            ->assertSessionHas('success');
+
+        $this->assertSame(0, $setting->refresh()->nfse_spedy_next_number);
+        $this->assertNotNull($setting->nfse_spedy_checked_at);
+        $this->assertStringContainsString('contador da DPS igual a zero', (string) app(NativeFiscalService::class)->blocker($this->tenant->id, SpedyClient::MODEL_NFSE));
+    }
+
+    /**
+     * Sincronização comum que não traz o número não apaga o zero já conhecido: o bloqueio segue
+     * até a numeração ser confirmada de novo pela Spedy com um número válido.
+     */
+    public function test_zero_counter_block_is_kept_until_spedy_confirms_a_valid_number(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42, 'nfse_spedy_next_number' => 0]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::sequence()
+                ->push([])
+                ->push(['serviceInvoice' => ['nextNumber' => 50]]),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([]))
+            ->assertSessionHas('success');
+
+        $this->assertSame(0, $setting->refresh()->nfse_spedy_next_number);
+        $this->assertStringContainsString('contador da DPS igual a zero', (string) app(NativeFiscalService::class)->blocker($this->tenant->id, SpedyClient::MODEL_NFSE));
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([
+            'nfse_next_number' => 50,
+            'confirm_nfse_sequence_change' => true,
+            'tax_settings_confirmed' => true,
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertSame(50, $setting->refresh()->nfse_spedy_next_number);
+        $this->assertStringNotContainsString('contador da DPS', (string) app(NativeFiscalService::class)->blocker($this->tenant->id, SpedyClient::MODEL_NFSE));
+    }
+
+    /**
+     * Falha ao consultar a Spedy não pode trocar o contador já conhecido: sem resposta válida,
+     * o último número verificado e a data continuam os mesmos.
+     */
+    public function test_failed_spedy_settings_query_keeps_the_last_known_counter(): void
+    {
+        $setting = $this->fiscalSetting(['nfse_enabled' => true, 'default_nfse_series' => '70000', 'nfse_next_number' => 42, 'nfse_spedy_next_number' => 7]);
+        Http::fake([
+            self::SANDBOX.'/companies/company-uuid' => Http::response(['id' => 'company-uuid']),
+            self::SANDBOX.'/companies/company-uuid/settings' => Http::response(['message' => 'Indisponível'], 503),
+        ]);
+
+        $this->put(route('app.fiscal-settings.update'), $this->nfseSettingsPayload([]));
+
+        $setting->refresh();
+        $this->assertSame(7, $setting->nfse_spedy_next_number);
+        $this->assertNull($setting->nfse_spedy_checked_at);
     }
 
     /** @param array<string, mixed> $extra */

@@ -466,6 +466,84 @@ class StandaloneInvoiceTest extends TestCase
                 ->where('standalone.finance_enabled', true));
     }
 
+    public function test_payload_never_sends_a_document_number_so_ndps_cannot_be_zero(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response($this->invoice('nfse-n', 'created'), 201)]);
+
+        $this->post(route('app.fiscal-documents.standalone.store'), $this->nfse())->assertSessionHas('success');
+
+        Http::assertSent(fn (HttpRequest $request) => $request->url() === self::SANDBOX.'/service-invoices'
+            && ! array_key_exists('number', $request->data())
+            && ! $this->hasKeyDeep($request->data(), 'nDPS')
+            && $request->data()['integrationId'] === FiscalDocument::query()->sole()->integration_id);
+    }
+
+    public function test_spd005_unavailability_shows_a_friendly_message_without_changing_environment(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response(['message' => 'SPD005 serviço de NFS-e indisponível para o município'], 400)]);
+
+        $this->post(route('app.fiscal-documents.standalone.store'), $this->nfse())
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'não está disponível para o município e o ambiente')
+                && str_contains($message, 'nenhuma troca para produção'));
+
+        $document = FiscalDocument::query()->sole();
+        $this->assertSame(FiscalDocument::STATUS_FAILED, $document->status);
+        $this->assertNotSame('production', $document->environment);
+    }
+
+    public function test_spd005_rejection_is_shown_with_code_and_friendly_text(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::response($this->invoice('nfse-5', 'rejected', [
+            'processingDetail' => ['status' => 'error', 'code' => 'SPD005', 'message' => 'Serviço indisponível'],
+        ]), 201)]);
+
+        $this->post(route('app.fiscal-documents.standalone.store'), $this->nfse())
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, '[SPD005] A emissão de NFS-e não está disponível'));
+
+        $document = FiscalDocument::query()->sole();
+        $this->assertSame(FiscalDocument::STATUS_REJECTED, $document->status);
+        $this->assertStringStartsWith('[SPD005] A emissão de NFS-e não está disponível', $document->error_message);
+    }
+
+    public function test_attempt_history_keeps_failures_and_reprocess_under_the_same_integration_id(): void
+    {
+        Http::fake([self::SANDBOX.'/service-invoices' => Http::sequence()
+            ->push(['errors' => ['receiver.federalTaxNumber' => ['CNPJ inválido']]], 400)
+            ->push($this->invoice('nfse-r', 'authorized'), 201)]);
+        $this->post(route('app.fiscal-documents.standalone.store'), $this->nfse())->assertSessionHas('error');
+
+        $document = FiscalDocument::query()->sole();
+        $integrationId = $document->integration_id;
+
+        $this->post(route('app.fiscal-documents.standalone.reprocess', $document->documentable_id))->assertSessionHas('success');
+
+        $document->refresh();
+        $this->assertSame(FiscalDocument::STATUS_AUTHORIZED, $document->status);
+        $this->assertSame($integrationId, $document->integration_id);
+        $this->assertSame(1, FiscalDocument::query()->count());
+
+        $attempts = $document->attempts()->oldest('id')->get();
+        $this->assertSame(['send', 'send'], $attempts->pluck('action')->all());
+        $this->assertSame([FiscalDocument::STATUS_FAILED, FiscalDocument::STATUS_AUTHORIZED], $attempts->pluck('status')->all());
+        $this->assertStringContainsString('CNPJ inválido', $attempts->first()->message);
+
+        $this->withoutVite()->get(route('app.fiscal-documents.index'))
+            ->assertInertia(fn ($page) => $page
+                ->has('documents.0.attempts', 2)
+                ->where('documents.0.attempts.0.status', FiscalDocument::STATUS_AUTHORIZED));
+    }
+
+    private function hasKeyDeep(array $data, string $key): bool
+    {
+        foreach ($data as $name => $value) {
+            if ($name === $key || (is_array($value) && $this->hasKeyDeep($value, $key))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function nfse(array $overrides = []): array
     {
         return [

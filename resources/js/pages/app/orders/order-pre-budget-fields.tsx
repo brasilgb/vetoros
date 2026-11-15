@@ -1,6 +1,7 @@
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 type OrderPreBudgetFieldsProps = {
     data: {
@@ -35,7 +36,21 @@ export default function OrderPreBudgetFields({
 
             <div className="grid gap-2">
                 <Label htmlFor="budget_value">{valueLabel}</Label>
-                <MoneyInput id="budget_value" value={data.budget_value ?? '0'} onValueChange={(value) => setData('budget_value', value)} />
+                <div
+                    className={cn(
+                        'focus-within:border-ring focus-within:ring-ring/50 border-input dark:bg-input/30 flex h-11 items-center rounded-md border px-3 shadow-xs focus-within:ring-[3px]',
+                        errors.budget_value && 'border-destructive',
+                    )}
+                >
+                    <span className="text-muted-foreground mr-2 shrink-0 text-sm">R$</span>
+                    <MoneyInput
+                        id="budget_value"
+                        showPrefix={false}
+                        value={data.budget_value ?? '0'}
+                        onValueChange={(value) => setData('budget_value', value)}
+                        className="h-full border-0 px-0 shadow-none focus-visible:ring-0 md:text-sm"
+                    />
+                </div>
                 {errors.budget_value && <div className="text-sm text-red-500">{errors.budget_value}</div>}
             </div>
         </>

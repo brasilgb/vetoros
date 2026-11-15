@@ -43,6 +43,8 @@ class FiscalSetting extends Model
             'production_released_at' => 'datetime',
             'nfse_next_number' => 'integer',
             'nfse_numbering_synced_at' => 'datetime',
+            'nfse_spedy_next_number' => 'integer',
+            'nfse_spedy_checked_at' => 'datetime',
             'nfse_simple_option' => 'integer',
             'nfse_special_tax_regime' => 'integer',
             'default_iss_rate' => 'decimal:4',
@@ -112,6 +114,7 @@ class FiscalSetting extends Model
             ! $this->hasValidCertificate() => 'Envie um certificado digital A1 válido nas configurações fiscais.',
             $this->tax_settings_confirmed_at === null => 'Confirme nas configurações fiscais que os dados tributários foram validados pela contabilidade.',
             $model === SpedyClient::MODEL_NFSE && blank($this->nfse_taxation_type) => 'Informe o tipo de tributação da NFS-e nas configurações fiscais.',
+            $model === SpedyClient::MODEL_NFSE && $this->nfse_spedy_next_number === 0 => 'A Spedy informou contador da DPS igual a zero. A emissão de NFS-e está bloqueada: defina o próximo número nas configurações fiscais, após confirmar o valor na Spedy.',
             $model === SpedyClient::MODEL_NFCE && (blank($this->nfce_csc_id) || blank($this->nfce_csc)) => 'Informe o ID e o CSC da NFC-e nas configurações fiscais.',
             default => null,
         };

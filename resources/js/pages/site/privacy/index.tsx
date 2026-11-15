@@ -2,7 +2,6 @@ import LegalLayout from '@/layouts/site/LegalLayout';
 import { useActiveSection } from '@/Utils/use-active-section';
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import { CookiePreferencesButton } from '@/pages/site/components/cookie-consent';
 
 const sections = [
     { id: 'coleta', title: '1. Informações que coletamos' },
@@ -218,7 +217,7 @@ export default function Privacy() {
 
                     <p className="mb-10">
                         Cookies opcionais só são utilizados após o aceite no aviso de cookies; a simples navegação não é considerada consentimento.
-                        Você pode rever sua escolha a qualquer momento em <CookiePreferencesButton className="text-blue-700 underline underline-offset-2" />, no rodapé.
+                        Você pode rever sua escolha a qualquer momento pelo link "Preferências de cookies" no rodapé da página inicial.
                     </p>
 
                     {/* ALTERAÇÕES */}

@@ -35,6 +35,7 @@ use App\Services\OrderPaymentService;
 use App\Services\OrderStatusService;
 use App\Services\OrderTechnicianAssignmentService;
 use App\Services\OrderTotalsService;
+use App\Services\OrderWhatsappBudgetDetails;
 use App\Services\TechnicianCommissionService;
 use App\Services\WhatsAppService;
 use App\Support\Ean13;
@@ -73,6 +74,7 @@ class OrderController extends Controller
         private readonly OrderDeadlineService $orderDeadlineService,
         private readonly OrderMessageService $orderMessageService,
         private readonly OrderBudgetService $orderBudgetService,
+        private readonly OrderWhatsappBudgetDetails $orderWhatsappBudgetDetails,
         private readonly FiscalDocumentService $fiscalDocumentService,
         private readonly OrderNotificationService $orderNotificationService,
         private readonly WhatsAppService $whatsAppService,
@@ -193,7 +195,7 @@ class OrderController extends Controller
         return $this->orderCommunicationContextService->communicationDaysPending($order);
     }
 
-    private function appendCommunicationFlags(Order $order): Order
+    private function appendCommunicationFlags(Order $order, ?array $whatsappBudget = null): Order
     {
         $paymentSummary = $this->buildPaymentSummary($order);
 
@@ -201,6 +203,7 @@ class OrderController extends Controller
         $order->setAttribute('budget_follow_up', $this->isBudgetFollowUpOrder($order));
         $order->setAttribute('pending_payment_follow_up', $this->isPendingPaymentOrder($order, $paymentSummary));
         $order->setAttribute('whatsapp_values', $this->whatsappFinancialValues($order));
+        $order->setAttribute('whatsapp_budget', $whatsappBudget);
 
         return $this->appendLastCommunication($order);
     }
@@ -709,11 +712,12 @@ class OrderController extends Controller
             ->withSum('orderPayments as total_paid', 'amount')
             ->paginate(Pagination::perPage())
             ->withQueryString();
+        $whatsappBudgets = $this->orderWhatsappBudgetDetails->forOrders($orders->getCollection());
         $orders->setCollection(
-            $orders->getCollection()->map(function (Order $order) {
+            $orders->getCollection()->map(function (Order $order) use ($whatsappBudgets) {
                 $order = $this->appendPaymentReminderAvailability($order);
 
-                return $this->appendCommunicationFlags($order);
+                return $this->appendCommunicationFlags($order, $whatsappBudgets[$order->id] ?? null);
             })
         );
         $whats = WhatsappMessage::first();
@@ -756,8 +760,13 @@ class OrderController extends Controller
             $this->authorize('view', $sourceSchedule);
         }
 
+        $technicals = User::whereIn('roles', [User::ROLE_TECHNICIAN, User::ROLE_ADMIN])
+            ->where('status', 1)
+            ->get(['id', 'name']);
+
         return Inertia::render('app/orders/create-order', [
             'equipments' => $equipments,
+            'technicals' => $technicals,
             'sourceSchedule' => $sourceSchedule,
         ]);
     }
@@ -791,6 +800,7 @@ class OrderController extends Controller
         // tracking_token segue obrigatório (NOT NULL/único) até a migration de remoção; não dá mais acesso a nada.
         $data['tracking_token'] = Str::uuid();
         $data['warranty_days'] = isset($data['warranty_days']) && $data['warranty_days'] !== '' ? max(0, (int) $data['warranty_days']) : null;
+        $data['budget_value'] = $this->normalizeMoneyValue($data['budget_value'] ?? 0);
         $data = $this->normalizeDeliveryDateForStatus($data);
         $isEquipmentOrder = ($data['order_type'] ?? Order::TYPE_EQUIPMENT) === Order::TYPE_EQUIPMENT;
         $warrantySourceOrder = $isEquipmentOrder ? $this->warrantySourceOrder($data) : null;

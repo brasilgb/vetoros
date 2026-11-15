@@ -66,7 +66,7 @@ class SubscriptionController extends Controller
             return response()->json(['status' => 'unavailable'], 404);
         }
 
-        abort_unless($request->user()->isAdministrator(), 403);
+        abort_unless($request->user()->canManageSubscription(), 403);
 
         $tenant->refresh();
         $access = $tenant->subscriptionBucket();
@@ -159,7 +159,7 @@ class SubscriptionController extends Controller
             'checkout' => $checkout,
             'pending_payment' => $pending ? SaasCheckoutController::present($pending) : null,
             'pending_plan_id' => $pending?->plan_id,
-            'can_manage_subscription' => auth()->user()?->isAdministrator() ?? false,
+            'can_manage_subscription' => auth()->user()?->canManageSubscription() ?? false,
         ];
     }
 

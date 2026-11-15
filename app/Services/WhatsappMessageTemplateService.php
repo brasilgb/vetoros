@@ -15,6 +15,7 @@ class WhatsappMessageTemplateService
             'defaultmessage' => "{{ saudacao }}, {{ cliente }}!\nAtualização da sua OS {{ ordem }}.\nQualquer dúvida, estamos à disposição.",
             'budgetfollowup' => "{{ saudacao }}, {{ cliente }}!\nSeu orçamento da OS {{ ordem }} segue aguardando retorno há {{ dias_pendentes }} dias.\nSe precisar de ajuda, estamos à disposição.",
             'pendingpayment' => "{{ saudacao }}, {{ cliente }}!\nA OS {{ ordem }} segue com saldo pendente de {{ saldo }}.\nSe já realizou o pagamento, desconsidere esta mensagem.",
+            'budgetapproved' => 'Bom dia, {{ cliente }}! Agradecemos seu retorno e a aprovação do orçamento. Assim que seu equipamento estiver pronto, avisaremos por aqui. Obrigado pela confiança!',
             'technicianschedule' => "{{ saudacao }}, {{ tecnico }}!\nVisita agendada para {{ data_visita }}.\nServiço: {{ servico }}.\nMateriais: {{ materiais }}.\nCliente: {{ cliente }}.\nEndereço: {{ endereco }}.",
         ];
     }

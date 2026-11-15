@@ -42,6 +42,13 @@ type CompanyRow = {
     environment_mismatch: boolean;
     last_synced_at?: string | null;
     registration_error?: string | null;
+    nfse_numbering: {
+        series: string | null;
+        local_next_number: number | null;
+        spedy_next_number: number | null;
+        numbering_synced_at: string | null;
+        spedy_checked_at: string | null;
+    };
     certificate_subject?: string | null;
     certificate_expires_at?: string | null;
     emission_environment: string;
@@ -492,6 +499,21 @@ export default function FiscalCompanies({
                                             </Field>
                                             <Field label="Cadastrada em">{formatDate(row.registered_at)}</Field>
                                             <Field label="Última sincronização">{formatDate(row.last_synced_at)}</Field>
+                                            <Field label="Série da NFS-e">{row.nfse_numbering.series || '-'}</Field>
+                                            <Field label="Número definido localmente (histórico)">
+                                                {row.nfse_numbering.local_next_number ?? '-'}
+                                            </Field>
+                                            <Field label="Último contador informado pela Spedy">
+                                                <p className="text-muted-foreground text-xs">
+                                                    Valor histórico: pode mudar após emissões. Consulte novamente para obter um novo retrato.
+                                                </p>
+                                                {row.nfse_numbering.spedy_next_number ?? '-'}
+                                                {row.nfse_numbering.spedy_next_number === 0 && (
+                                                    <p className="text-destructive text-xs">Contador zerado: a emissão de NFS-e está bloqueada.</p>
+                                                )}
+                                            </Field>
+                                            <Field label="Consultado em">{formatDate(row.nfse_numbering.spedy_checked_at)}</Field>
+                                            <Field label="Numeração gravada em">{formatDate(row.nfse_numbering.numbering_synced_at)}</Field>
                                             {row.registration_error && (
                                                 <Field label="Erro da integração">
                                                     <span className="text-destructive">{row.registration_error}</span>
@@ -515,6 +537,15 @@ export default function FiscalCompanies({
                                             >
                                                 {busy === 'check' && <Loader2 className="size-4 animate-spin" />}
                                                 Consultar cadastro e certificado
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                disabled={!row.registered_on_spedy || busy !== null}
+                                                onClick={() =>
+                                                    router.post(route('admin.fiscal.companies.check-numbering', row.id), {}, { preserveScroll: true })
+                                                }
+                                            >
+                                                Consultar contador da DPS
                                             </Button>
                                         </div>
                                         {!row.emission_enabled && (
