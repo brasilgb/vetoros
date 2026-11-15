@@ -378,7 +378,7 @@ export function CommercialChargesPanel({ ctl }: { ctl: TenantCommercialControlle
             {commercial.next_charge ? (
                 <p className="text-sm">
                     Próxima cobrança: <strong>{formatBRL(commercial.next_charge.amount)}</strong> com vencimento em{' '}
-                    <strong>{date(commercial.next_charge.due_date)}</strong> (gerada e enviada a partir de{' '}
+                    <strong>{date(commercial.next_charge.due_date)}</strong> (gerada a partir de{' '}
                     {date(commercial.next_charge.generated_from)}). Acesso válido até {date(commercial.expires_at)}.
                 </p>
             ) : (
@@ -421,7 +421,11 @@ export function CommercialChargesPanel({ ctl }: { ctl: TenantCommercialControlle
                                             {charge.refund_reason && <div className="text-muted-foreground text-xs">{charge.refund_reason}</div>}
                                         </td>
                                         <td className="p-2">
-                                            {charge.invoice_sent_at ? `Enviada ${date(charge.invoice_sent_at)}` : 'Não enviada'}
+                                            {charge.invoice_sent_at
+                                                ? `Enviada ${date(charge.invoice_sent_at)}`
+                                                : charge.status === 'pending'
+                                                  ? 'Aguardando pagamento'
+                                                  : 'Não enviada'}
                                             {charge.last_invoice_error && (
                                                 <div className="text-xs text-rose-600 dark:text-rose-400">{charge.last_invoice_error}</div>
                                             )}
@@ -471,13 +475,13 @@ export function CommercialChargesPanel({ ctl }: { ctl: TenantCommercialControlle
                                                         Estornar
                                                     </Button>
                                                 )}
-                                                {['pending', 'paid'].includes(charge.status) && (
+                                                {charge.status === 'paid' && (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => ctl.post('admin.tenants.charges.resend-invoice', charge)}
                                                     >
-                                                        Reenviar fatura
+                                                        {charge.invoice_sent_at ? 'Reenviar fatura' : 'Enviar fatura'}
                                                     </Button>
                                                 )}
                                                 {commercial.saas_invoice_enabled &&

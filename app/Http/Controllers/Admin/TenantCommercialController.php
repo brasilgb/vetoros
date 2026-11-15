@@ -204,6 +204,10 @@ class TenantCommercialController extends Controller
     {
         $this->ensureOwned($tenant, $charge);
 
+        if ($charge->status !== TenantSubscriptionCharge::STATUS_PAID) {
+            return back()->with('error', 'A fatura só pode ser enviada após a confirmação do pagamento.');
+        }
+
         $delivery = $this->contracts->sendInvoice($charge, (int) auth()->id());
 
         return $delivery->status === 'sent'

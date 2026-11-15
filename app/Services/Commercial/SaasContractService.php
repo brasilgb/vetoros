@@ -40,7 +40,7 @@ use Illuminate\Validation\ValidationException;
  */
 class SaasContractService
 {
-    /** Antecedência com que a cobrança do ciclo é gerada e a fatura enviada. */
+    /** Antecedência com que a cobrança do ciclo é gerada. */
     public const INVOICE_LEAD_DAYS = 5;
 
     /** Máximo de ciclos atrasados gerados por contrato numa execução (recuperação após parada). */
@@ -273,7 +273,7 @@ class SaasContractService
 
     // ---- Ciclos e cobranças --------------------------------------------
 
-    /** Gera as cobranças cujo vencimento entrou na antecedência e envia as faturas. */
+    /** Gera as cobranças cujo vencimento entrou na antecedência. */
     public function generateDueCharges(?Carbon $today = null): int
     {
         $limit = ($today ?? now())->copy()->startOfDay()->addDays(self::INVOICE_LEAD_DAYS);
@@ -294,9 +294,8 @@ class SaasContractService
                                 break;
                             }
                             $generated++;
-                            // Efí ativa: boleto/Bolix da competência antes da fatura (nunca com recorrência no cartão ativa).
+                            // Efí ativa: prepara boleto/Bolix da competência para o pagamento.
                             app(SaasPaymentService::class)->prepareCollection($charge);
-                            $this->sendInvoice($charge);
                         }
                     } catch (\Throwable $exception) {
                         report($exception);
@@ -364,7 +363,8 @@ class SaasContractService
      */
     public function registerPayment(TenantSubscriptionCharge $charge, string $amount, string $method, ?Payment $payment = null, ?string $note = null): TenantSubscriptionCharge
     {
-        return DB::transaction(function () use ($charge, $amount, $method, $payment, $note) {
+        $newlyPaid = false;
+        $charge = DB::transaction(function () use ($charge, $amount, $method, $payment, $note, &$newlyPaid) {
             $charge = TenantSubscriptionCharge::query()->lockForUpdate()->findOrFail($charge->id);
 
             if ($charge->status === TenantSubscriptionCharge::STATUS_PAID) {
@@ -400,8 +400,16 @@ class SaasContractService
                 'payment_id' => $payment?->id,
             ]);
 
+            $newlyPaid = true;
+
             return $charge;
         });
+
+        if ($newlyPaid) {
+            $this->sendInvoice($charge);
+        }
+
+        return $charge;
     }
 
     /** Estorno: a cobrança fica registrada como estornada e o acesso volta ao vencimento dela. */
@@ -562,6 +570,11 @@ class SaasContractService
      */
     public function sendInvoice(TenantSubscriptionCharge $charge, ?int $userId = null): TenantSubscriptionChargeDelivery
     {
+        $charge->refresh();
+        if ($charge->status !== TenantSubscriptionCharge::STATUS_PAID) {
+            throw ValidationException::withMessages(['charge' => 'A fatura só pode ser enviada após a confirmação do pagamento.']);
+        }
+
         $charge->loadMissing('tenant', 'contract', 'latestFiscalDocument');
         $email = trim((string) $charge->tenant->email);
         $document = $charge->latestFiscalDocument?->status === FiscalDocument::STATUS_AUTHORIZED ? $charge->latestFiscalDocument : null;
@@ -582,15 +595,14 @@ class SaasContractService
         return $delivery;
     }
 
-    /** Reenvia as faturas que ainda não saíram (falha anterior de SMTP), com limite de tentativas. */
+    /** Envia faturas de cobranças pagas ainda não entregues, com limite de tentativas. */
     public function retryPendingInvoices(): int
     {
         $sent = 0;
 
         TenantSubscriptionCharge::query()
-            ->where('status', TenantSubscriptionCharge::STATUS_PENDING)
+            ->where('status', TenantSubscriptionCharge::STATUS_PAID)
             ->whereNull('invoice_sent_at')
-            ->whereHas('deliveries', fn ($query) => $query->where('kind', TenantSubscriptionChargeDelivery::KIND_INVOICE))
             // Uma tentativa por hora no máximo: não repete na mesma execução que acabou de falhar.
             ->whereDoesntHave('deliveries', fn ($query) => $query->where('kind', TenantSubscriptionChargeDelivery::KIND_INVOICE)->where('created_at', '>', now()->subHour()))
             ->orderBy('id')

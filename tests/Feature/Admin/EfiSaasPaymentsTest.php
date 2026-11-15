@@ -227,14 +227,13 @@ class EfiSaasPaymentsTest extends TestCase
         $this->assertSame('pending', $charge->refresh()->status);
     }
 
-    public function test_scheduler_generates_billet_and_invoice_carries_payment_data(): void
+    public function test_scheduler_generates_billet_without_sending_invoice_before_payment(): void
     {
         $charge = $this->contract();
 
         $payment = Payment::query()->where('tenant_subscription_charge_id', $charge->id)->sole();
         $this->assertSame(['efi', 'billet'], [$payment->gateway, $payment->method]);
-        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => str_contains($mail->paymentInstructions, '34191.79001 01043.510047')
-            && str_contains($mail->paymentInstructions, '000201BOLIX'));
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
 
         // Reprocessar não cria outro boleto da mesma competência.
         $this->process();
@@ -341,7 +340,7 @@ class EfiSaasPaymentsTest extends TestCase
         $second = TenantSubscriptionCharge::query()->where('tenant_id', $this->tenant->id)->orderByDesc('cycle_start')->first();
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame(0, Payment::query()->where('tenant_subscription_charge_id', $second->id)->count());
-        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->charge->is($second) && str_contains($mail->paymentInstructions, 'Cobrança automática no cartão'));
+        Mail::assertNotSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->charge->is($second));
 
         // Renovação da Efí chega por notificação com uma cobrança nova da assinatura.
         $this->efiCharges[7001] = ['charge_id' => 7001, 'total' => 120000, 'status' => 'paid'];
@@ -349,6 +348,7 @@ class EfiSaasPaymentsTest extends TestCase
             'identifiers' => ['charge_id' => 7001, 'subscription_id' => (int) $authorization->provider_subscription_id]]])->assertOk();
 
         $this->assertSame(['paid', 'efi_recorrente'], [$second->refresh()->status, $second->payment_method]);
+        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->charge->is($second));
         $this->assertSame((string) $authorization->provider_subscription_id, Payment::query()->where('payment_id', '7001')->value('provider_subscription_id'));
 
         // Plano criado uma vez na Efí e reaproveitado.

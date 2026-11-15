@@ -16,7 +16,7 @@
     @endphp
 
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-        Fatura do contrato {{ $contract->contract_number }} com vencimento em {{ $charge->due_date->format('d/m/Y') }}.
+        Fatura paga do contrato {{ $contract->contract_number }}.
     </div>
 
     <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f3f4f6;padding:40px 0;">
@@ -39,7 +39,7 @@
                             <h2 style="margin-top:0;font-size:20px;color:#111827;">Fatura do contrato {{ $contract->contract_number }}</h2>
 
                             <p style="font-size:15px;line-height:1.6;margin:14px 0;">
-                                Olá, {{ $tenant->name }}. Segue a fatura da assinatura do <strong>VetorOS</strong> referente ao período contratado.
+                                Olá, {{ $tenant->name }}. Recebemos o pagamento da assinatura do <strong>VetorOS</strong>. Segue a fatura referente ao período contratado.
                             </p>
 
                             <table width="100%" cellpadding="0" cellspacing="0"

@@ -113,7 +113,7 @@ export default function LicenseSection({ license, subscription }: { license: Lic
                     </dl>
                     {isCustom && !subscription?.charge && (
                         <p className="text-muted-foreground text-sm">
-                            Nenhuma cobrança em aberto no seu contrato. A próxima fatura chega por e-mail antes do vencimento.
+                            Nenhuma cobrança em aberto no seu contrato. A fatura será enviada por e-mail após a confirmação do pagamento.
                         </p>
                     )}
                 </DialogContent>

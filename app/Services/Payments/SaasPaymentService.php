@@ -140,7 +140,7 @@ class SaasPaymentService
         }
     }
 
-    /** Instruções de pagamento da fatura quando a Efí já tem algo para esta competência. */
+    /** Instruções de pagamento da cobrança quando a Efí já tem algo para esta competência. */
     public function instructionsFor(TenantSubscriptionCharge $charge): ?string
     {
         if ($authorization = SaasRecurringAuthorization::activeFor($charge->tenant_id)) {

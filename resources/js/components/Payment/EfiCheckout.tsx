@@ -260,7 +260,7 @@ export default function EfiCheckout({
     };
 
     const cancelRecurring = async () => {
-        if (!window.confirm('Cancelar a cobrança recorrente no cartão? As próximas faturas virão por boleto/Pix.')) return;
+        if (!window.confirm('Cancelar a cobrança recorrente no cartão? As próximas cobranças poderão ser pagas por boleto/Pix.')) return;
         try {
             await axios.post(route('subscription.efi.recurring.cancel'), { confirm: true });
             window.location.reload();

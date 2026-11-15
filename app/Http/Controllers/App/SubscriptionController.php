@@ -145,7 +145,7 @@ class SubscriptionController extends Controller
                 'cycle_end' => $charge->cycle_end->toDateString(),
                 'periodicity' => $charge->contract->periodicityLabel(),
             ] : null,
-            // Compatibilidade com quem lê `active` (fatura em aberto antes do bloqueio).
+            // Compatibilidade com quem lê `active` (cobrança em aberto antes do bloqueio).
             'active' => $tenant->subscriptionBucket() !== Tenant::SUBSCRIPTION_BLOCKED,
             'checkout' => $checkout,
             'pending_payment' => $pending ? SaasCheckoutController::present($pending) : null,
