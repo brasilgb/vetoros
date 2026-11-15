@@ -362,11 +362,7 @@ export default function OrderReceiptPDF({ order, company, type, receipt, checkli
                     </View>
                 )}
 
-                {type === 'oraberta' && (
-                    <View style={styles.tracking}>
-                        <Text>Acompanhe o status da ordem de serviço em https://vetoros.com.br/os/{order?.tracking_token ?? ''}</Text>
-                    </View>
-                )}
+
 
                 <View style={styles.footer}>
                     <Text style={styles.footerDate}>

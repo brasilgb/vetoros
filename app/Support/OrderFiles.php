@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  * que o número sequencial por empresa fazia ser compartilhada entre empresas.
  *
  * Os arquivos só saem por URL assinada e temporária, gerada depois de a requisição ter sido
- * autorizada (tela da OS, API do app ou portal público com acesso liberado).
+ * autorizada (tela da OS ou API do app).
  */
 final class OrderFiles
 {

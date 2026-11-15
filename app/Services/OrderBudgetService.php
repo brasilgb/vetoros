@@ -30,8 +30,6 @@ use Illuminate\Validation\ValidationException;
  */
 class OrderBudgetService
 {
-    public const CHANNEL_PUBLIC = 'public_tracking';
-
     public const CHANNEL_INTERNAL = 'internal';
 
     public function __construct(
@@ -106,62 +104,6 @@ class OrderBudgetService
             }
 
             return $current;
-        });
-    }
-
-    /**
-     * Resposta do cliente pela área pública: precisa apontar a versão corrente e enviada.
-     * Retorna null quando a OS não tem orçamento versionado (comportamento anterior).
-     */
-    public function respondAsCustomer(Order $order, ?int $version, bool $approve, ?string $reason = null): ?OrderBudget
-    {
-        return DB::transaction(function () use ($order, $version, $approve, $reason): ?OrderBudget {
-            Order::withoutGlobalScopes()->whereKey($order->id)->lockForUpdate()->firstOrFail();
-            $current = $this->current($order, lock: true);
-
-            if (! $current) {
-                return null;
-            }
-
-            if ($version === null || $version !== (int) $current->version) {
-                throw ValidationException::withMessages([
-                    'status' => 'Este orçamento foi atualizado. Recarregue a página para ver a versão atual antes de responder.',
-                ]);
-            }
-
-            if ($current->status === OrderBudget::STATUS_EXPIRED || $current->isExpired()) {
-                throw ValidationException::withMessages([
-                    'status' => sprintf('Este orçamento venceu em %s. Peça à assistência uma nova versão.', $current->valid_until?->format('d/m/Y')),
-                ]);
-            }
-
-            if ($current->status !== OrderBudget::STATUS_SENT) {
-                throw ValidationException::withMessages([
-                    'status' => 'Este orçamento não está mais disponível para aprovação ou reprovação.',
-                ]);
-            }
-
-            $actor = OrderActor::customer();
-
-            return $approve
-                ? $this->approve($order, $current, $actor, self::CHANNEL_PUBLIC)
-                : $this->reject($order, $current, $actor, self::CHANNEL_PUBLIC, $reason);
-        });
-    }
-
-    /**
-     * Consolida a expiração da versão corrente em transação própria. Chamado antes de
-     * operações que podem ser recusadas (resposta pública), para que a recusa não desfaça
-     * o registro da expiração.
-     */
-    public function expireCurrentIfDue(Order $order): void
-    {
-        DB::transaction(function () use ($order): void {
-            $current = $this->current($order, lock: true);
-
-            if ($current) {
-                $this->expireIfDue($order, $current);
-            }
         });
     }
 
@@ -282,10 +224,9 @@ class OrderBudgetService
             'sent_at' => now(),
         ])->save();
 
-        // Envio = liberação ao cliente na área pública. Mensagens (WhatsApp/e-mail) que
-        // levam o orçamento ficam em order_messages, ligadas a esta versão.
+        // A versão é registrada como enviada quando a OS chega à etapa de orçamento.
         $this->event($order, OrderEvent::TYPE_BUDGET_SENT, $actor, $budget, [
-            'channel' => self::CHANNEL_PUBLIC,
+            'channel' => self::CHANNEL_INTERNAL,
             'valid_until' => $budget->valid_until?->toDateString(),
         ]);
     }

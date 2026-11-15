@@ -23,9 +23,6 @@ export type WhatsAppButtonProps = {
         defaultmessage?: string;
         budgetfollowup?: string;
         pendingpayment?: string;
-        tracking_token?: string;
-        public_access_key?: string;
-        public_access_key_required?: boolean;
     };
 
     className?: string;
@@ -44,15 +41,8 @@ const getGreeting = () => {
 
 const normalizeStatus = (status?: string | number) => Number(status ?? 0);
 
-const buildTrackingUrl = (trackingToken?: string) => {
-    if (!trackingToken) return '';
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://vetoros.com.br';
-    return `${origin}/os/${trackingToken}?preview=whatsapp`;
-};
-
 const applyTemplate = (template: string, values: Record<string, string>) => {
-    return template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, rawKey) => {
+    return template.split('\n').filter((line) => !/\{\{\s*link[\s_-]*os\s*\}\}/i.test(line)).join('\n').replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, rawKey) => {
         const normalizedKey = normalizePlaceholderKey(rawKey);
         return values[normalizedKey] ?? '';
     });
@@ -200,13 +190,11 @@ export const buildMessage = ({
 }: Omit<WhatsAppButtonProps, 'phone' | 'className' | 'orderId'>) => {
     const currentStatus = normalizeStatus(status);
     const greeting = getGreeting();
-    const trackingUrl = buildTrackingUrl(whats?.tracking_token);
     const templateValues = {
         saudacao: greeting,
         saudação: greeting,
         cliente: customerName,
         ordem: String(orderNumber ?? ''),
-        link_os: trackingUrl,
         status: String(currentStatus),
         saldo: formatBRL(amountDue, { clampNegative: true }),
         dias_pendentes: String(daysPending ?? 0),
@@ -225,7 +213,7 @@ export const buildMessage = ({
         }),
     );
 
-    return whats?.public_access_key_required && whats.public_access_key ? `${message}\nChave de acesso: ${whats.public_access_key}` : message;
+    return message;
 };
 
 const canSendWhatsAppMessage = ({ status, feedback, context, whats }: Pick<WhatsAppButtonProps, 'status' | 'feedback' | 'context' | 'whats'>) => {

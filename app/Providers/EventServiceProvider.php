@@ -15,15 +15,12 @@ use App\Events\MessageReadStatusUpdated;
 use App\Events\MessageUpdated;
 use App\Events\OrderBudgetFollowUpRequested;
 use App\Events\OrderCreated;
-use App\Events\OrderCustomerFeedbackSubmitted;
-use App\Events\OrderCustomerNotificationAcknowledged;
-use App\Events\OrderCustomerPickupAcknowledged;
 use App\Events\OrderFeedbackRecoveryUpdated;
 use App\Events\OrderLifecycleCreated;
 use App\Events\OrderLifecycleStatusChanged;
 use App\Events\OrderPaymentRegistered;
-use App\Events\OrderPaymentRemoved;
 use App\Events\OrderPaymentReminderRequested;
+use App\Events\OrderPaymentRemoved;
 use App\Events\OrderStatusUpdated;
 use App\Events\SaleCancelled;
 use App\Events\SaleCreated;
@@ -40,9 +37,6 @@ use App\Listeners\RecordMessageCreatedAudit;
 use App\Listeners\RecordMessageDeletedAudit;
 use App\Listeners\RecordMessageReadStatusUpdatedAudit;
 use App\Listeners\RecordMessageUpdatedAudit;
-use App\Listeners\RecordOrderCustomerFeedbackSubmittedLifecycle;
-use App\Listeners\RecordOrderCustomerNotificationAcknowledgedLifecycle;
-use App\Listeners\RecordOrderCustomerPickupAcknowledgedLifecycle;
 use App\Listeners\RecordOrderCreatedLifecycle;
 use App\Listeners\RecordOrderFeedbackRecoveryUpdatedLifecycle;
 use App\Listeners\RecordOrderPaymentRegisteredLifecycle;
@@ -129,15 +123,6 @@ class EventServiceProvider extends ServiceProvider
         ],
         WhatsappMessageSettingsUpdated::class => [
             RecordWhatsappMessageSettingsUpdatedAudit::class,
-        ],
-        OrderCustomerNotificationAcknowledged::class => [
-            RecordOrderCustomerNotificationAcknowledgedLifecycle::class,
-        ],
-        OrderCustomerPickupAcknowledged::class => [
-            RecordOrderCustomerPickupAcknowledgedLifecycle::class,
-        ],
-        OrderCustomerFeedbackSubmitted::class => [
-            RecordOrderCustomerFeedbackSubmittedLifecycle::class,
         ],
         OrderFeedbackRecoveryUpdated::class => [
             RecordOrderFeedbackRecoveryUpdatedLifecycle::class,

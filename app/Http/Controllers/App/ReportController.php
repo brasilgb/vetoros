@@ -201,7 +201,6 @@ class ReportController extends Controller
                 'orders' => $orders->through(fn (Order $order) => [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
-                    'tracking_token' => $order->tracking_token,
                     'customer' => $order->customer,
                     'equipment' => $order->equipment,
                     'model' => $order->model,

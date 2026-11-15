@@ -36,7 +36,7 @@
 
                             <p style="font-size:15px;line-height:1.6;margin:14px 0;">
                                 Seu orçamento da ordem de serviço segue aguardando retorno há {{ $daysPending }} dia(s).
-                                Se desejar, você pode acompanhar e aprovar pelo link abaixo.
+                                Responda este e-mail ou entre em contato com nossa equipe para informar sua decisão.
                             </p>
 
                             <table width="100%" cellpadding="0" cellspacing="0"
@@ -49,17 +49,6 @@
                                         <td style="padding:4px 0;"><strong>Valor do orçamento:</strong> R$ {{ number_format((float) $order->budget_value, 2, ',', '.') }}</td>
                                     </tr>
                                 @endif
-                                @if (!empty($order->tracking_token))
-                                    <tr>
-                                        <td style="padding:4px 0;">
-                                            <strong>Acompanhar orçamento:</strong>
-                                            <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                                style="color:#2563eb;text-decoration:none;">
-                                                Clique para visualizar sua ordem
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endif
                             </table>
 
                             <p style="font-size:15px;line-height:1.6;">
@@ -68,9 +57,7 @@
                         </td>
                     </tr>
 
-                    <tr>
-                        <td style="padding:0 32px;">@include('emails.partials.order-access-key')</td>
-                    </tr><tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
+<tr><td style="background:#f9fafb;text-align:center;padding:24px;font-size:12px;color:#6b7280;">
                             <p style="margin:0;">© {{ date('Y') }} {{ $companyName }}</p>
                             <p style="margin:6px 0;">Todos os direitos reservados</p>
                             @if (!empty($companySite))

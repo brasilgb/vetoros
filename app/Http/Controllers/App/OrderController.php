@@ -53,7 +53,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -635,7 +634,6 @@ class OrderController extends Controller
         $orders->setCollection(
             $orders->getCollection()->map(function (Order $order) {
                 $order = $this->appendPaymentReminderAvailability($order);
-                $order->setAttribute('public_access_key_value', $order->public_access_key);
 
                 return $this->appendCommunicationFlags($order);
             })
@@ -717,9 +715,6 @@ class OrderController extends Controller
         $data['order_number'] = TenantSequence::next(Order::class, 'order_number', $tenantId);
         $data['barcode'] = Ean13::fromNumber($data['order_number']);
         $data['tracking_token'] = Str::uuid();
-        $publicAccessKey = Str::upper(Str::random(8));
-        $data['public_access_key'] = $publicAccessKey;
-        $data['public_access_key_hash'] = Hash::make($publicAccessKey);
         $data['warranty_days'] = isset($data['warranty_days']) && $data['warranty_days'] !== '' ? max(0, (int) $data['warranty_days']) : null;
         $data = $this->normalizeDeliveryDateForStatus($data);
         $isEquipmentOrder = ($data['order_type'] ?? Order::TYPE_EQUIPMENT) === Order::TYPE_EQUIPMENT;
@@ -907,8 +902,6 @@ class OrderController extends Controller
                 'history' => $equipmentHistory,
             ],
             'warrantySourceOrders' => $this->warrantySourceOptions($order->warranty_source_order_id, $order->id),
-            'publicAccessKey' => $order->public_access_key,
-            'publicAccessKeyConfigured' => filled($order->getRawOriginal('public_access_key')),
             'budgets' => $order->budgets()->with('items')->get()->reverse()->values(),
             'messages' => $order->messages()->limit(50)->get([
                 'id', 'order_budget_id', 'channel', 'recipient', 'template', 'status',
@@ -919,41 +912,6 @@ class OrderController extends Controller
             'status' => $request->status,
             'filter' => $request->filter,
         ]);
-    }
-
-    public function regeneratePublicAccessKey(Request $request, Order $order): RedirectResponse
-    {
-        $this->authorize('update', $order);
-        $user = $request->user();
-        abort_unless($user instanceof User && $user->isAdministrator() && $user->hasPermission('orders'), 403);
-
-        $validated = $request->validate([
-            'reason' => ['required', 'string', 'min:10', 'max:500'],
-        ]);
-
-        DB::transaction(function () use ($order, $user, $validated): void {
-            $lockedOrder = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
-            $this->authorize('update', $lockedOrder);
-            abort_if($lockedOrder->public_access_key !== null, 409, 'A chave atual ainda pode ser recuperada.');
-
-            $key = Str::upper(Str::random(8));
-            $lockedOrder->public_access_key = $key;
-            $lockedOrder->public_access_key_hash = Hash::make($key);
-            $lockedOrder->save();
-
-            $reason = trim($validated['reason']);
-            $reason = preg_replace('/(?<![A-Z0-9])[A-Z0-9]{8}(?![A-Z0-9])/', '[redigido]', $reason) ?? $reason;
-
-            $this->operationalAuditService->record(
-                'public_access_key_regenerated',
-                'order',
-                $lockedOrder,
-                (int) $user->id,
-                ['reason' => $reason, 'previous_key_revoked' => true],
-            );
-        }, 3);
-
-        return back()->with('success', 'Nova chave de acesso público criada. A chave anterior foi invalidada.');
     }
 
     /**
@@ -1462,7 +1420,7 @@ class OrderController extends Controller
         ]);
 
         if (! $this->shouldSendCustomerMailer($order, $customerEmail)) {
-            return back()->with('success', 'Atualização salva e visível no acompanhamento público da ordem. E-mail não enviado: cliente sem e-mail válido ou SMTP não configurado.');
+            return back()->with('success', 'Atualização salva na ordem. E-mail não enviado: cliente sem e-mail válido ou SMTP não configurado.');
         }
 
         try {
@@ -1470,10 +1428,10 @@ class OrderController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('success', 'Atualização salva e visível no acompanhamento público da ordem, mas houve falha ao enviar o e-mail.');
+            return back()->with('success', 'Atualização salva na ordem, mas houve falha ao enviar o e-mail.');
         }
 
-        return back()->with('success', 'Atualização enviada ao cliente por e-mail e publicada no acompanhamento da ordem.');
+        return back()->with('success', 'Atualização enviada ao cliente por e-mail e salva na ordem.');
     }
 
     /**

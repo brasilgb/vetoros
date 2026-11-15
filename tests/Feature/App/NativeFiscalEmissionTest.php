@@ -375,7 +375,7 @@ class NativeFiscalEmissionTest extends TestCase
         $this->assertSame(FiscalDocument::STATUS_FAILED, FiscalDocument::query()->sole()->status);
     }
 
-    public function test_order_nfse_emission_uses_service_items_and_public_pdf_link(): void
+    public function test_order_nfse_emission_uses_service_items_and_authenticated_pdf_link(): void
     {
         $this->fiscalSetting(['nfse_enabled' => true]);
         $order = $this->order();
@@ -396,10 +396,9 @@ class NativeFiscalEmissionTest extends TestCase
             && $request['location']['code'] === 4314902);
 
         $order->refresh();
-        $this->assertSame(route('os.fiscal-proof.pdf', ['token' => $order->tracking_token]), $order->fiscal_document_url);
+        $this->assertSame(route('app.fiscal-documents.file', ['fiscalDocument' => FiscalDocument::query()->sole()->id, 'format' => 'pdf']), $order->fiscal_document_url);
 
-        auth()->logout();
-        $this->get(route('os.fiscal-proof.pdf', ['token' => $order->tracking_token]))
+        $this->get($order->fiscal_document_url)
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf');
     }

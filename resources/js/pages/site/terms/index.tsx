@@ -88,7 +88,7 @@ export default function Terms() {
                         <li>Controle financeiro, caixa, despesas e vendas</li>
                         <li>Registro manual de documentos fiscais emitidos em sistemas externos</li>
                         <li>Envio de comunicações operacionais por e-mail e outros canais configurados pelo usuário</li>
-                        <li>Acompanhamento público do cliente, acompanhamentos e indicadores operacionais</li>
+                        <li>Acompanhamentos de atendimento e indicadores operacionais</li>
                     </ul>
 
                     {/* CADASTRO */}

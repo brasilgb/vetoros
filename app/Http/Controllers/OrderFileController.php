@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Entrega fotos e assinatura da OS pelas URLs assinadas e temporárias de App\Support\OrderFiles.
  * A assinatura da URL é a autorização: ela só é emitida para quem já pôde ver a OS (tela
- * interna, API do app ou portal público liberado). Qualquer alteração na URL a invalida.
+ * interna ou API do app). Qualquer alteração na URL a invalida.
  */
 class OrderFileController extends Controller
 {

@@ -239,12 +239,7 @@ function ReceiptCopy({
             )}
 
             <div className="mt-auto w-full">
-                {type === 'oraberta' && (
-                    <div className="mb-4 rounded-md border border-gray-300 px-3 py-2 text-[10px]">
-                        Acompanhe o status da ordem de serviço em{' '}
-                        <span className="font-semibold">https://vetoros.com.br/os/{order?.tracking_token}</span>
-                    </div>
-                )}
+
                 <div className="grid grid-cols-2 items-end gap-8 pt-5">
                     <div className="text-center">
                         {company?.city}, {new Date().toLocaleDateString(locale, option)}

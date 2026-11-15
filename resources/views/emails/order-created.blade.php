@@ -29,7 +29,7 @@
                                 {{ $companyName }}
                             </p>
                             <p style="margin:6px 0 0 0;color:#cbd5f5;font-size:13px;">
-                                Acompanhamento da sua ordem de serviço
+                                Informações da sua ordem de serviço
                             </p>
                         </td>
                     </tr>
@@ -55,32 +55,9 @@
                                 <tr>
                                     <td style="padding:4px 0;"><strong>Criada em:</strong> {{ $order->created_at?->format('d/m/Y H:i') }}</td>
                                 </tr>
-                                @if (!empty($order->tracking_token))
-                                    <tr>
-                                        <td style="padding:4px 0;">
-                                            <strong>Acompanhamento:</strong>
-                                            <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                                style="color:#2563eb;text-decoration:none;">
-                                                Clique para acompanhar sua ordem
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endif
                             </table>
 
-                            @if (!empty($order->tracking_token))
-                                <p style="margin-top:8px;">
-                                    <a href="{{ route('os.token', ['token' => $order->tracking_token]) }}"
-                                        style="background:#0f766e;border-radius:6px;color:#ffffff;display:inline-block;font-size:14px;font-weight:bold;padding:12px 22px;text-decoration:none;">
-                                        Acompanhar minha ordem
-                                    </a>
-                                </p>
-                            @endif
 
-                            <p style="font-size:15px;line-height:1.6;">
-                                Você pode usar o link acima para acompanhar atualizações da ordem em tempo real.
-                            </p>
-                            @include('emails.partials.order-access-key')
                         </td>
                     </tr>
 

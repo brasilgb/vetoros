@@ -21,7 +21,6 @@ use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -87,15 +86,12 @@ class OrderControllerTest extends TestCase
         $order = Order::query()->firstOrFail();
 
         $this->assertSame('Notebook Dell Inspiron', $order->model);
-        $this->assertMatchesRegularExpression('/^[A-Z0-9]{8}$/', $order->public_access_key);
-        $this->assertNotSame($order->public_access_key, DB::table('orders')->where('id', $order->id)->value('public_access_key'));
-        $this->assertTrue(Hash::check($order->public_access_key, $order->public_access_key_hash));
+        $this->assertNull(DB::table('orders')->where('id', $order->id)->value('public_access_key'));
 
         $this->get(route('app.orders.show', $order))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('app/orders/edit-order')
-                ->where('publicAccessKey', $order->public_access_key));
+                ->component('app/orders/edit-order'));
 
         $this->assertDatabaseHas('order_status_history', [
             'order_id' => $order->id,
@@ -527,7 +523,7 @@ class OrderControllerTest extends TestCase
         $this->assertSame('Atualizado pelo tecnico responsavel', $order->model);
     }
 
-    public function test_operator_can_change_unassigned_order_status_without_responsible_technician(): void
+    public function test_operator_must_assign_technician_before_changing_unassigned_order_status(): void
     {
         $operator = User::factory()->forTenant($this->tenant->id)->create([
             'roles' => User::ROLE_OPERATOR,
@@ -549,16 +545,11 @@ class OrderControllerTest extends TestCase
             'status_reason' => 'Cliente desistiu do reparo',
         ]));
 
-        $response->assertRedirect(route('app.orders.show', ['order' => $order->id]));
+        $response->assertSessionHasErrors('user_id');
 
         $order->refresh();
         $this->assertNull($order->user_id);
-        $this->assertSame(OrderStatus::CANCELLED, (int) $order->service_status);
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::CANCELLED,
-            'changed_by' => $operator->id,
-        ]);
+        $this->assertSame(OrderStatus::OPEN, (int) $order->service_status);
     }
 
     public function test_it_does_not_use_system_mail_for_status_email_when_tenant_mail_is_not_configured(): void
@@ -885,169 +876,6 @@ class OrderControllerTest extends TestCase
             'entity_type' => 'order',
             'entity_id' => $order->id,
             'action' => 'order_payment_removed',
-        ]);
-    }
-
-    public function test_it_handles_main_order_flow_until_customer_feedback(): void
-    {
-        $customer = Customer::factory()->forTenant($this->tenant->id)->create();
-        $equipment = Equipment::factory()->forTenant($this->tenant->id)->create();
-
-        $createResponse = $this->post(route('app.orders.store'), [
-            'customer_id' => $customer->id,
-            'equipment_id' => $equipment->id,
-            'defect' => 'Não carrega',
-            'service_status' => OrderStatus::OPEN,
-            'user_id' => $this->user->id,
-            'delivery_forecast' => now()->addDays(7)->toDateString(),
-        ]);
-
-        $createResponse->assertRedirect(route('app.orders.index'));
-
-        $order = Order::query()->latest('id')->firstOrFail();
-
-        $budgetResponse = $this->put(route('app.orders.update', $order), [
-            'customer_id' => $customer->id,
-            'equipment_id' => $equipment->id,
-            'user_id' => $this->user->id,
-            'model' => $order->model,
-            'password' => $order->password,
-            'defect' => $order->defect,
-            'state_conservation' => $order->state_conservation,
-            'accessories' => $order->accessories,
-            'budget_description' => 'Troca do conector de carga',
-            'budget_value' => '150,00',
-            'services_performed' => $order->services_performed,
-            'parts_value' => '50,00',
-            'service_value' => '100,00',
-            'service_cost' => '150,00',
-            'delivery_date' => null,
-            'service_status' => OrderStatus::BUDGET_GENERATED,
-            'delivery_forecast' => now()->addDays(7)->toDateString(),
-            'observations' => 'Aguardando resposta do cliente',
-        ]);
-
-        $budgetResponse->assertRedirect(route('app.orders.show', ['order' => $order->id]));
-
-        // VETOR-INTEL-03: a resposta pública cita a versão do orçamento que o cliente viu.
-        $approveResponse = $this->post(route('orders.budget.status', $order->tracking_token), [
-            'status' => OrderStatus::BUDGET_APPROVED,
-            'budget_version' => 1,
-        ]);
-
-        $approveResponse->assertSessionHas('success', 'Status do orçamento atualizado com sucesso.');
-        $this->assertDatabaseHas('order_budgets', [
-            'order_id' => $order->id,
-            'version' => 1,
-            'status' => 'approved',
-            'approved_by_type' => 'customer',
-        ]);
-
-        $serviceCompletedResponse = $this->put(route('app.orders.update', $order->fresh()), [
-            'customer_id' => $customer->id,
-            'equipment_id' => $equipment->id,
-            'user_id' => $this->user->id,
-            'model' => $order->model,
-            'password' => $order->password,
-            'defect' => $order->defect,
-            'state_conservation' => $order->state_conservation,
-            'accessories' => $order->accessories,
-            'budget_description' => 'Troca do conector de carga',
-            'budget_value' => '150,00',
-            'services_performed' => 'Troca realizada com sucesso',
-            'parts_value' => '50,00',
-            'service_value' => '100,00',
-            'service_cost' => '150,00',
-            'delivery_date' => null,
-            'service_status' => OrderStatus::SERVICE_COMPLETED,
-            'delivery_forecast' => now()->addDays(7)->toDateString(),
-            'observations' => 'Pronto para retirada',
-        ]);
-
-        $serviceCompletedResponse->assertRedirect(route('app.orders.show', ['order' => $order->id]));
-
-        CashSession::create([
-            'tenant_id' => $this->tenant->id,
-            'opened_by' => $this->user->id,
-            'opened_at' => now(),
-            'opening_balance' => 0,
-            'status' => 'open',
-        ]);
-
-        $paymentResponse = $this->post(route('app.orders.payments.store', $order->fresh()), [
-            'amount' => '150,00',
-            'payment_method' => 'pix',
-            'paid_at' => now()->format('Y-m-d\TH:i'),
-            'notes' => 'Pagamento total',
-        ]);
-
-        $paymentResponse->assertSessionHas('success', 'Pagamento registrado com sucesso.');
-
-        $notificationResponse = $this->post(route('orders.notification.acknowledge', $order->fresh()->tracking_token));
-
-        $notificationResponse->assertSessionHas('success', 'Confirmação de aviso registrada com sucesso.');
-
-        $pickupResponse = $this->post(route('orders.pickup.acknowledge', $order->fresh()->tracking_token));
-
-        $pickupResponse->assertSessionHas('success', 'Confirmação de retirada registrada com sucesso.');
-
-        $feedbackResponse = $this->post(route('os.feedback.submit', $order->fresh()->tracking_token), [
-            'rating' => 5,
-            'comment' => 'Atendimento excelente',
-        ]);
-
-        $feedbackResponse->assertSessionHas('success', 'Obrigado! Seu feedback foi enviado com sucesso.');
-
-        $this->assertDatabaseHas('orders', [
-            'id' => $order->id,
-            'service_status' => OrderStatus::DELIVERED,
-            'customer_feedback_rating' => 5,
-        ]);
-
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::BUDGET_GENERATED,
-        ]);
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::BUDGET_APPROVED,
-        ]);
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::SERVICE_COMPLETED,
-        ]);
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::CUSTOMER_NOTIFIED,
-        ]);
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::DELIVERED,
-        ]);
-
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_payment_registered',
-        ]);
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_customer_notification_acknowledged',
-        ]);
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_customer_pickup_acknowledged',
-        ]);
-        $this->assertDatabaseHas('operational_audits', [
-            'tenant_id' => $this->tenant->id,
-            'entity_type' => 'order',
-            'entity_id' => $order->id,
-            'action' => 'order_customer_feedback_submitted',
         ]);
     }
 

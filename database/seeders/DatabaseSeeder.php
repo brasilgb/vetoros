@@ -245,7 +245,7 @@ class DatabaseSeeder extends Seeder
             'generatedbudget' => "{{ saudacao }}, {{ cliente }}!\nEquipamento analisado preliminarmente. Segue orçamento inicial para reparo conforme diagnóstico técnico apresentado na OS {{ ordem }}.\nO serviço será executado somente mediante sua aprovação. Valores e prazo podem sofrer alterações caso sejam identificadas necessidades adicionais durante o reparo.\nVocê pode acompanhar pelo link: {{ link_os }}",
             'servicecompleted' => 'Ola {{ cliente }}, sua OS {{ ordem }} foi concluida.',
             'feedback' => 'Ola {{ cliente }}, avalie seu atendimento da OS {{ ordem }}.',
-            'defaultmessage' => 'Ola {{ cliente }}, acompanhe sua OS {{ ordem }} pelo link {{ link_os }}.',
+            'defaultmessage' => 'Ola {{ cliente }}, sua OS {{ ordem }} foi atualizada.',
             'budgetfollowup' => 'Ola {{ cliente }}, seu orçamento segue aguardando retorno.',
             'pendingpayment' => 'Ola {{ cliente }}, sua OS possui saldo pendente de {{ saldo }}.',
             'created_at' => $now,

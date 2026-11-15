@@ -387,10 +387,7 @@ class NativeFiscalService
             $documentable->forceFill([
                 'fiscal_document_number' => $document->number,
                 'fiscal_document_key' => $document->access_key,
-                // OS: link público (tracking_token) para o cliente; venda: rota autenticada.
-                'fiscal_document_url' => $documentable instanceof Order && filled($documentable->tracking_token)
-                    ? route('os.fiscal-proof.pdf', ['token' => $documentable->tracking_token])
-                    : route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'pdf']),
+                'fiscal_document_url' => route('app.fiscal-documents.file', ['fiscalDocument' => $document->id, 'format' => 'pdf']),
                 'fiscal_issued_at' => $document->issued_at,
                 'fiscal_registered_by' => $document->requested_by,
             ])->save();

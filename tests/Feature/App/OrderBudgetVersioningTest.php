@@ -16,8 +16,6 @@ use App\Support\OrderActor;
 use App\Support\OrderStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use LogicException;
 use Tests\TestCase;
 
@@ -114,98 +112,6 @@ class OrderBudgetVersioningTest extends TestCase
         $this->assertMoney(40, $item->unit_cost);
     }
 
-    public function test_public_approval_references_the_current_version(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '280,00']);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 2])
-            ->assertSessionHas('success');
-
-        $v2 = OrderBudget::query()->where('order_id', $order->id)->where('version', 2)->sole();
-        $this->assertSame(OrderBudget::STATUS_APPROVED, $v2->status);
-        $this->assertSame(OrderActor::CUSTOMER, $v2->approved_by_type);
-        $this->assertSame('public_tracking', $v2->response_channel);
-        $this->assertNotNull($v2->approved_at);
-        $this->assertSame($v2->id, (int) $order->fresh()->approved_budget_id);
-        $this->assertSame(OrderStatus::BUDGET_APPROVED, (int) $order->fresh()->service_status);
-        $this->assertDatabaseHas('order_events', ['order_id' => $order->id, 'event_type' => OrderEvent::TYPE_BUDGET_APPROVED, 'actor_type' => OrderActor::CUSTOMER]);
-    }
-
-    public function test_public_rejection_references_version_and_reason(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), [
-            'status' => OrderStatus::BUDGET_REJECTED, 'budget_version' => 1, 'rejection_reason' => 'Achei caro',
-        ])->assertSessionHas('success');
-
-        $v1 = OrderBudget::query()->where('order_id', $order->id)->sole();
-        $this->assertSame(OrderBudget::STATUS_REJECTED, $v1->status);
-        $this->assertSame('Achei caro', $v1->rejection_reason);
-        $this->assertNotNull($v1->rejected_at);
-        $this->assertNull($order->fresh()->approved_budget_id);
-    }
-
-    public function test_superseded_or_missing_version_cannot_be_approved(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '280,00']);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1])
-            ->assertSessionHasErrors('status');
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED])
-            ->assertSessionHasErrors('status');
-
-        $this->assertSame(0, OrderBudget::query()->where('order_id', $order->id)->where('status', OrderBudget::STATUS_APPROVED)->count());
-        $this->assertSame(OrderStatus::BUDGET_GENERATED, (int) $order->fresh()->service_status);
-    }
-
-    public function test_second_response_after_approval_is_refused(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1]);
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_REJECTED, 'budget_version' => 1])
-            ->assertSessionHasErrors('status');
-
-        $this->assertSame(OrderBudget::STATUS_APPROVED, OrderBudget::query()->where('order_id', $order->id)->sole()->status);
-    }
-
-    public function test_expired_version_cannot_be_approved_and_expiration_is_persisted(): void
-    {
-        $order = $this->order();
-        Carbon::setTestNow('2026-10-01 09:00:00');
-        $this->generate($order, '300,00', ['budget_valid_until' => '2026-10-05']);
-
-        $budget = OrderBudget::query()->where('order_id', $order->id)->sole();
-        $this->assertSame(OrderBudget::STATUS_SENT, $budget->effective_status);
-
-        Carbon::setTestNow('2026-10-06 08:00:00');
-        $this->assertSame(OrderBudget::STATUS_EXPIRED, $budget->fresh()->effective_status);
-        $this->assertSame(1, OrderBudget::query()->effectivelyExpired()->count());
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1])
-            ->assertSessionHasErrors('status');
-        Carbon::setTestNow();
-
-        // A recusa da aprovação não desfaz o registro do vencimento.
-        $budget->refresh();
-        $this->assertSame(OrderBudget::STATUS_EXPIRED, $budget->status);
-        $this->assertSame('2026-10-05 23:59:59', $budget->expired_at->toDateTimeString());
-        $this->assertDatabaseHas('order_events', ['order_id' => $order->id, 'event_type' => OrderEvent::TYPE_BUDGET_EXPIRED, 'actor_type' => OrderActor::SYSTEM]);
-        $this->assertSame(OrderStatus::BUDGET_GENERATED, (int) $order->fresh()->service_status);
-    }
-
     public function test_internal_approval_after_expiration_is_blocked_and_resend_creates_new_version(): void
     {
         $order = $this->order();
@@ -241,62 +147,6 @@ class OrderBudgetVersioningTest extends TestCase
         $this->assertSame($this->user->id, (int) $budget->approved_by);
     }
 
-    public function test_renegotiation_after_approval_keeps_approved_version_until_new_approval(): void
-    {
-        $order = $this->order();
-        $this->generate($order, '300,00');
-        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '300,00', 'service_status' => OrderStatus::BUDGET_APPROVED]);
-
-        // Volta para "Orçamento Gerado" com novo valor (regressão com motivo): v2 enviada, v1 segue aprovada.
-        $this->save($order->fresh(), [
-            'budget_description' => 'Troca de tela + conector', 'budget_value' => '380,00',
-            'service_status' => OrderStatus::BUDGET_GENERATED, 'status_reason' => 'Peça adicional encontrada',
-        ])->assertSessionHasNoErrors();
-
-        $versions = OrderBudget::query()->where('order_id', $order->id)->orderBy('version')->get();
-        $this->assertSame([OrderBudget::STATUS_APPROVED, OrderBudget::STATUS_SENT], $versions->pluck('status')->all());
-        $this->assertSame($versions[0]->id, (int) $order->fresh()->approved_budget_id);
-        Auth::logout();
-
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 2]);
-
-        $versions = OrderBudget::query()->where('order_id', $order->id)->orderBy('version')->get();
-        $this->assertSame([OrderBudget::STATUS_SUPERSEDED, OrderBudget::STATUS_APPROVED], $versions->pluck('status')->all());
-        $this->assertSame($versions[1]->id, (int) $order->fresh()->approved_budget_id);
-        $this->assertSame(1, OrderBudget::query()->where('order_id', $order->id)->where('status', OrderBudget::STATUS_APPROVED)->count());
-    }
-
-    public function test_legacy_budget_has_no_invented_dates(): void
-    {
-        $awaiting = $this->order(OrderStatus::BUDGET_GENERATED, ['budget_description' => 'Legado aguardando', 'budget_value' => 200]);
-        $approved = $this->order(OrderStatus::BUDGET_APPROVED, ['budget_description' => 'Legado aprovado', 'budget_value' => 150]);
-        $none = $this->order(OrderStatus::OPEN, ['budget_description' => null, 'budget_value' => 0]);
-
-        $migration = require database_path('migrations/2026_10_09_100000_create_order_budgets_and_messages.php');
-        (new \ReflectionMethod($migration, 'createLegacyBudgets'))->invoke($migration);
-
-        $legacyAwaiting = OrderBudget::query()->where('order_id', $awaiting->id)->sole();
-        $this->assertTrue($legacyAwaiting->is_legacy);
-        $this->assertSame(OrderBudget::STATUS_SENT, $legacyAwaiting->status);
-        $legacyApproved = OrderBudget::query()->where('order_id', $approved->id)->sole();
-        $this->assertSame(OrderBudget::STATUS_LEGACY, $legacyApproved->status);
-        $this->assertNull($approved->fresh()->approved_budget_id);
-        $this->assertSame(0, OrderBudget::query()->where('order_id', $none->id)->count());
-
-        foreach ([$legacyAwaiting, $legacyApproved] as $legacy) {
-            foreach (['sent_at', 'responded_at', 'approved_at', 'rejected_at', 'expired_at', 'total_amount'] as $field) {
-                $this->assertNull($legacy->{$field}, $field);
-            }
-            $this->assertSame(0, OrderBudgetItem::query()->where('order_budget_id', $legacy->id)->count());
-        }
-
-        // O cliente ainda pode responder o orçamento legado que está diante dele.
-        Auth::logout();
-        $this->post(route('orders.budget.status', $awaiting->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 1])
-            ->assertSessionHas('success');
-        $this->assertNotNull($legacyAwaiting->fresh()->approved_at);
-    }
-
     public function test_budgets_are_isolated_by_tenant(): void
     {
         $order = $this->order();
@@ -317,36 +167,13 @@ class OrderBudgetVersioningTest extends TestCase
         ]);
     }
 
-    public function test_model_supports_conversion_and_timing_metrics(): void
-    {
-        $order = $this->order();
-        Carbon::setTestNow('2026-10-01 10:00:00');
-        $this->generate($order, '300,00');
-        Carbon::setTestNow('2026-10-02 10:00:00');
-        $this->save($order->fresh(), ['budget_description' => 'Troca de tela', 'budget_value' => '260,00']);
-        Auth::logout();
-        Carbon::setTestNow('2026-10-03 16:00:00');
-        $this->post(route('orders.budget.status', $order->tracking_token), ['status' => OrderStatus::BUDGET_APPROVED, 'budget_version' => 2]);
-        Carbon::setTestNow();
-
-        // Tempo envio → aprovação da versão aprovada, versões por OS e diferença entre 1ª e última versão.
-        $approved = OrderBudget::withoutGlobalScopes()->where('order_id', $order->id)->where('status', OrderBudget::STATUS_APPROVED)->sole();
-        $this->assertSame(30, (int) $approved->sent_at->diffInHours($approved->approved_at));
-
-        $stats = DB::table('order_budgets')->where('order_id', $order->id)
-            ->selectRaw('COUNT(*) as versions, MIN(quoted_amount) as min_amount, MAX(quoted_amount) as max_amount')
-            ->first();
-        $this->assertSame(2, (int) $stats->versions);
-        $this->assertMoney(40, (float) $stats->max_amount - (float) $stats->min_amount);
-        $this->assertSame(1, OrderBudget::withoutGlobalScopes()->whereNotNull('sent_at')->where('status', OrderBudget::STATUS_APPROVED)->count());
-    }
-
     private function generate(Order $order, string $value, array $overrides = []): void
     {
         $this->save($order, [
             'budget_description' => 'Troca de tela',
             'budget_value' => $value,
             'service_status' => OrderStatus::BUDGET_GENERATED,
+            'user_id' => $this->user->id,
             ...$overrides,
         ])->assertSessionHasNoErrors();
     }

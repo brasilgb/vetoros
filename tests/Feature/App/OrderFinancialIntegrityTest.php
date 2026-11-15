@@ -525,7 +525,7 @@ class OrderFinancialIntegrityTest extends TestCase
             'order_type' => Order::TYPE_EQUIPMENT,
             'customer_id' => $this->customer->id,
             'equipment_id' => $this->equipment->id,
-            'user_id' => $order->user_id,
+            'user_id' => $order->user_id ?? $this->user->id,
             'model' => $order->model ?? 'Modelo',
             'password' => null,
             'defect' => 'Defeito',

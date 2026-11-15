@@ -17,7 +17,6 @@ use App\Support\OrderStatus;
 use App\Support\TenantSequence;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class MaintenanceContractService
@@ -345,7 +344,6 @@ class MaintenanceContractService
     private function createContractOrder(MaintenanceContract $contract, Carbon $visitDate): Order
     {
         $orderNumber = TenantSequence::next(Order::class, 'order_number', $contract->tenant_id);
-        $publicAccessKey = Str::upper(Str::random(8));
 
         $order = Order::create([
             'tenant_id' => $contract->tenant_id,
@@ -354,8 +352,6 @@ class MaintenanceContractService
             'order_number' => $orderNumber,
             'barcode' => Ean13::fromNumber($orderNumber),
             'tracking_token' => (string) Str::uuid(),
-            'public_access_key' => $publicAccessKey,
-            'public_access_key_hash' => Hash::make($publicAccessKey),
             'order_type' => Order::TYPE_EXTERNAL_SERVICE,
             'defect' => $contract->description,
             'service_type' => 'Manutenção recorrente',
