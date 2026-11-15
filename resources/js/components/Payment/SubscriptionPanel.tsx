@@ -190,7 +190,7 @@ export default function SubscriptionPanel({
 
             {isCustom && !charge && (
                 <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-                    Nenhuma cobrança em aberto no seu contrato. A próxima fatura chega por e-mail antes do vencimento.
+                    Nenhuma cobrança em aberto no seu contrato. A fatura será enviada por e-mail após a confirmação do pagamento.
                 </p>
             )}
 

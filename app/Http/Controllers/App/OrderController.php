@@ -1491,7 +1491,7 @@ class OrderController extends Controller
         ]);
 
         if (! $this->shouldSendCustomerMailer($order, $customerEmail)) {
-            return back()->with('success', 'Atualização salva e visível no acompanhamento público da ordem. E-mail não enviado: cliente sem e-mail válido ou SMTP não configurado.');
+            return back()->with('success', 'Atualização salva na ordem. E-mail não enviado: cliente sem e-mail válido ou SMTP não configurado.');
         }
 
         try {
@@ -1500,10 +1500,10 @@ class OrderController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('success', 'Atualização salva e visível no acompanhamento público da ordem, mas houve falha ao enviar o e-mail.');
+            return back()->with('success', 'Atualização salva na ordem, mas houve falha ao enviar o e-mail.');
         }
 
-        return back()->with('success', 'Atualização enviada ao cliente por e-mail e publicada no acompanhamento da ordem.');
+        return back()->with('success', 'Atualização enviada ao cliente por e-mail e salva na ordem.');
     }
 
     /**
@@ -1535,7 +1535,7 @@ class OrderController extends Controller
 
         $this->orderMessageService->recordSent($order, OrderMessage::CHANNEL_WHATSAPP, $sent['chat_id'], $template, 'waha', $sent['response'], $this->currentUser()?->id);
 
-        return back()->with('success', 'Mensagem enviada pelo WhatsApp com sucesso.');
+        return back()->with('success', 'Mensagem encaminhada ao WhatsApp. Acompanhe o status de entrega.');
     }
 
     public function markFeedback(Order $order)

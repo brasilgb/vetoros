@@ -525,7 +525,7 @@ class OrderControllerTest extends TestCase
         $this->assertSame('Atualizado pelo tecnico responsavel', $order->model);
     }
 
-    public function test_operator_can_change_unassigned_order_status_without_responsible_technician(): void
+    public function test_operator_must_assign_technician_before_changing_unassigned_order_status(): void
     {
         $operator = User::factory()->forTenant($this->tenant->id)->create([
             'roles' => User::ROLE_OPERATOR,
@@ -547,16 +547,11 @@ class OrderControllerTest extends TestCase
             'status_reason' => 'Cliente desistiu do reparo',
         ]));
 
-        $response->assertRedirect(route('app.orders.show', ['order' => $order->id]));
+        $response->assertSessionHasErrors('user_id');
 
         $order->refresh();
         $this->assertNull($order->user_id);
-        $this->assertSame(OrderStatus::CANCELLED, (int) $order->service_status);
-        $this->assertDatabaseHas('order_status_history', [
-            'order_id' => $order->id,
-            'status' => OrderStatus::CANCELLED,
-            'changed_by' => $operator->id,
-        ]);
+        $this->assertSame(OrderStatus::OPEN, (int) $order->service_status);
     }
 
     public function test_it_does_not_use_system_mail_for_status_email_when_tenant_mail_is_not_configured(): void
@@ -618,7 +613,7 @@ class OrderControllerTest extends TestCase
 
         // O envio manual de atualização ao cliente continua funcionando.
         $this->post(route('app.orders.customer-update', $order), ['note' => 'Peça chegou, reparo em andamento.'])
-            ->assertSessionHas('success', 'Atualização enviada ao cliente por e-mail e publicada no acompanhamento da ordem.');
+            ->assertSessionHas('success', 'Atualização enviada ao cliente por e-mail e salva na ordem.');
         Mail::assertSent(
             OrderStatusUpdatedMail::class,
             fn (OrderStatusUpdatedMail $mail) => $mail->hasTo('cliente@example.com'),

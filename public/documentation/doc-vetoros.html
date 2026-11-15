@@ -461,8 +461,8 @@
             <p>Manual do cliente com foco operacional, financeiro e de configuração do sistema.</p>
 
             <div class="meta">
-                <div><strong>Versão do manual</strong>2.3</div>
-                <div><strong>Atualizado em</strong>9 de outubro de 2026</div>
+                <div><strong>Versão do manual</strong>2.4</div>
+                <div><strong>Atualizado em</strong>15 de novembro de 2026</div>
                 <div><strong>Formato</strong>HTML navegável</div>
             </div>
 
@@ -486,7 +486,7 @@
                 <a href="#pagamentos-ordens">7. Pagamentos de ordens</a>
                 <a href="#orcamentos">8. Orçamentos</a>
                 <a href="#agendamentos">9. Agendamentos</a>
-                <a href="#area-cliente">10. Área do cliente</a>
+                <a href="#contato-cliente-os">10. Contato com o cliente sobre a OS</a>
                 <a href="#acompanhamentos">11. Acompanhamentos</a>
                 <a href="#qualidade">12. Garantia, avaliações e qualidade</a>
                 <a href="#mensagens">13. Mensagens internas e WhatsApp</a>
@@ -555,6 +555,12 @@
                     de entrega; desconto e acréscimo na OS; taxas dos meios de pagamento; custo médio das peças;
                     importação de produtos por CSV; tela Indicadores; e atalhos de Caixa, PDV e Calendário no painel.
                 </div>
+                <div class="callout">
+                    <strong>Novidades da versão 2.4 do manual:</strong> fatura da assinatura enviada após a confirmação
+                    do pagamento, opções de Pix, boleto e cartão, acesso com senha visível sob demanda, escolha de
+                    cookies opcionais no site, orientação para renovar o QR Code do WhatsApp e avisos mais claros ao
+                    corrigir dados em formulários.
+                </div>
 
                 <section id="introducao">
                     <h3>1. Introdução</h3>
@@ -572,10 +578,18 @@
                         quais ações alteram dados operacionais e quais rotinas automáticas podem ser disparadas em
                         segundo plano.</p>
                     <p>Quando a assinatura estiver bloqueada e o pagamento for realizado pelo fluxo disponível no
-                        sistema, o acesso é liberado e uma mensagem de agradecimento confirma que a conta foi
-                        regularizada. A cobrança Pix gerada pelo provedor de pagamento usa um e-mail técnico interno
-                        para evitar envio duplicado de cobrança ao cliente, já que a fatura principal é enviada pelo
+                        sistema, o acesso é liberado após a confirmação do banco e uma mensagem de agradecimento
+                        confirma que a conta foi regularizada. Em contratos personalizados, a fatura paga é enviada
+                        pelo VetorOS ao e-mail da empresa após essa confirmação.</p>
+                    <h4>Acesso e preferências no site</h4>
+                    <p>Na tela de entrada, informe e-mail e senha. Use <strong>Mostrar senha</strong> para conferir o
+                        que digitou, <strong>Lembrar de mim</strong> para manter a sessão conforme a configuração do
+                        navegador ou <strong>Esqueceu a senha?</strong> para recuperar o acesso quando essa opção estiver
+                        disponível. A tela de cadastro e a de entrada usam o mesmo painel central de identificação do
                         VetorOS.</p>
+                    <p>No site público, o aviso de cookies permite <strong>Aceitar</strong> ou <strong>Recusar</strong>
+                        os cookies opcionais. A navegação por si só não registra aceite. Para rever a escolha, clique
+                        em <strong>Preferências de cookies</strong> no rodapé ou na Política de Privacidade.</p>
                 </section>
 
                 <section id="visao-geral">
@@ -795,6 +809,8 @@
                         <li><strong>Enviar WhatsApp:</strong> envia a mensagem pelo WhatsApp conectado da empresa, a partir de um modelo ou de texto livre.</li>
                         <li><strong>Pesquisar:</strong> filtra por nome, documento ou informação relevante.</li>
                     </ul>
+                    <p>O botão de WhatsApp fica indisponível quando o número cadastrado não tem um formato de celular
+                        válido com DDD. Revise o contato antes de tentar o envio.</p>
                     <p>O saldo pendente do cliente considera ordens entregues ao cliente que ainda possuem valor em
                         aberto. Ordens em orçamento, reparo ou etapas anteriores não devem gerar cobrança pendente na
                         ficha do cliente.</p>
@@ -849,6 +865,10 @@
                     <p>Ao salvar uma OS, o sistema registra dados do cliente, equipamento e serviço. Dependendo do
                         momento do fluxo, ele também pode gerar histórico de status, registrar logs operacionais e
                         disparar comunicações ao cliente.</p>
+                    <p>O técnico responsável pode ficar em branco enquanto a OS está <strong>aberta</strong>. Para
+                        salvar a ordem em outra etapa, selecione um técnico. Se houver erros ao criar ou editar uma
+                        OS, a tela destaca os campos, mostra um aviso com a quantidade de correções e leva o foco ao
+                        primeiro campo que precisa de revisão.</p>
                     <p>Por padrão, usuários com perfil de técnico visualizam apenas as ordens atribuídas a eles. Quando
                         a empresa precisar que um técnico acompanhe toda a operação técnica, o administrador pode
                         habilitar a opção <strong>Técnico master</strong> no cadastro do usuário. Com essa opção ativa,
@@ -949,10 +969,9 @@
                         <li><strong>Enviar acompanhamento:</strong> dispara contato manual de orçamento.</li>
                         <li><strong>Enviar lembrete de cobrança:</strong> registra e envia uma cobrança manual ao cliente.</li>
                         <li><strong>Nota fiscal:</strong> emite a NFS-e da OS pelo sistema, quando a emissão automática está liberada, ou registra manualmente a nota emitida fora do VetorOS.</li>
-                        <li><strong>Enviar atualização ao cliente:</strong> publica um recado no acompanhamento público da OS e, se o cliente tiver e-mail válido e o SMTP estiver configurado, envia o recado por e-mail.</li>
                         <li><strong>Imprimir recibo:</strong> abre a versão de impressão do comprovante da ordem.</li>
                         <li><strong>Visualizar detalhes:</strong> exibe histórico, pagamentos e dados operacionais.</li>
-                        <li><strong>Mais ações:</strong> reúne acompanhamento público, recibo, imagens, cobrança de
+                        <li><strong>Mais ações:</strong> reúne recibo, imagens, cobrança de
                             orçamento, emissão fiscal e exclusão, conforme as permissões do usuário.</li>
                     </ul>
                     <h4>6.2 O que acontece por trás</h4>
@@ -961,12 +980,11 @@
                         <li>Logs operacionais ajudam a identificar ações importantes como envio de acompanhamento, cobrança e confirmações do cliente.</li>
                         <li>Uma OS só é registrada como retorno quando a equipe marca essa opção e seleciona a OS de origem.</li>
                         <li>O sistema permite selecionar apenas uma OS entregue, do mesmo cliente e equipamento, com garantia ativa.</li>
-                        <li>Quando o cliente interage no portal público, a OS também recebe atualização e registro de log.</li>
                     </ul>
                     <h4>6.3 Quando o status muda, o sistema pode fazer isto</h4>
                     <ul>
                         <li><strong>Ordem aberta:</strong> inicia o histórico da OS e pode permitir comunicação inicial com o cliente.</li>
-                        <li><strong>Orçamento gerado:</strong> deixa a ordem elegível para aprovação pública e para acompanhamento comercial.</li>
+                        <li><strong>Orçamento gerado:</strong> deixa a ordem elegível para acompanhamento comercial.</li>
                         <li><strong>Orçamento aprovado:</strong> libera a continuidade do serviço e ajuda a medir conversão.</li>
                         <li><strong>Serviço concluído:</strong> prepara o fluxo de aviso ao cliente e retirada.</li>
                         <li><strong>Cliente avisado / aguardando retirada:</strong> pode acionar lembretes e registros de confirmação.</li>
@@ -1161,12 +1179,11 @@
                     <h3>8. Orçamentos</h3>
                     <p>O módulo de orçamentos permite criar, editar, excluir e imprimir propostas. Em muitas operações,
                         ele é parte do fluxo da ordem de serviço e pode anteceder a aprovação do cliente.</p>
-                    <p>Quando o orçamento é gerado dentro da OS, o cliente pode aprovar ou reprovar pela área pública,
-                        desde que o link da ordem tenha sido compartilhado.</p>
+                    <p>Quando o orçamento é gerado dentro da OS, a equipe pode enviá-lo ao cliente e registrar a
+                        resposta no atendimento.</p>
                     <ul>
                         <li><strong>Gerar orçamento:</strong> registra descrição e valor proposto.</li>
                         <li><strong>Enviar acompanhamento de orçamento:</strong> cobra resposta do cliente e registra o contato.</li>
-                        <li><strong>Aprovação pública:</strong> altera o status da OS quando o cliente responde pelo portal.</li>
                     </ul>
                     <h4>8.1 Quando o cliente responde</h4>
                     <ul>
@@ -1177,7 +1194,6 @@
                     <h4>8.2 Quem usa cada ação</h4>
                     <ul>
                         <li><strong>Administrador e atendente:</strong> geram orçamento, enviam acompanhamento e fazem tratativa comercial.</li>
-                        <li><strong>Cliente final:</strong> aprova ou reprova pelo link público quando o recurso estiver disponível.</li>
                     </ul>
                     <h4>8.3 Campos de seleção</h4>
                     <p>No formulário de orçamento, campos como cliente, equipamento, garantia, marca e modelo usam seleção
@@ -1199,7 +1215,7 @@
                         <li><strong>Enviado, aguardando cliente:</strong> o envio acontece quando a OS entra em Orçamento gerado. A partir daí a versão não muda mais.</li>
                         <li><strong>Substituído por nova versão:</strong> alterar descrição, valor, link ou validade de um orçamento já enviado cria uma nova versão, e a anterior fica no histórico.</li>
                         <li><strong>Aprovado</strong> ou <strong>Recusado:</strong> a resposta fica ligada à versão que o cliente viu. Só uma versão fica aprovada por OS.</li>
-                        <li><strong>Vencido:</strong> a validade terminou sem resposta. O cliente não consegue mais aprovar pela área pública; altere ou reenvie o orçamento para gerar uma nova versão.</li>
+                        <li><strong>Vencido:</strong> a validade terminou sem resposta. Revise a proposta e registre uma nova versão antes de solicitar a aprovação.</li>
                         <li><strong>Anterior ao versionamento:</strong> orçamento criado antes deste recurso, com datas de envio e resposta desconhecidas.</li>
                     </ul>
                     <p>Informe a <strong>Validade do orçamento</strong> ao gerar a proposta. O painel avisa quando há
@@ -1271,54 +1287,23 @@
                     </ul>
                 </section>
 
-                <section id="area-cliente">
-                    <h3>10. Área Do Cliente</h3>
-                    <p>Cada ordem pode gerar um link de acompanhamento com token. Esse link permite que o cliente
-                        acompanhe o andamento do atendimento diretamente no navegador, sem acessar a área
-                        administrativa.</p>
+                <section id="contato-cliente-os">
+                    <h3>10. Contato Com O Cliente Sobre A OS</h3>
+                    <p>A equipe acompanha a ordem dentro do VetorOS e informa o cliente pelos canais de contato da
+                        empresa. Ao comunicar uma mudança importante, confira o número da OS, o status, o orçamento e
+                        os valores antes do envio.</p>
+                    <h4>10.1 Informações para compartilhar</h4>
                     <ul>
-                        <li>Status atual da ordem.</li>
-                        <li>Dados do equipamento.</li>
-                        <li>Informações principais do atendimento.</li>
-                        <li>Resumo financeiro da ordem.</li>
-                        <li>Links para comprovantes, orçamento, pagamentos e nota quando disponíveis.</li>
-                        <li>Acompanhamento online com mais transparência para o cliente.</li>
+                        <li>Identificação da ordem e do equipamento.</li>
+                        <li>Etapa atual do atendimento e próxima ação esperada.</li>
+                        <li>Orçamento vigente, validade e resposta necessária do cliente.</li>
+                        <li>Previsão de conclusão, retirada ou pagamento, conforme o caso.</li>
                     </ul>
-                    <p>Dependendo do status da ordem, o cliente também pode executar ações no próprio painel público:
-                        aprovar ou reprovar orçamento, confirmar o recebimento do aviso de conclusão, confirmar a
-                        retirada do equipamento e deixar avaliação com nota em 5 estrelas e opinião textual.</p>
-                    <h4>10.1 Ações públicas do cliente</h4>
-                    <ul>
-                        <li><strong>Aprovar orçamento:</strong> move a OS para orçamento aprovado quando a etapa permitir. Se o orçamento venceu ou foi substituído por uma versão mais nova, o cliente recebe um aviso e precisa ver a versão atual ou pedir uma nova.</li>
-                        <li><strong>Reprovar orçamento:</strong> registra reprovação e encerra a proposta.</li>
-                        <li><strong>Confirmar aviso:</strong> marca que o cliente recebeu o aviso de conclusão.</li>
-                        <li><strong>Confirmar retirada:</strong> só libera a entrega pública se não houver saldo pendente.</li>
-                        <li><strong>Enviar avaliação:</strong> grava nota e comentário do cliente.</li>
-                    </ul>
-                    <p>Essas ações públicas também geram histórico, logs e podem alimentar indicadores de qualidade e
-                        recuperação de satisfação.</p>
-                    <h4>10.2 O que o sistema registra nessas ações</h4>
-                    <ul>
-                        <li><strong>Aprovação ou reprovação:</strong> grava a resposta do cliente e altera o andamento da ordem.</li>
-                        <li><strong>Confirmação de aviso:</strong> mostra que o cliente tomou ciência de que a ordem está pronta.</li>
-                        <li><strong>Confirmação de retirada:</strong> ajuda a comprovar a finalização pública do fluxo.</li>
-                        <li><strong>Avaliação:</strong> entra nos indicadores de satisfação e pode gerar tratativa se a nota for baixa.</li>
-                    </ul>
-                    <h4>10.3 Quando compartilhar o link</h4>
-                    <p>O ideal é enviar o link logo após a abertura da ordem ou junto da primeira atualização relevante.
-                        Isso reduz consultas repetidas por telefone e melhora a percepção de transparência.</p>
-                    <h4>10.4 Chave de acesso da página pública</h4>
-                    <p>Em <strong>Configurações &gt; Sistema e módulos &gt; Operacionais</strong>, a empresa pode ativar
-                        <strong>Solicitar chave de acesso</strong>. Quando essa proteção estiver ativa, o cliente deverá
-                        informar a chave alfanumérica de 8 caracteres da OS antes de visualizar a página, orçamento,
-                        pagamentos, comprovantes ou enviar respostas.</p>
-                    <ul>
-                        <li>A chave aparece na edição da OS para consulta da equipe.</li>
-                        <li>Os e-mails automáticos que contêm o link também apresentam a chave.</li>
-                        <li>As mensagens de WhatsApp geradas pelo sistema acrescentam a chave abaixo do link.</li>
-                        <li>Após a validação, o navegador permanece autorizado durante a sessão.</li>
-                        <li>Tentativas de acesso são limitadas para reduzir adivinhação de chaves.</li>
-                    </ul>
+                    <h4>10.2 Registro do contato</h4>
+                    <p>Use os recursos de WhatsApp e e-mail disponíveis na OS para avisos e solicitações. A aba
+                        <strong>Comunicação</strong> registra as mensagens relacionadas à ordem e a situação de cada
+                        envio (seção 13.5). Registre a resposta do cliente na tratativa da OS para manter o histórico
+                        do atendimento.</p>
                 </section>
 
                 <section id="acompanhamentos">
@@ -1428,7 +1413,7 @@
                         <strong>Abrir OS</strong> para consultar ou corrigir o atendimento.</p>
                     <h4>12.2 Avaliações</h4>
                     <ul>
-                        <li>Após a entrega, o cliente pode deixar nota e comentário no portal público.</li>
+                        <li>As avaliações recebidas, com nota e comentário, ajudam a acompanhar a satisfação após a entrega.</li>
                         <li>O sistema calcula quantidade de respostas, média de nota e taxa de resposta.</li>
                         <li>Avaliações com nota baixa entram na fila de recuperação.</li>
                     </ul>
@@ -1494,10 +1479,13 @@
                         <strong>Aguardando leitura do QR Code</strong>, <strong>Conectado</strong> e <strong>Falha na
                         conexão</strong>. Use <strong>Desconectar</strong> para encerrar a sessão, por exemplo ao trocar
                         o aparelho da empresa.</p>
+                    <p>Se a sessão for encerrada porque o QR Code não foi lido a tempo, clique novamente em
+                        <strong>Conectar WhatsApp</strong> para gerar um novo código e faça a leitura no celular.</p>
                     <p>Com o WhatsApp conectado, o botão <strong>Enviar WhatsApp</strong> da OS, do cliente e do
-                        agendamento envia a mensagem direto pelo sistema. O envio é recusado quando o WhatsApp não está
-                        conectado, quando o telefone cadastrado é inválido ou quando o número não tem WhatsApp; nesses
-                        casos, a tela informa o motivo.</p>
+                        agendamento encaminha a mensagem pelo sistema. O telefone deve ser um celular com DDD válido;
+                        números fixos não são aceitos. O envio também é recusado quando o WhatsApp não está conectado
+                        ou quando o número não tem WhatsApp; nesses casos, a tela informa o motivo. A confirmação de
+                        encaminhamento não significa que a mensagem já foi entregue: acompanhe a situação de entrega.</p>
                     <h4>13.5 Registro da comunicação na OS</h4>
                     <p>Cada mensagem enviada ao cliente sobre uma OS, por WhatsApp ou e-mail, fica na aba
                         <strong>Comunicação</strong> da OS com data, canal, modelo usado (abertura da OS, orçamento
@@ -2402,23 +2390,35 @@
                         janela de assinatura pendente. Use esse período para confirmar os dados do plano e providenciar
                         o pagamento. Depois do limite informado na própria tela, o acesso pode ser bloqueado até a
                         regularização.</p>
-                    <h4>31.2 Pagamento por Pix</h4>
+                    <h4>31.2 Pagamento da assinatura</h4>
+                    <p>O painel mostra os meios disponíveis para a empresa: Pix, boleto com Pix e cartão. Em contratos
+                        personalizados, confira a cobrança em aberto, a competência, o vencimento e o valor. Em planos,
+                        selecione a renovação desejada. Se o pagamento online estiver indisponível, a tela orienta a
+                        procurar o atendimento da ABrasil Sistemas.</p>
                     <ol>
                         <li>Abra o aviso de assinatura pendente.</li>
-                        <li>Selecione um dos planos disponíveis para a empresa.</li>
-                        <li>Clique em <strong>Gerar Pix</strong>.</li>
-                        <li>Escaneie o QR Code ou copie o código Pix para o aplicativo do banco.</li>
-                        <li>Mantenha a tela aberta enquanto o VetorOS consulta a confirmação do pagamento.</li>
+                        <li>Selecione um plano, se o contrato não tiver uma cobrança personalizada em aberto.</li>
+                        <li>Escolha um dos meios apresentados: <strong>Gerar QR Code Pix</strong>,
+                            <strong>Gerar boleto (com Pix)</strong> ou <strong>Pagar com cartão</strong>.</li>
+                        <li>Para Pix, escaneie o QR Code ou copie o código no aplicativo do banco. Para boleto, use as
+                            instruções geradas. Para cartão, preencha os dados solicitados.</li>
+                        <li>Acompanhe a confirmação no painel. Pix e boleto podem ficar aguardando pagamento ou
+                            compensação; o cartão pode ficar em análise.</li>
                     </ol>
-                    <p>Quando o provedor confirma o pagamento, o sistema atualiza a assinatura e exibe a confirmação
-                        para continuar. A compensação depende da comunicação com o banco e pode não ser instantânea em
-                        situações de indisponibilidade externa.</p>
+                    <p>Se a opção de cobrança automática no cartão estiver disponível, você pode autorizá-la para os
+                        próximos ciclos. A recorrência ativa aparece no painel e pode ser cancelada ali; depois disso,
+                        as próximas cobranças poderão ser pagas por boleto ou Pix.</p>
+                    <p>Quando o banco confirma o pagamento, o sistema atualiza a assinatura e exibe a confirmação para
+                        continuar. A compensação pode levar algum tempo. Para contratos personalizados, a fatura paga
+                        é enviada ao e-mail cadastrado da empresa somente após essa confirmação. Ela pode incluir os
+                        links da nota fiscal de serviço se a nota já estiver autorizada.</p>
                     <h4>31.3 Cuidados</h4>
                     <ul>
                         <li>Confirme o nome e o valor do plano antes de pagar.</li>
                         <li>Não pague novamente enquanto uma cobrança válida estiver aguardando confirmação.</li>
                         <li>Guarde o comprovante bancário até o acesso ser liberado.</li>
                         <li>Se o Pix foi pago e a assinatura não atualizou, envie ao suporte o horário, valor e comprovante, sem compartilhar senhas.</li>
+                        <li>Confira o e-mail cadastrado da empresa para receber a fatura paga do contrato personalizado.</li>
                     </ul>
                 </section>
 
@@ -2486,6 +2486,8 @@
                     <h3>34. Suporte</h3>
                     <p>Em caso de dúvidas de uso, configuração ou melhoria, mantenha este manual atualizado junto da
                         versão instalada do sistema e utilize o canal de suporte definido pela empresa.</p>
+                    <p>Nas páginas públicas, o atendimento por chat aparece pelo widget VetorChat quando ele estiver
+                        configurado. Use o canal de suporte indicado pela empresa se o widget não estiver disponível.</p>
                     <div class="footer-note">
                         Este manual foi pensado para treinamento, implantação, operação diária e apoio gerencial. Sempre
                         que o sistema receber novos fluxos, telas ou automações, o ideal é atualizar também esta página

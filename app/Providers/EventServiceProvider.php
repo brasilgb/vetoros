@@ -122,15 +122,6 @@ class EventServiceProvider extends ServiceProvider
         WhatsappMessageSettingsUpdated::class => [
             RecordWhatsappMessageSettingsUpdatedAudit::class,
         ],
-        OrderCustomerNotificationAcknowledged::class => [
-            RecordOrderCustomerNotificationAcknowledgedLifecycle::class,
-        ],
-        OrderCustomerPickupAcknowledged::class => [
-            RecordOrderCustomerPickupAcknowledgedLifecycle::class,
-        ],
-        OrderCustomerFeedbackSubmitted::class => [
-            RecordOrderCustomerFeedbackSubmittedLifecycle::class,
-        ],
         OrderFeedbackRecoveryUpdated::class => [
             RecordOrderFeedbackRecoveryUpdatedLifecycle::class,
         ],

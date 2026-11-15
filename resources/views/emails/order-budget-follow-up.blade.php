@@ -36,7 +36,7 @@
 
                             <p style="font-size:15px;line-height:1.6;margin:14px 0;">
                                 Seu orçamento da ordem de serviço segue aguardando retorno há {{ $daysPending }} dia(s).
-                                Se desejar, você pode acompanhar e aprovar pelo link abaixo.
+                                Responda este e-mail ou entre em contato com nossa equipe para informar sua decisão.
                             </p>
 
                             <table width="100%" cellpadding="0" cellspacing="0"

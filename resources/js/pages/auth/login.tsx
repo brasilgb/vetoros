@@ -55,7 +55,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 autoComplete="email"
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
-                                placeholder="email@examplo.com"
+                                placeholder="email@exemplo.com"
                                 className="pl-10"
                             />
                         </div>
@@ -89,6 +89,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 className="absolute top-0 right-1"
                                 variant="ghost"
                                 size="icon"
+                                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                                 onClick={() => setShowPassword(!showPassword)}
                             >
                                 {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}

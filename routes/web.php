@@ -47,7 +47,7 @@ Route::get('/nfse-saas/{document}/{format}', SharedSaasFiscalDocumentController:
     ->middleware('throttle:30,1')
     ->name('saas-fiscal-documents.shared');
 // Fotos e assinatura da OS (VETOROS-SECURITY-FIX-01): só por URL assinada e temporária, emitida depois
-// da autorização (tela da OS, API do app ou portal público liberado).
+// da autorização (tela da OS ou API do app).
 Route::get('/files/orders/images/{image}', [OrderFileController::class, 'image'])
     ->whereNumber('image')
     ->middleware(['signed', 'throttle:300,1'])

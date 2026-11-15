@@ -252,6 +252,7 @@ class OrderBudgetVersioningTest extends TestCase
             'budget_description' => 'Troca de tela',
             'budget_value' => $value,
             'service_status' => OrderStatus::BUDGET_GENERATED,
+            'user_id' => $this->user->id,
             ...$overrides,
         ])->assertSessionHasNoErrors();
     }

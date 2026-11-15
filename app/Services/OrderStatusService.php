@@ -148,19 +148,6 @@ class OrderStatusService
         });
     }
 
-    /**
-     * Ação do cliente na área pública que não é, por si só, uma transição de status
-     * (aviso recebido, retirada confirmada). Se a ação provocou mudança de status,
-     * informe o status posterior; a transição em si já gerou seu status_changed.
-     */
-    public function recordCustomerAction(Order $order, string $eventType, int $fromStatus, ?int $toStatus): OrderEvent
-    {
-        return $this->recorder->record($order, $eventType, OrderActor::customer(), [
-            'from_status' => $fromStatus,
-            'to_status' => $toStatus !== $fromStatus ? $toStatus : null,
-        ], ['channel' => 'public_tracking']);
-    }
-
     private function recordLegacyHistory(Order $order, int $status, OrderActor $actor, ?string $reason): void
     {
         OrderStatusHistory::create([

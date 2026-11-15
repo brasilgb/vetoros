@@ -27,7 +27,7 @@ class SaasChargeInvoiceMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Fatura VetorOS - contrato '.$this->charge->contract->contract_number.' - vencimento '.$this->charge->due_date->format('d/m/Y'));
+        return new Envelope(subject: 'Fatura VetorOS paga - contrato '.$this->charge->contract->contract_number);
     }
 
     public function content(): Content

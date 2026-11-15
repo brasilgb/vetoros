@@ -1,4 +1,4 @@
-import { toastSuccess } from '@/components/app-toast-messages';
+import { toastSuccess, toastWarning } from '@/components/app-toast-messages';
 import AsyncResourceSelect from '@/components/async-resource-select';
 import { DatePicker } from '@/components/date-picker';
 import FormFieldHelp from '@/components/form-field-help';
@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useOrderContextOptions } from '@/hooks/use-order-context-options';
 import AppLayout from '@/layouts/app-layout';
+import { focusFirstInvalidField } from '@/lib/form-errors';
 import { formatBRL, fromCents, multiplyMoney, normalizeMoney, sumMoney, toCents } from '@/lib/money';
 import { BreadcrumbItem, OptionType, type Order, type PageProps, type User } from '@/types';
 import { statusServico } from '@/Utils/dataSelect';
@@ -25,7 +26,7 @@ import selectStyles from '@/Utils/selectStyles';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Copy, FileTextIcon, Mail, MessageSquareText, Printer, Save, Wrench, X } from 'lucide-react';
 import moment from 'moment';
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import Select from 'react-select';
 import AddPartsModal from './add-parts';
 import CustomerEquipmentField, { customerEquipmentLabel, type CustomerEquipmentOption } from './customer-equipment-field';
@@ -358,12 +359,20 @@ export default function EditOrder({
         });
     };
 
+    const formRef = useRef<HTMLFormElement>(null);
+
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         patch(route('app.orders.update', { order: order.id, page, search, status, filter }), {
+            preserveScroll: true,
             onSuccess: () => {
                 setPartsData([]);
+            },
+            onError: (validationErrors) => {
+                toastWarning('Revise os campos destacados', `${Object.keys(validationErrors).length} campo(s) precisam de correção.`);
+                // Espera o erro ser renderizado no campo antes de focar.
+                requestAnimationFrame(() => focusFirstInvalidField(formRef.current));
             },
         });
     };
@@ -583,7 +592,7 @@ export default function EditOrder({
 
             <div className="p-4">
                 <div className="rounded-lg border p-2">
-                    <form onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
+                    <form ref={formRef} onSubmit={handleSubmit} autoComplete="off" className="space-y-8">
                         <div className="bg-background flex flex-col gap-2 rounded-lg p-4 shadow-sm">
                             <div className="flex items-center gap-2">
                                 <span className="text-foreground text-2xl font-bold tracking-tight">Ordem N° {order.order_number}</span>
@@ -1260,8 +1269,7 @@ export default function EditOrder({
                 <DialogContent className="max-w-md">
                     <DialogTitle>Enviar atualização ao cliente</DialogTitle>
                     <p className="text-muted-foreground text-sm">
-                        Essa mensagem fica visível na página pública de acompanhamento da ordem e, se possível, também é enviada por e-mail ao
-                        cliente.
+                        Esta mensagem é enviada por e-mail ao cliente quando o endereço e o SMTP da empresa estão configurados.
                     </p>
                     <form onSubmit={handleSendCustomerUpdate} className="space-y-3">
                         <Textarea

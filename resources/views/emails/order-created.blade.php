@@ -29,7 +29,7 @@
                                 {{ $companyName }}
                             </p>
                             <p style="margin:6px 0 0 0;color:#cbd5f5;font-size:13px;">
-                                Acompanhamento da sua ordem de serviço
+                                Informações da sua ordem de serviço
                             </p>
                         </td>
                     </tr>

@@ -8,6 +8,7 @@ use App\Models\App\WhatsappConnection;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -83,7 +84,7 @@ class WhatsAppSendControllerTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'O WhatsApp desta empresa está desconectado. Reconecte-o nas configurações.');
+        $response->assertSessionHas('error', 'O WhatsApp da empresa está desconectado.');
 
         Http::assertNothingSent();
         $this->assertDatabaseMissing('order_logs', [
@@ -105,7 +106,7 @@ class WhatsAppSendControllerTest extends TestCase
             'message' => 'Olá!',
         ]);
 
-        $response->assertSessionHas('error', 'Número de WhatsApp inválido.');
+        $response->assertSessionHas('error', 'Confira o número de WhatsApp cadastrado para este cliente.');
         Http::assertNothingSent();
     }
 
@@ -157,7 +158,42 @@ class WhatsAppSendControllerTest extends TestCase
             'message' => 'Bom dia!',
         ]);
 
-        $response->assertSessionHas('error', 'O WhatsApp desta empresa está desconectado. Reconecte-o nas configurações.');
+        $response->assertSessionHas('error', 'O WhatsApp da empresa está desconectado.');
+        Http::assertNothingSent();
+    }
+
+    public function test_customer_whatsapp_send_returns_friendly_error_when_waha_times_out(): void
+    {
+        $this->connectedSession();
+
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create(['whatsapp' => '51999999999']);
+
+        Http::fake([
+            'waha.test/api/contacts/check-exists*' => fn () => throw new ConnectionException('Operation timed out'),
+        ]);
+
+        $response = $this->post(route('app.customers.whatsapp.send', $customer), [
+            'message' => 'Bom dia!',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error', 'Não foi possível enviar a mensagem. Tente novamente.');
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/api/sendText'));
+    }
+
+    public function test_customer_whatsapp_send_rejects_landline_number_before_calling_waha(): void
+    {
+        $this->connectedSession();
+
+        $customer = Customer::factory()->forTenant($this->tenant->id)->create(['whatsapp' => '5132221100']);
+
+        Http::fake();
+
+        $response = $this->post(route('app.customers.whatsapp.send', $customer), [
+            'message' => 'Bom dia!',
+        ]);
+
+        $response->assertSessionHas('error', 'Confira o número de WhatsApp cadastrado para este cliente.');
         Http::assertNothingSent();
     }
 }

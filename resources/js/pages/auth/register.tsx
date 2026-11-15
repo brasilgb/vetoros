@@ -55,7 +55,7 @@ export default function Register({ initialData = {} }: { initialData?: Partial<P
     return (
         <AuthLayout width="w-full max-w-4xl" title="Criar uma conta" description="Digite seus dados abaixo para criar sua conta">
             <Head title="Criar uma conta" />
-            <div className="scrollbar-hide hover:scrollbar-default max-h-[72svh] min-w-0 overflow-y-auto sm:max-h-[76svh]">
+            <div className="min-w-0">
                 <form className="flex flex-col gap-6" onSubmit={submit}>
                     <div className="grid gap-6 md:grid-cols-3">
                         <div className="grid gap-2 md:col-span-2">

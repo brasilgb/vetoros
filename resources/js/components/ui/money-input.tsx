@@ -153,8 +153,10 @@ function MoneyInput({
 
     const errorId = error && id ? `${id}-error` : undefined;
 
+    // self-start: em grids que esticam a linha (ex.: ao lado de um Textarea), o wrapper não pode crescer,
+    // senão o "R$" centralizado fica abaixo do centro do input.
     return (
-        <div className="relative w-full">
+        <div className="relative w-full self-start">
             {showPrefix && (
                 <span aria-hidden="true" className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
                     R$

@@ -29,11 +29,18 @@ function maskWhatsApp(value: string): string {
     return onlyDigits(value).slice(0, 13);
 }
 
+// Espelha App\Support\WhatsAppPhone: números nacionais (10 ou 11 dígitos) recebem o DDI 55.
 function normalizeWhatsappPhone(value: unknown): string {
-    let digits = onlyDigits(value);
-    if (!digits) return '';
-    if (!digits.startsWith('55')) digits = `55${digits}`;
+    const digits = onlyDigits(value);
+    if (digits.length >= 10 && digits.length <= 11) return `55${digits}`;
     return digits;
+}
+
+// DDD de 11 a 99; celular com 9 dígitos começando com 9, ou formato antigo de 8 dígitos começando com 6 a 9.
+function isValidWhatsappPhone(value: unknown): boolean {
+    const digits = normalizeWhatsappPhone(value);
+    if (!digits.startsWith('55')) return false;
+    return /^[1-9][1-9](9\d{8}|[6-9]\d{7})$/.test(digits.slice(2));
 }
 
 function maskDate(value: string): string {
@@ -109,4 +116,4 @@ function createSlug(title: string): string {
     return '';
 }
 
-export { createSlug, maskCep, maskCnpj, maskCpfCnpj, maskDate, maskPhone, maskWhatsApp, normalizeWhatsappPhone, unMasCpfCnpj, unMask };
+export { createSlug, isValidWhatsappPhone, maskCep, maskCnpj, maskCpfCnpj, maskDate, maskPhone, maskWhatsApp, normalizeWhatsappPhone, unMasCpfCnpj, unMask };

@@ -197,7 +197,7 @@ class SaasCommercialContractTest extends TestCase
         $this->assertSame('2026-10-20', $charge->due_date->toDateString());
         $this->assertSame($cycleEnd, $charge->cycle_end->toDateString());
         $this->assertSame(Carbon::parse($cycleEnd)->addDay()->toDateString(), $contract->refresh()->next_due_date->toDateString());
-        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->hasTo('cliente@example.test') && $mail->links === null);
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
     }
 
     public function test_amount_validation_rejects_invalid_values(): void
@@ -278,7 +278,7 @@ class SaasCommercialContractTest extends TestCase
 
     // ---- 8. Idempotência ---------------------------------------------------
 
-    public function test_repeated_processing_does_not_duplicate_charges_or_invoices(): void
+    public function test_repeated_processing_does_not_duplicate_charges_or_send_invoices_before_payment(): void
     {
         $this->activate();
         $this->process();
@@ -286,7 +286,7 @@ class SaasCommercialContractTest extends TestCase
         app(SaasContractService::class)->generateCharge($this->tenant->commercialContract);
 
         $this->assertCount(1, $this->charges());
-        Mail::assertSent(SaasChargeInvoiceMail::class, 1);
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
     }
 
     // ---- 9. Pagamento integrado (PIX) e manual -----------------------------
@@ -305,9 +305,11 @@ class SaasCommercialContractTest extends TestCase
 
         // Webhook repetido com o mesmo evento não reprocessa.
         $this->pixWebhook($payment->payment_id, 'E2EPAGAMENTO0001')->assertOk()->assertJson(['queued' => 0]);
+        Mail::assertSent(SaasChargeInvoiceMail::class, 1);
 
         $charge->refresh();
         $this->assertSame('paid', $charge->status);
+        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->hasTo('cliente@example.test') && $mail->charge->is($charge));
         $this->assertSame('efi_pix', $charge->payment_method);
         $this->assertSame($payment->id, (int) $charge->payment_id);
         $this->assertSame(1, FiscalAdminAudit::query()->where('action', 'commercial.charge_paid')->count());
@@ -358,7 +360,7 @@ class SaasCommercialContractTest extends TestCase
 
     // ---- 11-13. Emissão fiscal ----------------------------------------------
 
-    public function test_fiscal_disabled_sends_only_invoice(): void
+    public function test_fiscal_disabled_sends_invoice_only_after_payment(): void
     {
         $this->issuer();
         $this->activate();
@@ -367,6 +369,8 @@ class SaasCommercialContractTest extends TestCase
 
         $this->assertSame(0, AdminFiscalDocument::query()->count());
         Http::assertNothingSent();
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
+        app(SaasContractService::class)->registerPayment($this->charges()->sole(), '1200.00', 'manual');
         Mail::assertSent(SaasChargeInvoiceMail::class, 1);
         Mail::assertNotSent(SaasFiscalNoticeMail::class);
     }
@@ -437,7 +441,7 @@ class SaasCommercialContractTest extends TestCase
 
     // ---- 14-16. Comunicação -----------------------------------------------
 
-    public function test_invoice_goes_first_and_fiscal_notice_only_after_authorization(): void
+    public function test_invoice_follows_payment_and_fiscal_notice_follows_authorization(): void
     {
         $this->activate();
         $this->enableFiscal();
@@ -447,8 +451,11 @@ class SaasCommercialContractTest extends TestCase
 
         $document = AdminFiscalDocument::query()->sole();
         $this->assertSame('processing', $document->status);
-        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->links === null);
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
         Mail::assertNotSent(SaasFiscalNoticeMail::class);
+
+        app(SaasContractService::class)->registerPayment($this->charges()->sole(), '1200.00', 'manual');
+        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->links === null);
 
         // Antes da autorização o link não entrega arquivo.
         $this->get(URL::temporarySignedRoute('saas-fiscal-documents.shared', now()->addDay(), ['document' => $document->id, 'format' => 'pdf']))->assertNotFound();
@@ -493,6 +500,8 @@ class SaasCommercialContractTest extends TestCase
         $charge = $this->charges()->sole();
 
         $this->actingAs($this->root)->post(route('admin.tenants.charges.resend-fiscal', [$this->tenant, $charge]))->assertSessionHas('success');
+        $this->actingAs($this->root)->post(route('admin.tenants.charges.resend-invoice', [$this->tenant, $charge]))->assertSessionHas('error');
+        app(SaasContractService::class)->registerPayment($charge, '1200.00', 'manual');
         $this->actingAs($this->root)->post(route('admin.tenants.charges.resend-invoice', [$this->tenant, $charge]))->assertSessionHas('success');
         $this->actingAs($this->root)->post(route('admin.tenants.charges.emit', [$this->tenant, $charge]))->assertSessionHas('error');
         $this->process();
@@ -518,7 +527,7 @@ class SaasCommercialContractTest extends TestCase
         $this->assertSame('pending', $charge->status);
         $this->assertSame('failed', AdminFiscalDocument::query()->sole()->status);
         $this->assertSame('2026-10-20', $this->tenant->refresh()->expires_at->toDateString());
-        Mail::assertSent(SaasChargeInvoiceMail::class, 1);
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
     }
 
     public function test_smtp_failure_keeps_invoice_and_fiscal_document(): void
@@ -534,6 +543,7 @@ class SaasCommercialContractTest extends TestCase
         $this->assertSame('pending', $charge->status);
         $this->assertNull($charge->invoice_sent_at);
         $this->assertSame('authorized', AdminFiscalDocument::query()->sole()->status);
+        app(SaasContractService::class)->registerPayment($charge, '1200.00', 'manual');
         $this->assertDatabaseHas('tenant_subscription_charge_deliveries', ['kind' => 'invoice', 'status' => 'failed', 'error' => 'SMTP fora do ar']);
         $this->assertDatabaseHas('admin_fiscal_document_deliveries', ['status' => 'failed']);
 
@@ -659,7 +669,7 @@ class SaasCommercialContractTest extends TestCase
         $this->assertSame($mine->id, app(SaasContractService::class)->openChargeFor($this->tenant->refresh())->id);
         $this->actingAs($this->root)->get(route('admin.tenants.show', $this->tenant))
             ->assertInertia(fn (AssertableInertia $page) => $page->has('commercial.charges', 1)->where('commercial.charges.0.id', $mine->id));
-        Mail::assertSent(SaasChargeInvoiceMail::class, fn ($mail) => $mail->hasTo('outro@example.test') && $mail->charge->is($theirs));
+        Mail::assertNotSent(SaasChargeInvoiceMail::class);
     }
 
     public function test_tenant_with_contract_history_cannot_be_deleted(): void

@@ -1,7 +1,7 @@
 import { toastWarning } from '@/components/app-toast-messages';
 import { formatBRL } from '@/lib/money';
 import { withoutRemovedPlaceholders } from '@/lib/whatsapp-template';
-import { normalizeWhatsappPhone } from '@/Utils/mask';
+import { isValidWhatsappPhone } from '@/Utils/mask';
 import { router } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -312,10 +312,8 @@ export const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
     const handleClick = () => {
         if (!phone || !canSend || isDisabled) return;
 
-        const cleanPhone = normalizeWhatsappPhone(phone);
-
-        if (cleanPhone.length < 12) {
-            toastWarning('Número de WhatsApp inválido para envio.');
+        if (!isValidWhatsappPhone(phone)) {
+            toastWarning('Confira o número de WhatsApp cadastrado para este cliente.');
             return;
         }
 
