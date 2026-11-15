@@ -22,7 +22,6 @@ export const TEMPLATE_VARIABLE_GROUPS: TemplateVariableGroup[] = [
         variables: [
             { tag: 'cliente', description: 'Nome do cliente.' },
             { tag: 'ordem', description: 'Número da ordem de serviço.' },
-            { tag: 'link_os', description: 'Link para o cliente acompanhar a O.S.' },
             { tag: 'saudacao', description: 'Saudação conforme o horário, como “Bom dia”, “Boa tarde” ou “Boa noite”.' },
         ],
     },

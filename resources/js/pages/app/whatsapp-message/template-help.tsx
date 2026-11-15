@@ -75,12 +75,12 @@ export function TemplateHelpContent() {
                 <div className="bg-muted/40 rounded-md p-3">
                     <p className="text-muted-foreground text-xs">No template</p>
                     <code className="block break-words">
-                        {'{{ saudacao }}, {{ cliente }}! Você pode acompanhar a O.S. {{ ordem }} por aqui: {{ link_os }}'}
+                        {'{{ saudacao }}, {{ cliente }}! Sua O.S. {{ ordem }} foi concluída. Qualquer dúvida, responda esta mensagem.'}
                     </code>
                 </div>
                 <div className="bg-muted/40 rounded-md p-3">
                     <p className="text-muted-foreground text-xs">Na mensagem</p>
-                    <p className="break-words">Bom dia, Ana! Você pode acompanhar a O.S. 1234 por aqui: https://exemplo.com/os/1234</p>
+                    <p className="break-words">Bom dia, Ana! Sua O.S. 1234 foi concluída. Qualquer dúvida, responda esta mensagem.</p>
                 </div>
             </section>
 
