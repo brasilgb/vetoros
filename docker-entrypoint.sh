@@ -7,4 +7,8 @@ cp -a /opt/public-build/. /var/www/html/public/build/
 php artisan optimize >/dev/null 2>&1 || echo "infra-entrypoint: aviso: php artisan optimize falhou; seguindo sem cache" >&2
 # O entrypoint roda como root; os processos do FPM (www-data) precisam ler e regravar os caches.
 chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/storage/framework 2>/dev/null || true
+# Uploads gravados direto em public/storage (logos, avatares, agenda). A pasta é montada do
+# host (o nginx serve dali) e precisa aceitar escrita do FPM, senão o upload dá erro 500.
+mkdir -p /var/www/html/public/storage/logos /var/www/html/public/storage/avatars /var/www/html/public/storage/schedules
+chown -R www-data:www-data /var/www/html/public/storage 2>/dev/null || true
 exec "$@"

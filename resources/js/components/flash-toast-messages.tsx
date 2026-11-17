@@ -61,7 +61,7 @@ function friendlyErrorForStatus(status?: number) {
 
     return {
         title: 'Operação não concluída',
-        description: 'Não foi possível concluir esta operação agora. Verifique sua conexão e tente novamente.',
+        description: 'Ocorreu um erro interno no servidor. Tente novamente em instantes e, se persistir, contate o suporte.',
     };
 }
 

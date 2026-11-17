@@ -142,7 +142,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return redirect()
                     ->back()
                     ->withInput($request->except(['password', 'password_confirmation', 'current_password']))
-                    ->with('error', 'Não foi possível concluir esta operação agora. Verifique sua conexão e tente novamente.');
+                    ->with('error', 'Ocorreu um erro interno no servidor. Tente novamente em instantes e, se persistir, contate o suporte.');
             }
 
             return $response;
