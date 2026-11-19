@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { buildMessage, type WhatsappBudgetDetails } from '@/components/WhatsAppButtonProps';
 import AppLayout from '@/layouts/app-layout';
 import { formatBRL } from '@/lib/money';
@@ -53,6 +54,7 @@ type CustomerWhatsappOption = {
 };
 
 const DEFAULT_WHATSAPP_OPTION: CustomerWhatsappOption = { key: 'default', label: 'Mensagem padrão', context: 'default' };
+const CUSTOM_MESSAGE_MAX_LENGTH = 2000;
 
 export default function Customers({ customers, search, pending, whats }: any) {
     const { auth } = usePage().props as any;
@@ -60,6 +62,8 @@ export default function Customers({ customers, search, pending, whats }: any) {
     const [deleteCustomer, setDeleteCustomer] = useState<{ id: number; name: string } | null>(null);
     const [sendingWhatsappId, setSendingWhatsappId] = useState<number | null>(null);
     const [selectedWhatsappOption, setSelectedWhatsappOption] = useState<Record<number, string>>({});
+    const [customWhatsappMode, setCustomWhatsappMode] = useState<Record<number, boolean>>({});
+    const [customWhatsappMessage, setCustomWhatsappMessage] = useState<Record<number, string>>({});
     const canManageCustomers = auth?.permissions?.includes('customers');
 
     // Mesma regra do backend: usa o WhatsApp do cliente e, se ele não for válido, o telefone.
@@ -71,6 +75,27 @@ export default function Customers({ customers, search, pending, whats }: any) {
     ];
 
     const handleSendWhatsapp = (customer: any) => {
+        const isCustom = customWhatsappMode[customer.id] ?? false;
+        const message = isCustom ? (customWhatsappMessage[customer.id] ?? '').trim() : buildTemplateMessage(customer);
+
+        if (!message) return;
+
+        router.post(
+            route('app.customers.whatsapp.send', customer.id),
+            { message },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onStart: () => setSendingWhatsappId(customer.id),
+                onSuccess: (page) => {
+                    if (isCustom && !(page.props as any)?.flash?.error) setCustomWhatsappMessage((prev) => ({ ...prev, [customer.id]: '' }));
+                },
+                onFinish: () => setSendingWhatsappId(null),
+            },
+        );
+    };
+
+    const buildTemplateMessage = (customer: any): string => {
         const options = whatsappOptionsFor(customer);
         const option = options.find((o) => o.key === (selectedWhatsappOption[customer.id] ?? 'default')) ?? DEFAULT_WHATSAPP_OPTION;
 
@@ -86,18 +111,7 @@ export default function Customers({ customers, search, pending, whats }: any) {
             whats,
         });
 
-        if (!message.trim()) return;
-
-        router.post(
-            route('app.customers.whatsapp.send', customer.id),
-            { message },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onStart: () => setSendingWhatsappId(customer.id),
-                onFinish: () => setSendingWhatsappId(null),
-            },
-        );
+        return message.trim();
     };
 
     return (
@@ -189,7 +203,10 @@ export default function Customers({ customers, search, pending, whats }: any) {
                                                             className="bg-green-500 text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
                                                             title="Enviar WhatsApp"
                                                             aria-label={`Enviar WhatsApp para ${customer.name}`}
-                                                            disabled={!isValidWhatsappPhone(whatsappNumberFor(customer)) || sendingWhatsappId === customer.id}
+                                                            disabled={
+                                                                !isValidWhatsappPhone(whatsappNumberFor(customer)) ||
+                                                                sendingWhatsappId === customer.id
+                                                            }
                                                         >
                                                             {sendingWhatsappId === customer.id ? (
                                                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -210,29 +227,67 @@ export default function Customers({ customers, search, pending, whats }: any) {
                                                     <PopoverContent align="end" className="w-72 space-y-3">
                                                         <div className="space-y-1">
                                                             <p className="text-sm font-medium">Enviar WhatsApp</p>
-                                                            <p className="text-muted-foreground text-xs">Escolha a mensagem para {customer.name}.</p>
+                                                            <p className="text-muted-foreground text-xs">
+                                                                {customWhatsappMode[customer.id]
+                                                                    ? `Digite a mensagem para ${customer.name}.`
+                                                                    : `Escolha a mensagem para ${customer.name}.`}
+                                                            </p>
                                                         </div>
-                                                        <Select
-                                                            value={selectedWhatsappOption[customer.id] ?? 'default'}
-                                                            onValueChange={(value) =>
-                                                                setSelectedWhatsappOption((prev) => ({ ...prev, [customer.id]: value }))
+                                                        {customWhatsappMode[customer.id] ? (
+                                                            <div className="space-y-1">
+                                                                <Textarea
+                                                                    autoFocus
+                                                                    rows={5}
+                                                                    maxLength={CUSTOM_MESSAGE_MAX_LENGTH}
+                                                                    placeholder="Digite sua mensagem..."
+                                                                    value={customWhatsappMessage[customer.id] ?? ''}
+                                                                    onChange={(e) =>
+                                                                        setCustomWhatsappMessage((prev) => ({
+                                                                            ...prev,
+                                                                            [customer.id]: e.target.value,
+                                                                        }))
+                                                                    }
+                                                                />
+                                                                <p className="text-muted-foreground text-right text-xs">
+                                                                    {(customWhatsappMessage[customer.id] ?? '').length}/{CUSTOM_MESSAGE_MAX_LENGTH}
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <Select
+                                                                value={selectedWhatsappOption[customer.id] ?? 'default'}
+                                                                onValueChange={(value) =>
+                                                                    setSelectedWhatsappOption((prev) => ({ ...prev, [customer.id]: value }))
+                                                                }
+                                                            >
+                                                                <SelectTrigger className="w-full">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {whatsappOptionsFor(customer).map((option) => (
+                                                                        <SelectItem key={option.key} value={option.key}>
+                                                                            {option.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            className="text-primary text-xs font-medium underline-offset-4 hover:underline"
+                                                            onClick={() =>
+                                                                setCustomWhatsappMode((prev) => ({ ...prev, [customer.id]: !prev[customer.id] }))
                                                             }
                                                         >
-                                                            <SelectTrigger className="w-full">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {whatsappOptionsFor(customer).map((option) => (
-                                                                    <SelectItem key={option.key} value={option.key}>
-                                                                        {option.label}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            {customWhatsappMode[customer.id] ? 'Usar mensagem pronta' : 'Mensagem personalizada'}
+                                                        </button>
                                                         <Button
                                                             type="button"
                                                             className="w-full"
-                                                            disabled={sendingWhatsappId === customer.id}
+                                                            disabled={
+                                                                sendingWhatsappId === customer.id ||
+                                                                (!!customWhatsappMode[customer.id] &&
+                                                                    !(customWhatsappMessage[customer.id] ?? '').trim())
+                                                            }
                                                             onClick={() => handleSendWhatsapp(customer)}
                                                         >
                                                             {sendingWhatsappId === customer.id ? (
