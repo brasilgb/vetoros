@@ -461,8 +461,8 @@
             <p>Manual do cliente com foco operacional, financeiro e de configuração do sistema.</p>
 
             <div class="meta">
-                <div><strong>Versão do manual</strong>2.4</div>
-                <div><strong>Atualizado em</strong>15 de novembro de 2026</div>
+                <div><strong>Versão do manual</strong>2.5</div>
+                <div><strong>Atualizado em</strong>19 de novembro de 2026</div>
                 <div><strong>Formato</strong>HTML navegável</div>
             </div>
 
@@ -560,6 +560,14 @@
                     do pagamento, opções de Pix, boleto e cartão, acesso com senha visível sob demanda, escolha de
                     cookies opcionais no site, orientação para renovar o QR Code do WhatsApp e avisos mais claros ao
                     corrigir dados em formulários.
+                </div>
+                <div class="callout">
+                    <strong>Novidades da versão 2.5 do manual:</strong> a página pública de acompanhamento da OS foi
+                    removida, e o cliente passa a ser informado e a responder pelos canais de contato da empresa
+                    (WhatsApp e e-mail); os modelos de mensagem não trazem mais link de acompanhamento; na lista de
+                    clientes, o envio de WhatsApp ganhou a opção <strong>Mensagem personalizada</strong>, para digitar
+                    e enviar um texto livre; e o chat de vendas aparece só na página inicial do site, não ficando mais
+                    visível dentro do sistema após o login.
                 </div>
 
                 <section id="introducao">
@@ -806,37 +814,54 @@
                         <li><strong>Novo cliente:</strong> abre o formulário de cadastro.</li>
                         <li><strong>Editar:</strong> atualiza dados cadastrais e observações.</li>
                         <li><strong>Excluir:</strong> remove o cadastro quando não houver vínculo impeditivo.</li>
-                        <li><strong>Enviar WhatsApp:</strong> envia a mensagem pelo WhatsApp conectado da empresa, a partir de um modelo ou de texto livre.</li>
+                        <li><strong>Enviar WhatsApp:</strong> envia a mensagem pelo WhatsApp conectado da empresa, a partir de um modelo ou de texto livre (seção 5.3).</li>
                         <li><strong>Pesquisar:</strong> filtra por nome, documento ou informação relevante.</li>
                     </ul>
                     <p>O botão de WhatsApp fica indisponível quando o número cadastrado não tem um formato de celular
                         válido com DDD. Revise o contato antes de tentar o envio.</p>
+                    <h4>5.3 Enviar WhatsApp pela lista de clientes</h4>
+                    <p>Clique no ícone verde do WhatsApp na linha do cliente. Abre-se uma janela com duas formas de
+                        envio:</p>
+                    <ul>
+                        <li><strong>Mensagem pronta:</strong> escolha na lista a <strong>Mensagem padrão</strong> ou uma
+                            mensagem ligada a uma OS do cliente (por exemplo, acompanhamento de orçamento, orçamento
+                            aprovado ou cobrança pendente) e clique em <strong>Enviar</strong>. O texto é montado a
+                            partir dos modelos configurados (seção 13.1).</li>
+                        <li><strong>Mensagem personalizada:</strong> clique no link <strong>Mensagem
+                            personalizada</strong>, digite o texto (até 2.000 caracteres, com contador abaixo do campo) e
+                            clique em <strong>Enviar</strong>. É enviado apenas o texto digitado, sem modelo nem
+                            variáveis. O botão Enviar só fica ativo quando há texto.</li>
+                    </ul>
+                    <p>Para voltar à lista de mensagens prontas, clique em <strong>Usar mensagem pronta</strong>. Depois
+                        de um envio bem-sucedido o campo da mensagem personalizada é limpo; se o envio falhar (por
+                        exemplo, com o WhatsApp da empresa desconectado), o texto continua no campo para uma nova
+                        tentativa. Acompanhe o status de entrega pelo aviso exibido após o envio.</p>
                     <p>O saldo pendente do cliente considera ordens entregues ao cliente que ainda possuem valor em
                         aberto. Ordens em orçamento, reparo ou etapas anteriores não devem gerar cobrança pendente na
                         ficha do cliente.</p>
-                    <h4>5.3 O que acontece ao clicar nos botões</h4>
+                    <h4>5.4 O que acontece ao clicar nos botões</h4>
                     <ul>
                         <li><strong>Salvar cliente:</strong> grava os dados e deixa o cadastro disponível para OS, agendamentos, vendas e consultas futuras.</li>
                         <li><strong>Editar:</strong> altera informações que passam a valer em novos atendimentos e consultas posteriores.</li>
                         <li><strong>Excluir:</strong> só deve ser usado quando o cadastro foi criado por engano e não há histórico importante vinculado.</li>
-                        <li><strong>WhatsApp:</strong> ajuda a iniciar contato já com o telefone do cliente preenchido.</li>
+                        <li><strong>WhatsApp:</strong> envia uma mensagem pronta ou personalizada direto para o WhatsApp do cliente, pelo número conectado da empresa.</li>
                     </ul>
-                    <h4>5.4 Quem pode usar cada ação</h4>
+                    <h4>5.5 Quem pode usar cada ação</h4>
                     <ul>
                         <li><strong>Administrador:</strong> normalmente pode cadastrar, editar e excluir.</li>
                         <li><strong>Atendente:</strong> costuma cadastrar, editar e consultar.</li>
                         <li><strong>Técnico:</strong> em geral consulta dados, mas a permissão depende da configuração da empresa.</li>
                     </ul>
-                    <h4>5.5 Importação em lote</h4>
+                    <h4>5.6 Importação em lote</h4>
                     <p>Quando a empresa já possui uma base anterior, a importação por CSV ajuda a acelerar a
                         implantação e reduzir retrabalho de cadastro manual.</p>
-                    <h4>5.6 Vetor Atendimento</h4>
+                    <h4>5.7 Vetor Atendimento</h4>
                     <p>O Vetor Atendimento foi pensado para ações rápidas fora da tela principal do sistema, como
                         cadastrar clientes, consultar orçamentos e usar a funcionalidade
                         <strong>Assinatura no app para entrada de equipamentos</strong> em uma OS já aberta.
                         Ele usa o mesmo ambiente do VetorOS e ajuda a equipe de recepção a reduzir tempo em tarefas
                         simples da rotina.</p>
-                    <h4>5.7 Equipamentos do cliente</h4>
+                    <h4>5.8 Equipamentos do cliente</h4>
                     <p>Na edição do cliente, a aba <strong>Equipamentos</strong> lista os aparelhos daquele cliente
                         com tipo, marca, modelo, número de série, IMEI, acessórios, observações e situação. Use
                         <strong>Novo equipamento</strong> para cadastrar e <strong>Editar equipamento</strong> para
@@ -1290,7 +1315,8 @@
                 <section id="contato-cliente-os">
                     <h3>10. Contato Com O Cliente Sobre A OS</h3>
                     <p>A equipe acompanha a ordem dentro do VetorOS e informa o cliente pelos canais de contato da
-                        empresa. Ao comunicar uma mudança importante, confira o número da OS, o status, o orçamento e
+                        empresa. Não há página pública de acompanhamento da OS: o cliente não recebe link para consultar
+                        a ordem e responde diretamente pelo WhatsApp ou e-mail da empresa. Ao comunicar uma mudança importante, confira o número da OS, o status, o orçamento e
                         os valores antes do envio.</p>
                     <h4>10.1 Informações para compartilhar</h4>
                     <ul>
@@ -1453,6 +1479,9 @@
                         <li><strong>Restaurar padrão:</strong> volta para o texto sugerido pelo sistema.</li>
                         <li><strong>Prévia:</strong> mostra como a mensagem ficará com variáveis substituídas.</li>
                     </ul>
+                    <p>Os modelos não trazem mais link de acompanhamento da OS e pedem que o cliente responda
+                        diretamente à mensagem. Se um modelo salvo antes da mudança ainda tiver uma linha com a variável
+                        de link, essa linha é descartada automaticamente no envio.</p>
                     <h4>13.2 O que acontece ao usar essas telas</h4>
                     <ul>
                         <li><strong>Mensagem interna:</strong> registra comunicação entre usuários sem depender de aplicativos externos.</li>
@@ -2226,7 +2255,6 @@
                         <li>Deixar o acompanhamento automático desligado enquanto a operação ainda estiver em fase de ajuste.</li>
                         <li>Usar relatórios para acompanhar desempenho, faturamento e pendências.</li>
                         <li>Revisar diariamente Acompanhamentos, Tarefas e Garantia/Avaliações.</li>
-                        <li>Validar o portal do cliente com alguns atendimentos antes de divulgar em massa.</li>
                         <li>Informar validade em todo orçamento e acompanhar os orçamentos vencidos no painel.</li>
                         <li>Registrar o motivo real ao cancelar, regredir ou reabrir uma OS; ele fica permanente na trilha da OS.</li>
                         <li>Testar a emissão automática em homologação e revisar os dados tributários com a contabilidade antes de emitir em produção.</li>
@@ -2486,8 +2514,10 @@
                     <h3>34. Suporte</h3>
                     <p>Em caso de dúvidas de uso, configuração ou melhoria, mantenha este manual atualizado junto da
                         versão instalada do sistema e utilize o canal de suporte definido pela empresa.</p>
-                    <p>Nas páginas públicas, o atendimento por chat aparece pelo widget VetorChat quando ele estiver
-                        configurado. Use o canal de suporte indicado pela empresa se o widget não estiver disponível.</p>
+                    <p>Na página inicial do site, o atendimento por chat aparece pelo widget VetorChat quando ele
+                        estiver configurado. O chat não aparece nas demais páginas públicas nem dentro do sistema: ao
+                        fazer login, ele é fechado automaticamente. Use o canal de suporte indicado pela empresa se o
+                        widget não estiver disponível.</p>
                     <div class="footer-note">
                         Este manual foi pensado para treinamento, implantação, operação diária e apoio gerencial. Sempre
                         que o sistema receber novos fluxos, telas ou automações, o ideal é atualizar também esta página
