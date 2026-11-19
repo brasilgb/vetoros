@@ -248,9 +248,6 @@ export default function Customers({ customers, search, pending, whats }: any) {
                                                                         }))
                                                                     }
                                                                 />
-                                                                <p className="text-muted-foreground text-right text-xs">
-                                                                    {(customWhatsappMessage[customer.id] ?? '').length}/{CUSTOM_MESSAGE_MAX_LENGTH}
-                                                                </p>
                                                             </div>
                                                         ) : (
                                                             <Select
